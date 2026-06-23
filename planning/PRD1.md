@@ -14,7 +14,6 @@ As a trader, I want to be able to practice strategies which I learn.
 WHAT NOT TO DO---------------------------------------------------------
 dynamically AI generate modules or charts, all charts must come from real stocks, use a public stock api/dataset to get the candles.
 Make multiple topics/courses.
-No more than 1 lesson for the mvp.
 
 TECH STACK---------------------------------------------------------
 frontend: vite+react. Phaserjs for animated modules.
