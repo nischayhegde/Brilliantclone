@@ -5,16 +5,33 @@ import LessonCard from '../components/LessonCard'
 import Spinner from '../components/ui/Spinner'
 import { FlameIcon } from '../components/icons'
 import { useLessonProgress } from '../state/LessonProgressContext'
-import { TOTAL_MODULES } from '../domain/progress'
+import { LESSONS } from '../lessons/registry'
 
 export default function DashboardPage() {
   const navigate = useNavigate()
-  const { loading, completedCount, bestStreak, resumeModuleId, isComplete } = useLessonProgress()
+  const { loading, bestStreak, stats, resetLesson } = useLessonProgress()
 
-  const onStart = () => {
-    if (isComplete) navigate('/congrats')
-    else navigate(`/lesson/${Math.min(resumeModuleId, TOTAL_MODULES)}`)
+  const start = (lessonId: string) => {
+    const s = stats(lessonId)
+    if (s.isComplete) navigate(`/congrats/${lessonId}`)
+    else navigate(`/lesson/${lessonId}/${Math.min(s.resumeModuleId, s.total)}`)
   }
+
+  const restart = (lessonId: string, title: string) => {
+    if (window.confirm(`Restart "${title}"? This clears your progress for this lesson.`)) {
+      resetLesson(lessonId)
+    }
+  }
+
+  const totals = LESSONS.reduce(
+    (acc, l) => {
+      const s = stats(l.id)
+      acc.done += s.completedCount
+      acc.total += s.total
+      return acc
+    },
+    { done: 0, total: 0 },
+  )
 
   return (
     <div className="min-h-screen bg-white">
@@ -42,21 +59,28 @@ export default function DashboardPage() {
                 </p>
               </Card>
               <Card>
-                <p className="text-sm font-bold">Your progress</p>
+                <p className="text-sm font-bold">Overall progress</p>
                 <p className="mt-1 text-3xl font-extrabold">
-                  {completedCount}
-                  <span className="text-lg text-muted"> / {TOTAL_MODULES}</span>
+                  {totals.done}
+                  <span className="text-lg text-muted"> / {totals.total}</span>
                 </p>
-                <p className="text-xs font-semibold text-muted">modules complete</p>
+                <p className="text-xs font-semibold text-muted">modules across {LESSONS.length} lessons</p>
               </Card>
             </aside>
 
             <section className="order-1 md:order-none">
-              <LessonCard
-                completedCount={completedCount}
-                isComplete={isComplete}
-                onStart={onStart}
-              />
+              <h1 className="mb-4 text-2xl font-extrabold">Your lessons</h1>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {LESSONS.map((lesson) => (
+                  <LessonCard
+                    key={lesson.id}
+                    lesson={lesson}
+                    stats={stats(lesson.id)}
+                    onStart={() => start(lesson.id)}
+                    onRestart={() => restart(lesson.id, lesson.title)}
+                  />
+                ))}
+              </div>
             </section>
           </div>
         )}

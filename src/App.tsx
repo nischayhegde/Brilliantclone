@@ -13,8 +13,8 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<DashboardPage />} />
-          <Route path="/lesson/:moduleId" element={<LessonPage />} />
-          <Route path="/congrats" element={<CongratsPage />} />
+          <Route path="/lesson/:lessonId/:moduleId" element={<LessonPage />} />
+          <Route path="/congrats/:lessonId" element={<CongratsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

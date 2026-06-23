@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  TOTAL_MODULES,
   initialProgress,
   progressReducer,
   nextModuleId,
@@ -9,8 +8,9 @@ import {
   type Progress,
 } from './progress'
 
-const complete = (p: Progress, moduleId: number) =>
-  progressReducer(p, { type: 'COMPLETE_MODULE', moduleId })
+const TOTAL = 24
+const complete = (p: Progress, moduleId: number, total = TOTAL) =>
+  progressReducer(p, { type: 'COMPLETE_MODULE', moduleId, total })
 
 describe('initialProgress', () => {
   it('starts empty with pointer at 0', () => {
@@ -29,7 +29,7 @@ describe('progressReducer COMPLETE_MODULE', () => {
   it('dedupes a re-completed module and returns the same reference (no redundant write)', () => {
     const once = complete(initialProgress(), 1)
     const twice = complete(once, 1)
-    expect(twice).toBe(once) // same ref
+    expect(twice).toBe(once)
     expect(progressCount(twice)).toBe(1)
   })
 
@@ -42,27 +42,34 @@ describe('progressReducer COMPLETE_MODULE', () => {
   })
 
   it('never regresses the resume pointer when an earlier module is completed', () => {
-    let p = complete(initialProgress(), 5) // pointer 5
-    p = complete(p, 2) // backfill earlier module
+    let p = complete(initialProgress(), 5)
+    p = complete(p, 2)
     expect(p.completedModules).toEqual([2, 5])
     expect(p.lastCompletedModule).toBe(5)
     expect(nextModuleId(p)).toBe(6)
   })
 
-  it('ignores out-of-range module ids (same reference)', () => {
+  it('ignores out-of-range module ids for the given total (same reference)', () => {
     const base = initialProgress()
     expect(complete(base, 0)).toBe(base)
-    expect(complete(base, 25)).toBe(base)
+    expect(complete(base, 25)).toBe(base) // > total of 24
     expect(complete(base, -1)).toBe(base)
     expect(complete(base, 1.5)).toBe(base)
+  })
+
+  it('respects a smaller lesson total (e.g. 15-module lessons)', () => {
+    const base = initialProgress()
+    expect(complete(base, 16, 15)).toBe(base) // beyond a 15-module lesson
+    const p = complete(base, 15, 15)
+    expect(p.completedModules).toEqual([15])
   })
 })
 
 describe('lesson completion', () => {
-  it('is complete only after all 24 modules and nextModuleId becomes the sentinel', () => {
+  it('is complete only after all modules and nextModuleId becomes the sentinel', () => {
     let p = initialProgress()
-    for (let id = 1; id <= TOTAL_MODULES; id++) p = complete(p, id)
-    expect(isLessonComplete(p)).toBe(true)
+    for (let id = 1; id <= TOTAL; id++) p = complete(p, id)
+    expect(isLessonComplete(p, TOTAL)).toBe(true)
     expect(progressCount(p)).toBe(24)
     expect(nextModuleId(p)).toBe(25)
   })
@@ -70,7 +77,13 @@ describe('lesson completion', () => {
   it('is not complete partway through', () => {
     let p = initialProgress()
     for (let id = 1; id <= 10; id++) p = complete(p, id)
-    expect(isLessonComplete(p)).toBe(false)
+    expect(isLessonComplete(p, TOTAL)).toBe(false)
     expect(nextModuleId(p)).toBe(11)
+  })
+
+  it('completes a 15-module lesson at 15', () => {
+    let p = initialProgress()
+    for (let id = 1; id <= 15; id++) p = complete(p, id, 15)
+    expect(isLessonComplete(p, 15)).toBe(true)
   })
 })

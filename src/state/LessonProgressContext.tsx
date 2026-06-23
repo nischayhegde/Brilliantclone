@@ -8,7 +8,12 @@ import {
   type ReactNode,
 } from 'react'
 import { useAuth } from '../auth/AuthContext'
-import { getOrCreateUserDoc, persistBestStreak, persistProgress } from '../services/userService'
+import {
+  getOrCreateUserDoc,
+  persistBestStreak,
+  persistLessonProgress,
+  type LessonProgressMap,
+} from '../services/userService'
 import {
   initialProgress,
   isLessonComplete,
@@ -18,17 +23,25 @@ import {
   type Progress,
 } from '../domain/progress'
 import { computeBestStreak, isNewSitting, nextSitting } from '../domain/streak'
+import { lessonTotal } from '../lessons/registry'
+
+export interface LessonStats {
+  total: number
+  completedCount: number
+  /** Next module to play (1..total), or total+1 once finished. */
+  resumeModuleId: number
+  isComplete: boolean
+}
 
 interface LessonProgressValue {
   loading: boolean
-  progress: Progress
   bestStreak: number
   currentSitting: number
-  /** Next module to play (1..24), or 25 once the lesson is finished. */
-  resumeModuleId: number
-  completedCount: number
-  isComplete: boolean
-  completeModule: (moduleId: number) => void
+  getProgress: (lessonId: string) => Progress
+  stats: (lessonId: string) => LessonStats
+  completeModule: (lessonId: string, moduleId: number) => void
+  /** Clear a lesson's progress so it starts fresh from module 1 (bestStreak kept). */
+  resetLesson: (lessonId: string) => void
 }
 
 const LessonProgressContext = createContext<LessonProgressValue | undefined>(undefined)
@@ -37,12 +50,11 @@ export function LessonProgressProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
 
   const [loading, setLoading] = useState(true)
-  const [progress, setProgress] = useState<Progress>(initialProgress)
+  const [progressMap, setProgressMap] = useState<LessonProgressMap>({})
   const [bestStreak, setBestStreak] = useState(0)
   const [currentSitting, setCurrentSitting] = useState(0)
 
-  // Refs mirror state so completeModule reads fresh values even on rapid calls.
-  const progressRef = useRef<Progress>(progress)
+  const mapRef = useRef<LessonProgressMap>({})
   const bestStreakRef = useRef(0)
   const sittingRef = useRef(0)
   const lastActivityRef = useRef<number | null>(null)
@@ -50,14 +62,12 @@ export function LessonProgressProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
 
-    // Reset to a clean slate on EVERY user change (sign-out, or a direct A->B
-    // account switch with no intervening null) so the previous user's progress
-    // and streak can never leak into another account's writes.
-    progressRef.current = initialProgress()
+    // Hard reset on every user change so one account's progress can't leak to another.
+    mapRef.current = {}
     bestStreakRef.current = 0
     sittingRef.current = 0
     lastActivityRef.current = null
-    setProgress(initialProgress())
+    setProgressMap({})
     setBestStreak(0)
     setCurrentSitting(0)
 
@@ -70,9 +80,9 @@ export function LessonProgressProvider({ children }: { children: ReactNode }) {
     getOrCreateUserDoc(user)
       .then((docData) => {
         if (!active) return
-        progressRef.current = docData.progress
+        mapRef.current = docData.lessonProgress
         bestStreakRef.current = docData.bestStreak
-        setProgress(docData.progress)
+        setProgressMap(docData.lessonProgress)
         setBestStreak(docData.bestStreak)
         setLoading(false)
       })
@@ -86,23 +96,42 @@ export function LessonProgressProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
+  const getProgress = useCallback(
+    (lessonId: string): Progress => progressMap[lessonId] ?? initialProgress(),
+    [progressMap],
+  )
+
+  const stats = useCallback(
+    (lessonId: string): LessonStats => {
+      const total = lessonTotal(lessonId)
+      const p = progressMap[lessonId] ?? initialProgress()
+      return {
+        total,
+        completedCount: progressCount(p),
+        resumeModuleId: nextModuleId(p),
+        isComplete: total > 0 && isLessonComplete(p, total),
+      }
+    },
+    [progressMap],
+  )
+
   const completeModule = useCallback(
-    (moduleId: number) => {
+    (lessonId: string, moduleId: number) => {
       if (!user) return
       const uid = user.uid
+      const total = lessonTotal(lessonId)
 
-      const prev = progressRef.current
-      const updated = progressReducer(prev, { type: 'COMPLETE_MODULE', moduleId })
+      const prev = mapRef.current[lessonId] ?? initialProgress()
+      const updated = progressReducer(prev, { type: 'COMPLETE_MODULE', moduleId, total })
       if (updated === prev) return // already done — no double count, no write
 
-      progressRef.current = updated
-      setProgress(updated)
+      const nextMap = { ...mapRef.current, [lessonId]: updated }
+      mapRef.current = nextMap
+      setProgressMap(nextMap)
 
       // "Most modules completed in one sitting" — a gap > 30 min starts a fresh sitting.
       const now = Date.now()
-      const sitting = isNewSitting(lastActivityRef.current, now)
-        ? 1
-        : nextSitting(sittingRef.current)
+      const sitting = isNewSitting(lastActivityRef.current, now) ? 1 : nextSitting(sittingRef.current)
       lastActivityRef.current = now
       sittingRef.current = sitting
       setCurrentSitting(sitting)
@@ -112,9 +141,8 @@ export function LessonProgressProvider({ children }: { children: ReactNode }) {
       bestStreakRef.current = newBest
       setBestStreak(newBest)
 
-      // Optimistic UI: persistence failures never block play. Two writes keep the
-      // progress save independent of the monotonic bestStreak guard.
-      persistProgress(uid, updated).catch((err) =>
+      // Optimistic UI: persistence failures never block play.
+      persistLessonProgress(uid, nextMap).catch((err) =>
         console.error('Failed to persist progress', err),
       )
       if (newBest > prevBest) {
@@ -126,15 +154,29 @@ export function LessonProgressProvider({ children }: { children: ReactNode }) {
     [user],
   )
 
+  const resetLesson = useCallback(
+    (lessonId: string) => {
+      if (!user) return
+      const prev = mapRef.current[lessonId]
+      if (!prev || prev.completedModules.length === 0) return // already fresh — no write
+      const nextMap = { ...mapRef.current, [lessonId]: initialProgress() }
+      mapRef.current = nextMap
+      setProgressMap(nextMap)
+      persistLessonProgress(user.uid, nextMap).catch((err) =>
+        console.error('Failed to reset lesson', err),
+      )
+    },
+    [user],
+  )
+
   const value: LessonProgressValue = {
     loading,
-    progress,
     bestStreak,
     currentSitting,
-    resumeModuleId: nextModuleId(progress),
-    completedCount: progressCount(progress),
-    isComplete: isLessonComplete(progress),
+    getProgress,
+    stats,
     completeModule,
+    resetLesson,
   }
 
   return (

@@ -1,14 +1,14 @@
 /**
- * Pure lesson-progress logic. No React, no Firebase — fully unit-testable.
- * Module ids are 1..24 (odd = teach, even = quiz).
+ * Pure per-lesson progress logic. No React, no Firebase — fully unit-testable.
+ * Each lesson tracks its own Progress; module ids are 1..lessonTotal. The lesson's
+ * module count (`total`) is supplied by callers (from the lesson registry) so the
+ * same logic serves lessons of different lengths (24, 15, ...).
  */
 
-export const TOTAL_MODULES = 24
-
 export interface Progress {
-  /** Highest contiguous resume pointer: 0 = none done, up to TOTAL_MODULES. */
+  /** Highest contiguous resume pointer: 0 = none done, up to the lesson total. */
   lastCompletedModule: number
-  /** Unique, ascending list of completed module ids (1..24). */
+  /** Unique, ascending list of completed module ids. */
   completedModules: number[]
 }
 
@@ -16,20 +16,20 @@ export function initialProgress(): Progress {
   return { lastCompletedModule: 0, completedModules: [] }
 }
 
-export type ProgressAction = { type: 'COMPLETE_MODULE'; moduleId: number }
+export type ProgressAction = { type: 'COMPLETE_MODULE'; moduleId: number; total: number }
 
 /**
  * Records a module completion.
- * - Out-of-range ids are ignored (returns the same reference).
- * - Re-completing an already-done module is a no-op (returns the same reference)
- *   so callers can skip redundant persistence.
+ * - Out-of-range ids (< 1 or > total, or non-integers) are ignored (same reference).
+ * - Re-completing an already-done module is a no-op (same reference) so callers can
+ *   skip redundant persistence.
  * - `lastCompletedModule` only ever moves forward (resume/replay never regresses).
  */
 export function progressReducer(state: Progress, action: ProgressAction): Progress {
   switch (action.type) {
     case 'COMPLETE_MODULE': {
-      const { moduleId } = action
-      if (!Number.isInteger(moduleId) || moduleId < 1 || moduleId > TOTAL_MODULES) {
+      const { moduleId, total } = action
+      if (!Number.isInteger(moduleId) || moduleId < 1 || moduleId > total) {
         return state
       }
       if (state.completedModules.includes(moduleId)) {
@@ -44,13 +44,13 @@ export function progressReducer(state: Progress, action: ProgressAction): Progre
   }
 }
 
-/** Next module to play; returns TOTAL_MODULES + 1 (sentinel) once the lesson is done. */
+/** Next module to play; returns total + 1 (sentinel) once the lesson is done. */
 export function nextModuleId(p: Progress): number {
   return p.lastCompletedModule + 1
 }
 
-export function isLessonComplete(p: Progress): boolean {
-  return p.completedModules.length >= TOTAL_MODULES
+export function isLessonComplete(p: Progress, total: number): boolean {
+  return p.completedModules.length >= total
 }
 
 export function progressCount(p: Progress): number {

@@ -1,14 +1,28 @@
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams, Navigate } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import Card from '../components/ui/Card'
 import Button from '../components/ui/Button'
 import { TrophyIcon } from '../components/icons'
 import { useLessonProgress } from '../state/LessonProgressContext'
-import { TOTAL_MODULES } from '../domain/progress'
+import { getLesson, LESSONS } from '../lessons/registry'
 
 export default function CongratsPage() {
+  const { lessonId } = useParams()
   const navigate = useNavigate()
-  const { completedCount, bestStreak } = useLessonProgress()
+  const { bestStreak, stats, resetLesson } = useLessonProgress()
+
+  const lesson = lessonId ? getLesson(lessonId) : undefined
+  if (!lesson || !lessonId) return <Navigate to="/" replace />
+
+  const s = stats(lessonId)
+  const next = LESSONS.find((l) => l.index === lesson.index + 1)
+
+  const restart = () => {
+    if (window.confirm(`Restart "${lesson.title}"? This clears your progress for this lesson.`)) {
+      resetLesson(lessonId)
+      navigate(`/lesson/${lessonId}/1`)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -17,13 +31,13 @@ export default function CongratsPage() {
         <TrophyIcon className="text-brand-green" />
         <h1 className="mt-4 text-3xl font-extrabold">Congratulations!</h1>
         <p className="mt-2 max-w-md text-muted">
-          You finished <strong>Reading the Charts</strong> — all 12 technical-analysis patterns.
+          You finished <strong>{lesson.title}</strong> — {lesson.subtitle}.
         </p>
 
         <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-4">
           <Card className="text-center">
             <p className="text-3xl font-extrabold">
-              {completedCount}/{TOTAL_MODULES}
+              {s.completedCount}/{s.total}
             </p>
             <p className="text-xs font-semibold text-muted">modules complete</p>
           </Card>
@@ -33,9 +47,17 @@ export default function CongratsPage() {
           </Card>
         </div>
 
-        <Button className="mt-8" onClick={() => navigate('/')}>
-          Back to dashboard
-        </Button>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          {next && (
+            <Button onClick={() => navigate(`/lesson/${next.id}/1`)}>Next: {next.title}</Button>
+          )}
+          <Button variant="secondary" onClick={restart}>
+            Restart lesson
+          </Button>
+          <Button variant={next ? 'ghost' : 'primary'} onClick={() => navigate('/')}>
+            Back to dashboard
+          </Button>
+        </div>
       </main>
     </div>
   )

@@ -1,10 +1,17 @@
 # Brilliant — Reading the Charts
 
-A Brilliant.org-style learning app for stock/options technical-analysis patterns.
-**Phase 1 (this build): the platform shell** — auth, dashboard, streak, progress, lesson
-flow, resume, and the congratulations screen are all fully functional. Module bodies are
-intentionally **placeholders**; the animated Phaser candlestick engine and the real
-per-module chart/quiz content land in a later phase behind the existing `ModuleRenderer` seam.
+A Brilliant.org-style learning app for stock/options trading.
+**Fully built:** Google auth, a 5-lesson dashboard, per-lesson progress/resume, streak,
+and animated, interactive **Phaser** modules for every lesson.
+
+**Five lessons (84 modules):**
+1. **Reading the Charts** — 24 modules, 12 chart patterns on real verified OHLC (teach overlay + masked-reveal quiz).
+2. **The Order Book** — 15 modules: bid/ask ladder, spread, limit vs market, FIFO matching, slippage, liquidity, "trade the tape" capstone.
+3. **Short Selling** — 15 modules: borrow→sell→cover lifecycle, unlimited-loss asymmetry, margin calls, short squeezes (real GME/VW/LCID/PTON/HOOD charts).
+4. **Option Contracts** — 15 modules: calls/puts, premium = intrinsic + time, the four payoff diagrams with breakevens, delta, leverage.
+5. **Straddles & Strangles** — 15 modules: two-leg payoffs, breakevens, the IV-crush trap, a volatility lab.
+
+All chart data is **real and verified** (`src/data/candles.ts`); all simulated figures (order-book depth, option premiums) are deterministic with exactly-correct math, labelled illustrative.
 
 ## Stack
 
@@ -55,41 +62,54 @@ recreate it on another machine, copy `.env.example` and fill from
 
 ## Architecture
 
-Pure logic → services → state → UI. All chart logic is isolated behind `ModuleRenderer`
-so the Phase-2 Phaser engine drops in with no flow/persistence changes.
+Pure logic → services → state → engine → lessons → UI. Lessons are **data**; the engine
+renders them. Each lesson is a self-contained package (`{ lesson, scenes }`) the registry
+auto-discovers, so a new lesson is a folder, not a wiring change.
 
 ```
 src/
-  domain/        progress.ts, streak.ts  — pure, unit-tested (no React/Firebase)
+  domain/        progress.ts (per-lesson, parametrised), streak.ts — pure, unit-tested
   lib/           firebase.ts             — SDK init (auth, db, googleProvider)
   auth/          AuthContext, ProtectedRoute
-  services/      userService.ts          — getOrCreateUserDoc, persistProgress
-  state/         LessonProgressContext   — binds domain + Firestore + in-session streak
-  data/          lessonManifest.ts       — 24 structural entries (no chart content)
-  components/    ui/*, TopNav, ProgressBar (24-tick), StreakBadge, LessonCard,
-                 module/ModuleRenderer + Teach/Quiz placeholders
-  pages/         Login, Dashboard, Lesson, Congrats
+  services/      userService.ts          — getOrCreateUserDoc, persistLessonProgress
+  state/         LessonProgressContext   — multi-lesson progress + Firestore + streak
+  data/          candles.ts              — 29 real verified OHLC series (generated)
+  engine/        types.ts, palette.ts, bus.ts, PhaserCanvas.tsx, ModuleScene.ts,
+                 modules/ModuleRenderer (intro/teach/interactive/quiz/capstone),
+                 scenes/CandleChartScene + TitleScene (reusable)
+  lessons/       registry.ts + one folder per lesson (index.ts = LessonPackage,
+                 scenes/*.ts = that lesson's Phaser scenes)  — registry.test.ts wiring check
+  components/    ui/*, TopNav, ProgressBar, StreakBadge, LessonCard
+  pages/         Login, Dashboard (5 lessons), Lesson (/lesson/:lessonId/:moduleId), Congrats
 ```
+
+**The module engine.** A `ModuleSpec` names a `scene.kind` + `params` and (for quizzes) a
+`QuizSpec`. `PhaserCanvas` boots a fixed-resolution (760×460), FIT-scaled Phaser game and
+mounts the scene; `ModuleScene` is the shared base (helpers for text/panels/sliders/buttons
+/draggables/tweens). Quizzes run answer → `reveal` (bus event → `scene.onReveal()`) → grade
+→ explain entirely through this seam.
 
 ### Data model — `users/{uid}`
 
 ```ts
 { email, displayName, photoURL,
-  progress: { lastCompletedModule: number, completedModules: number[] },
-  bestStreak: number, createdAt, updatedAt }
+  lessonProgress: { [lessonId]: { lastCompletedModule, completedModules[] } },
+  progress: { ... },        // legacy field retained so the deployed rules still validate
+  bestStreak, createdAt, updatedAt }
 ```
 
-- **Resume** jumps to `lastCompletedModule + 1`.
-- **Streak** = "most modules completed in one sitting" (PRD): `currentSitting` is in-session
-  and resets each load; `bestStreak` is persisted and monotonic.
-- **Security rules** (`firestore.rules`): a user can only read/write their own doc;
-  `bestStreak` is validated as a non-negative int and is monotonic on update.
+- **Resume** jumps to `lastCompletedModule + 1`, per lesson.
+- **Streak** = "most modules completed in one sitting" (PRD): in-session, `bestStreak` persisted & monotonic.
+- **Security rules** (`firestore.rules`): own-doc only; `bestStreak` non-negative int & monotonic.
+  Per-lesson progress is stored under `lessonProgress` while the legacy `progress` field is kept
+  intact so writes pass the currently-deployed rules with **no redeploy** needed.
 
-## Deferred to later phases
+## Notes / follow-ups
 
-- Phaser candlestick rendering + animation (teach annotations, quiz mask/reveal).
-- Real per-module content (chart data from `planning/data/*.json`, BUY/SELL/STOP levels,
-  quiz question + explanation text).
-- Firebase Hosting deploy (config is in `firebase.json`; build + `firebase deploy --only hosting`).
-- Firebase JS bundle code-splitting (the SDK makes the initial chunk ~640 kB).
+- **Bundle:** Phaser (~1.5 MB) and Firebase are split into their own cached chunks; the app
+  chunk is ~630 kB. True per-lesson lazy-loading (dynamic `import()` of each `LessonPackage`)
+  would trim first paint further — a clean next step.
+- **Runtime QA:** typecheck, build, and the registry wiring test are green; do a visual pass
+  of the bespoke scenes via `npm run dev` (a Playwright smoke suite could automate this).
+- **Deploy:** `npm run build` then `firebase deploy --only hosting` (config in `firebase.json`).
 ```

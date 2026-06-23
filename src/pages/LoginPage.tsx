@@ -3,7 +3,6 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import Card from '../components/ui/Card'
 import { GoogleIcon, Logo } from '../components/icons'
-import { LESSON_TITLE } from '../data/lessonManifest'
 
 export default function LoginPage() {
   const { user, loading, signInWithGoogle } = useAuth()
@@ -40,8 +39,10 @@ export default function LoginPage() {
         <span className="text-2xl font-extrabold tracking-tight">Brilliant</span>
       </div>
       <Card className="w-full max-w-sm text-center">
-        <h1 className="text-xl font-extrabold">Learn to read the charts</h1>
-        <p className="mt-2 text-sm text-muted">{LESSON_TITLE}</p>
+        <h1 className="text-xl font-extrabold">Learn to trade, interactively</h1>
+        <p className="mt-2 text-sm text-muted">
+          Charts, the order book, shorting, and options — five hands-on lessons.
+        </p>
         <button
           onClick={() => void handleSignIn()}
           disabled={busy}

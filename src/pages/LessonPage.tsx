@@ -1,16 +1,14 @@
 import { useNavigate, useParams, Navigate } from 'react-router-dom'
 import ProgressBar from '../components/ProgressBar'
-import ModuleRenderer from '../components/module/ModuleRenderer'
+import ModuleRenderer from '../engine/modules/ModuleRenderer'
 import Spinner from '../components/ui/Spinner'
 import { useLessonProgress } from '../state/LessonProgressContext'
-import { getModule } from '../data/lessonManifest'
-import { TOTAL_MODULES } from '../domain/progress'
+import { getLesson, getModule, resolveScene } from '../lessons/registry'
 
 export default function LessonPage() {
-  const { moduleId } = useParams()
+  const { lessonId, moduleId } = useParams()
   const navigate = useNavigate()
-  const { loading, completedCount, resumeModuleId, isComplete, completeModule } =
-    useLessonProgress()
+  const { loading, stats, completeModule } = useLessonProgress()
 
   if (loading) {
     return (
@@ -20,30 +18,33 @@ export default function LessonPage() {
     )
   }
 
+  const lesson = lessonId ? getLesson(lessonId) : undefined
+  if (!lesson || !lessonId) return <Navigate to="/" replace />
+
+  const total = lesson.modules.length
+  const s = stats(lessonId)
   const requested = Number(moduleId)
 
-  // A finished user landing on an out-of-range module (e.g. the resume sentinel 25)
-  // goes to the congrats screen, matching the dashboard's behaviour.
-  if (isComplete && Number.isFinite(requested) && requested > TOTAL_MODULES) {
-    return <Navigate to="/congrats" replace />
+  // A finished user landing past the last module goes to the congrats screen.
+  if (s.isComplete && Number.isFinite(requested) && requested > total) {
+    return <Navigate to={`/congrats/${lessonId}`} replace />
   }
 
-  // Clamp to a valid, unlocked module: 1..24 and no skipping past the next one.
-  // Floor first so a plausible fractional URL (/lesson/3.5) lands on module 3, not 1.
-  const maxAllowed = Math.min(resumeModuleId, TOTAL_MODULES)
+  // Clamp to a valid, unlocked module (no skipping past the next one).
+  const maxAllowed = Math.min(s.resumeModuleId, total)
   const parsed = Math.floor(requested)
   const id = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), maxAllowed) : 1
+  if (requested !== id) return <Navigate to={`/lesson/${lessonId}/${id}`} replace />
 
-  // Keep the URL honest if it pointed somewhere invalid / locked.
-  if (requested !== id) return <Navigate to={`/lesson/${id}`} replace />
-
-  const module = getModule(id)
+  const module = getModule(lessonId, id)
   if (!module) return <Navigate to="/" replace />
+  const scene = resolveScene(lessonId, module.scene.kind)
+  if (!scene) return <Navigate to="/" replace />
 
   const handleComplete = () => {
-    completeModule(id)
-    if (id >= TOTAL_MODULES) navigate('/congrats')
-    else navigate(`/lesson/${id + 1}`)
+    completeModule(lessonId, id)
+    if (id >= total) navigate(`/congrats/${lessonId}`)
+    else navigate(`/lesson/${lessonId}/${id + 1}`)
   }
 
   return (
@@ -51,15 +52,18 @@ export default function LessonPage() {
       <div className="border-b border-hairline px-4 py-4">
         <div className="mx-auto max-w-3xl">
           <ProgressBar
-            total={TOTAL_MODULES}
-            completedCount={completedCount}
+            total={total}
+            completedCount={s.completedCount}
             currentIndex={id}
+            maxUnlocked={maxAllowed}
             onClose={() => navigate('/')}
+            onBack={id > 1 ? () => navigate(`/lesson/${lessonId}/${id - 1}`) : undefined}
+            onJump={(i) => navigate(`/lesson/${lessonId}/${i}`)}
           />
         </div>
       </div>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-4 py-10">
-        <ModuleRenderer key={id} module={module} onComplete={handleComplete} />
+      <main className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-4 py-8">
+        <ModuleRenderer key={`${lessonId}:${id}`} module={module} scene={scene} onComplete={handleComplete} />
       </main>
     </div>
   )
