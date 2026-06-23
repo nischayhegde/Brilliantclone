@@ -15,6 +15,12 @@ interface IVCrushParams {
   interactive?: boolean
   /** Quiz mask + reveal (module 11). */
   quiz?: boolean
+  /**
+   * CHALLENGE mode (module 11) — the learner drags the post-event landing price on the
+   * V panel, then Submit applies the IV crush, lands the dot, and grades whether that
+   * price actually PROFITS (cleared a breakeven) vs merely moved.
+   */
+  challenge?: boolean
   caption?: string
 }
 
@@ -60,6 +66,13 @@ export default class IVCrushScene extends ModuleScene {
   private revealed = false
   private popped = false
 
+  // --- challenge state (module 11) ---
+  private graded = false
+  private guessG!: Phaser.GameObjects.Graphics
+  private guessKnob!: Phaser.GameObjects.Arc
+  private guessLabel!: Phaser.GameObjects.Text
+  private challengeRedraw: () => void = () => {}
+
   protected build(): void {
     this.p = this.params as IVCrushParams
     this.premium = this.p.premium ?? 7
@@ -91,7 +104,9 @@ export default class IVCrushScene extends ModuleScene {
     this.drawPremiumBar(false)
     this.drawV()
 
-    if (this.p.quiz) {
+    if (this.p.challenge) {
+      this.setupChallenge()
+    } else if (this.p.quiz) {
       this.drawQuizMask()
     } else {
       // play the inflate → pop → land sequence
@@ -305,6 +320,99 @@ export default class IVCrushScene extends ModuleScene {
       stamp.setAlpha(0)
       this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: 400, yoyo: false })
     })
+  }
+
+  // --- challenge (module 11) ------------------------------------------------
+
+  /** Inverse of vxFor: screen-x → price, clamped to the V panel range. */
+  private priceForVx(x: number): number {
+    const cx = Phaser.Math.Clamp(x, this.vx, this.vx + this.vw)
+    return this.vMin + ((cx - this.vx) / this.vw) * (this.vMax - this.vMin)
+  }
+
+  /**
+   * Module 11 CHALLENGE — the learner drags a "where does it land?" marker along the
+   * V panel; Submit pops the IV balloon, lands the dot, and grades whether the chosen
+   * price actually PROFITS (cleared a breakeven) — not merely "moved". The marker starts
+   * at 104 (the tempting "it moved 4%, so I won" trap, which loses).
+   */
+  private setupChallenge(): void {
+    // Start the guess at the trap price S=104 (move +4%).
+    this.move = 0.04
+    this.guessG = this.add.graphics()
+    this.guessKnob = this.add.circle(0, this.vy + this.vh / 2, 9, C.blue).setStrokeStyle(3, C.white)
+    this.guessLabel = this.label(0, this.vy - 8, '', { size: 12, col: C.blue, bold: true, align: 'center' })
+
+    const hit = this.add
+      .rectangle(this.vx + this.vw / 2, this.vy + this.vh / 2, this.vw + 20, this.vh, 0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+
+    const redraw = () => {
+      const x = this.vxFor(Phaser.Math.Clamp(this.S, this.vMin, this.vMax))
+      this.guessG.clear()
+      this.guessG.lineStyle(2, C.blue, this.graded ? 0.3 : 1)
+      for (let yy = this.vy; yy < this.vy + this.vh; yy += 10) this.guessG.lineBetween(x, yy, x, Math.min(yy + 6, this.vy + this.vh))
+      this.guessKnob.setPosition(x, this.vy + this.vh / 2).setAlpha(this.graded ? 0.4 : 1)
+      this.guessLabel.setPosition(x, this.vy - 8)
+      this.guessLabel.setText(`land at ${fmt(this.S)}`)
+    }
+    redraw()
+
+    let dragging = false
+    hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.graded) return
+      dragging = true
+      this.move = this.priceForVx(p.x) / this.K - 1
+      redraw()
+    })
+    const onMove = (p: Phaser.Input.Pointer) => {
+      if (dragging && !this.graded) { this.move = this.priceForVx(p.x) / this.K - 1; redraw() }
+    }
+    const onUp = () => { dragging = false }
+    this.input.on('pointermove', onMove)
+    this.input.on('pointerup', onUp)
+    this.input.on('pointerupoutside', onUp)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.off('pointermove', onMove)
+      this.input.off('pointerup', onUp)
+      this.input.off('pointerupoutside', onUp)
+    })
+    this.challengeRedraw = redraw
+
+    // hint placed top-left, clear of the V panel, ledger (344) and badge (372)
+    this.label(20, 300, 'drag the marker on the V → then run earnings + IV crush', {
+      size: 11, col: C.muted,
+    })
+    this.setCanSubmit(true)
+  }
+
+  protected onSubmit(): void {
+    if (!this.p.challenge || this.graded) return
+    this.graded = true
+    this.setCanSubmit(false)
+    this.challengeRedraw()
+
+    // Apply the IV crush + land the dot at the chosen price.
+    this.popBalloon()
+    this.landDot()
+
+    const be = { lower: this.K - this.premium, upper: this.K + this.premium }
+    const cleared = this.S < be.lower || this.S > be.upper
+    const correct = cleared
+
+    const stamp = this.label(this.vx + this.vw / 2, this.vy + 20, cleared ? 'CLEARED A BE → PROFIT' : 'MOVED, STILL LOST', {
+      size: 13, col: cleared ? C.green : C.red, bold: true, align: 'center',
+    })
+    stamp.setAlpha(0)
+    this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: 400 })
+
+    const title = correct
+      ? `Profit — ${fmt(this.S)} cleared a breakeven · ${fmtSigned(this.pnl)}`
+      : `Lost — ${fmt(this.S)} is inside 93–107 · ${fmtSigned(this.pnl)}`
+    const detail = correct
+      ? `At S=${fmt(this.S)} the straddle is worth its intrinsic ${fmt(this.intrinsicTotal)} > the ${fmt(this.premium)} premium, so P&L = ${fmt(this.intrinsicTotal)} − ${fmt(this.premium)} = ${fmtSigned(this.pnl)} (${fmtDollars(this.pnl)}). You cleared a breakeven (${fmt(be.lower)} / ${fmt(be.upper)}) — that is what makes a long straddle profit, not the move alone. (IV crush still wipes any extrinsic value, but here intrinsic is enough.)`
+      : `The trap: the stock MOVED to ${fmt(this.S)} but that is INSIDE the breakevens ${fmt(be.lower)}–${fmt(be.upper)}. Intrinsic is only ${fmt(this.intrinsicTotal)}, less than the ${fmt(this.premium)} paid, so P&L = ${fmt(this.intrinsicTotal)} − ${fmt(this.premium)} = ${fmtSigned(this.pnl)} (${fmtDollars(this.pnl)}). To profit you must CLEAR a breakeven (below ${fmt(be.lower)} or above ${fmt(be.upper)}) — moving isn't enough. And IV crush removes any time value you'd hoped to sell.`
+    this.report(correct, title, detail)
   }
 
   private dashV(g: Phaser.GameObjects.Graphics, x: number, y1: number, y2: number, col: number, alpha = 1): void {

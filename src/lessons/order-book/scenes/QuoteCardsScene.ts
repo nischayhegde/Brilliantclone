@@ -3,137 +3,262 @@ import { ModuleScene } from '../../../engine/ModuleScene'
 import { C, hex } from '../../../engine/palette'
 import { fmtPrice } from './book'
 
-interface QuoteCard {
-  id: string
-  bid: number
-  ask: number
-}
 interface QuoteCardsParams {
-  cards?: QuoteCard[]
+  /** Starting bid / ask the learner drags from. */
+  bid?: number
+  ask?: number
+  /** The spread the learner must hit (e.g. 0.04). */
+  targetSpread?: number
+  /** Price-axis bounds. */
+  pMin?: number
+  pMax?: number
 }
-
-const DEFAULT_CARDS: QuoteCard[] = [
-  { id: 'A', bid: 50.1, ask: 50.14 },
-  { id: 'B', bid: 50.2, ask: 50.18 },
-  { id: 'C', bid: 50.0, ask: 50.3 },
-]
 
 /**
- * MODULE 3 — QUIZ "Spot the Spread". Three neutral quote cards show bid/ask but hide
- * the spread/mid/validity. On reveal (React emits it after Check) every card flips:
- * valid cards draw a blue spread caliper + MID marker; the crossed card (B) collapses
- * with a red "CROSSED — impossible" stamp. Grading lives in the QuizSpec (answer A).
+ * MODULE 3 — CHALLENGE "Set the Quote". The learner drags a green BID and a red ASK
+ * handle on a vertical price axis to build a VALID book (bid < ask) whose spread equals
+ * the target (e.g. 4¢). A live blue caliper prints the running spread; cross the book
+ * and a red "crossed — impossible" warning appears. On Submit the scene grades
+ * spread === target AND bid < ask, then explains via report().
+ *
+ * All math is exact: spread = ask − bid, mid = (bid+ask)/2, snapped to a 1-cent tick.
  */
 export default class QuoteCardsScene extends ModuleScene {
-  private cards: QuoteCard[] = []
-  private revealed = false
-  private cardObjs: Array<{ card: QuoteCard; container: Phaser.GameObjects.Container; cx: number; cy: number }> = []
+  private bid = 50.1
+  private ask = 50.16
+  private target = 0.04
+  private readonly tick = 0.01
+  private locked = false
+
+  private axisX = 250
+  private axisTop = 80
+  private axisBot = 380
+  private pMin = 49.9
+  private pMax = 50.3
+
+  private bidHandle!: Phaser.GameObjects.Container
+  private askHandle!: Phaser.GameObjects.Container
+  private caliper!: Phaser.GameObjects.Graphics
+  private spreadLabel!: Phaser.GameObjects.Text
+  private midDot!: Phaser.GameObjects.Arc
+  private midLabel!: Phaser.GameObjects.Text
+  private statusLabel!: Phaser.GameObjects.Text
+  private warnPanel!: Phaser.GameObjects.Container
+  private hatch!: Phaser.GameObjects.Graphics
 
   protected build(): void {
-    this.cards = (this.params as QuoteCardsParams).cards ?? DEFAULT_CARDS
+    const p = this.params as QuoteCardsParams
+    this.bid = p.bid ?? 50.1
+    this.ask = p.ask ?? 50.16
+    this.target = p.targetSpread ?? 0.04
+    this.pMin = p.pMin ?? 49.9
+    this.pMax = p.pMax ?? 50.3
 
-    this.label(this.W / 2, 32, 'Each card shows a quote (bid / ask). Which is 4-cent AND valid?', {
+    this.label(this.W / 2, 34, `Target spread: ${fmtPrice(this.target)}  ·  drag BID and ASK to match it`, {
       size: 14,
       col: C.muted,
       align: 'center',
     })
 
-    const cw = 200
-    const gapX = 30
-    const totalW = this.cards.length * cw + (this.cards.length - 1) * gapX
-    const startX = (this.W - totalW) / 2 + cw / 2
-    const cy = 230
+    this.drawAxis()
 
-    this.cards.forEach((card, i) => {
-      const cx = startX + i * (cw + gapX)
-      const container = this.makeCard(card, cx, cy, cw)
-      this.cardObjs.push({ card, container, cx, cy })
-      this.fadeIn(container, 120 + i * 120)
-    })
+    this.hatch = this.add.graphics()
+    this.caliper = this.add.graphics()
+    this.spreadLabel = this.label(this.axisX + 130, 0, '', { size: 14, col: C.blue, bold: true })
+    this.midDot = this.add.circle(this.axisX, 0, 7, C.blue).setStrokeStyle(2, C.white)
+    this.midLabel = this.label(this.axisX - 16, 0, '', { size: 12, col: C.blue, bold: true, align: 'right' })
 
-    this.label(this.W / 2, 420, 'Two checks: bid < ask? (valid) · ask − bid = ? (the spread)', {
-      size: 12,
-      col: C.muted,
-      align: 'center',
-    })
+    this.bidHandle = this.makeHandle('bid')
+    this.askHandle = this.makeHandle('ask')
 
-    this.time.delayedCall(600, () => this.emitReady())
+    this.warnPanel = this.makeWarnPanel()
+    this.warnPanel.setVisible(false)
+
+    this.statusLabel = this.label(this.W / 2, 418, '', { size: 15, col: C.ink, align: 'center', bold: true })
+
+    this.redraw()
+    this.setCanSubmit(true) // sensible defaults → submit is always valid
+    this.time.delayedCall(500, () => this.emitReady())
   }
 
-  private makeCard(card: QuoteCard, cx: number, cy: number, cw: number): Phaser.GameObjects.Container {
-    const ch = 200
+  private yFor(price: number): number {
+    const t = (price - this.pMin) / (this.pMax - this.pMin)
+    return this.axisBot - t * (this.axisBot - this.axisTop)
+  }
+  private priceFor(y: number): number {
+    const t = (this.axisBot - y) / (this.axisBot - this.axisTop)
+    return this.pMin + t * (this.pMax - this.pMin)
+  }
+  private snap(p: number): number {
+    return Math.round(p / this.tick) * this.tick
+  }
+
+  private drawAxis(): void {
     const g = this.add.graphics()
-    g.fillStyle(C.white, 1)
-    g.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 12)
     g.lineStyle(2, C.hairline, 1)
-    g.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 12)
-
-    const id = this.add
-      .text(0, -ch / 2 + 22, `Quote ${card.id}`, { fontFamily: '"Segoe UI", sans-serif', fontSize: '16px', color: hex(C.ink), fontStyle: 'bold' })
-      .setOrigin(0.5)
-
-    const askRow = this.add
-      .text(0, -28, `ASK  ${fmtPrice(card.ask)}`, { fontFamily: '"Segoe UI", sans-serif', fontSize: '15px', color: hex(C.red), fontStyle: 'bold' })
-      .setOrigin(0.5)
-    const bidRow = this.add
-      .text(0, 6, `BID  ${fmtPrice(card.bid)}`, { fontFamily: '"Segoe UI", sans-serif', fontSize: '15px', color: hex(C.green), fontStyle: 'bold' })
-      .setOrigin(0.5)
-    const reveal = this.add
-      .text(0, 52, 'spread = ?   mid = ?', { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(C.muted) })
-      .setOrigin(0.5)
-    reveal.setName('reveal')
-
-    return this.add.container(cx, cy, [g, id, askRow, bidRow, reveal]).setSize(cw, ch)
+    g.lineBetween(this.axisX, this.axisTop - 10, this.axisX, this.axisBot + 10)
+    for (let p = this.pMin; p <= this.pMax + 1e-9; p += 0.04) {
+      const y = this.yFor(p)
+      g.lineStyle(1, C.gray100, 1)
+      g.lineBetween(this.axisX - 6, y, this.axisX + 6, y)
+      this.label(this.axisX - 14, y, fmtPrice(p), { size: 11, col: C.muted, align: 'right' })
+    }
   }
 
-  protected onReveal(): void {
-    if (this.revealed) return
-    this.revealed = true
-    this.cardObjs.forEach((o, i) => {
-      this.time.delayedCall(i * 220, () => this.resolveCard(o))
+  private makeHandle(side: 'bid' | 'ask'): Phaser.GameObjects.Container {
+    const col = side === 'bid' ? C.green : C.red
+    const w = 150
+    const h = 28
+    const g = this.add.graphics()
+    g.fillStyle(side === 'bid' ? C.greenSoft : C.redSoft, 1)
+    g.fillRoundedRect(0, -h / 2, w, h, 7)
+    g.lineStyle(2, col, 1)
+    g.strokeRoundedRect(0, -h / 2, w, h, 7)
+    g.fillStyle(col, 1)
+    g.fillTriangle(-10, -7, -10, 7, 0, 0) // pointer toward axis
+    const t = this.add
+      .text(10, 0, '', { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(col), fontStyle: 'bold' })
+      .setOrigin(0, 0.5)
+    t.setName('lbl')
+    const c = this.add.container(this.axisX + 4, 0, [g, t]).setSize(w, h)
+    c.setInteractive(new Phaser.Geom.Rectangle(0, -h / 2, w, h), Phaser.Geom.Rectangle.Contains)
+    this.input.setDraggable(c)
+    c.input!.cursor = 'ns-resize'
+
+    c.on('drag', (_p: Phaser.Input.Pointer, _dx: number, dy: number) => {
+      if (this.locked) return
+      const raw = this.snap(this.priceFor(Phaser.Math.Clamp(dy, this.axisTop, this.axisBot)))
+      if (side === 'bid') this.bid = Phaser.Math.Clamp(raw, this.pMin, this.pMax)
+      else this.ask = Phaser.Math.Clamp(raw, this.pMin, this.pMax)
+      this.redraw()
     })
+    return c
   }
 
-  private resolveCard(o: { card: QuoteCard; container: Phaser.GameObjects.Container; cx: number; cy: number }): void {
-    const { card, container } = o
-    const valid = card.bid < card.ask
-    const spread = card.ask - card.bid
-    const mid = (card.ask + card.bid) / 2
-    const reveal = container.getByName('reveal') as Phaser.GameObjects.Text
+  private makeWarnPanel(): Phaser.GameObjects.Container {
+    const w = 250
+    const h = 60
+    const g = this.add.graphics()
+    g.fillStyle(C.redSoft, 1)
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, 10)
+    g.lineStyle(2, C.red, 1)
+    g.strokeRoundedRect(-w / 2, -h / 2, w, h, 10)
+    const t1 = this.add
+      .text(0, -14, 'Crossed book — impossible', { fontFamily: '"Segoe UI", sans-serif', fontSize: '14px', color: hex(C.red), fontStyle: 'bold' })
+      .setOrigin(0.5)
+    const t2 = this.add
+      .text(0, 10, 'A buyer paying ≥ the ask would just trade.', {
+        fontFamily: '"Segoe UI", sans-serif',
+        fontSize: '11px',
+        color: hex(C.red),
+        align: 'center',
+      })
+      .setOrigin(0.5)
+    return this.add.container(this.axisX + 200, 150, [g, t1, t2])
+  }
 
-    // small flip
-    this.tweens.add({ targets: container, scaleX: 0, duration: 140, yoyo: true, ease: 'Quad.in' })
+  /** Round to whole cents to avoid float dust when comparing the spread. */
+  private cents(v: number): number {
+    return Math.round(v * 100)
+  }
 
-    this.time.delayedCall(150, () => {
-      if (!valid) {
-        reveal.setText('CROSSED — impossible')
-        reveal.setColor(hex(C.red))
-        reveal.setFontStyle('bold')
-        // collapse animation: shake + dim
-        this.tweens.add({ targets: container, angle: -2, duration: 80, yoyo: true, repeat: 3 })
-        this.tweens.add({ targets: container, alpha: 0.55, duration: 300 })
-        const stamp = this.add
-          .text(o.cx, o.cy, 'CROSSED', { fontFamily: '"Segoe UI", sans-serif', fontSize: '20px', color: hex(C.red), fontStyle: 'bold' })
-          .setOrigin(0.5)
-          .setAngle(-12)
-          .setAlpha(0)
-        this.tweens.add({ targets: stamp, alpha: 0.9, scale: { from: 1.6, to: 1 }, duration: 260 })
-      } else {
-        reveal.setText(`spread = ${fmtPrice(spread)}   mid = ${fmtPrice(mid)}`)
-        reveal.setColor(hex(C.blue))
-        reveal.setFontStyle('bold')
-        // blue caliper down the side of the card
-        const calX = o.cx + 84
-        const g = this.add.graphics()
-        g.lineStyle(2, C.blue, 1)
-        g.lineBetween(calX, o.cy - 28, calX, o.cy + 6)
-        g.lineBetween(calX - 6, o.cy - 28, calX + 6, o.cy - 28)
-        g.lineBetween(calX - 6, o.cy + 6, calX + 6, o.cy + 6)
-        g.setAlpha(0)
-        this.tweens.add({ targets: g, alpha: 1, duration: 260 })
-        const dot = this.add.circle(o.cx + 64, o.cy - 11, 5, C.blue).setStrokeStyle(2, C.white).setScale(0)
-        this.tweens.add({ targets: dot, scale: 1, duration: 240, ease: 'Back.out' })
-      }
-    })
+  private redraw(): void {
+    const crossed = this.bid >= this.ask
+    const yBid = this.yFor(this.bid)
+    const yAsk = this.yFor(this.ask)
+
+    this.bidHandle.y = yBid
+    this.askHandle.y = yAsk
+    ;(this.bidHandle.getByName('lbl') as Phaser.GameObjects.Text).setText(`BID ${fmtPrice(this.bid)}`)
+    ;(this.askHandle.getByName('lbl') as Phaser.GameObjects.Text).setText(`ASK ${fmtPrice(this.ask)}`)
+
+    const spread = this.ask - this.bid
+    const mid = (this.ask + this.bid) / 2
+
+    // caliper
+    this.caliper.clear()
+    const calX = this.axisX + 100
+    this.caliper.lineStyle(2, crossed ? C.red : C.blue, 1)
+    this.caliper.lineBetween(calX, yAsk, calX, yBid)
+    this.caliper.lineBetween(calX - 8, yAsk, calX + 8, yAsk)
+    this.caliper.lineBetween(calX - 8, yBid, calX + 8, yBid)
+    this.spreadLabel.setPosition(calX + 16, (yAsk + yBid) / 2)
+    this.spreadLabel.setColor(hex(crossed ? C.red : C.blue))
+    this.spreadLabel.setText(crossed ? `SPREAD = ${fmtPrice(spread)} ✗` : `SPREAD = ${fmtPrice(spread)}`)
+
+    // hatch fill when crossed
+    this.hatch.clear()
+    if (crossed) {
+      this.hatch.lineStyle(1.5, C.red, 0.5)
+      const top = Math.min(yAsk, yBid)
+      const bot = Math.max(yAsk, yBid) + 24
+      for (let x = this.axisX + 4; x < calX; x += 8) this.hatch.lineBetween(x, bot, x + 16, top)
+    }
+
+    // mid
+    const yMid = this.yFor(mid)
+    this.midDot.setPosition(this.axisX, yMid)
+    this.midLabel.setPosition(this.axisX - 16, yMid)
+    this.midDot.setVisible(!crossed)
+    this.midLabel.setVisible(!crossed)
+    this.midLabel.setText(`MID ${this.fmtMid(mid)}`)
+
+    this.warnPanel.setVisible(crossed)
+
+    // live status toward the goal
+    if (crossed) {
+      this.statusLabel.setText('Crossed — bid must be below ask')
+      this.statusLabel.setColor(hex(C.red))
+    } else if (this.cents(spread) === this.cents(this.target)) {
+      this.statusLabel.setText(`On target: ${fmtPrice(this.target)} spread ✓`)
+      this.statusLabel.setColor(hex(C.green))
+    } else {
+      const diff = this.cents(spread) - this.cents(this.target)
+      this.statusLabel.setText(`Spread ${fmtPrice(spread)} — ${diff > 0 ? 'too wide' : 'too tight'} (target ${fmtPrice(this.target)})`)
+      this.statusLabel.setColor(hex(C.muted))
+    }
+  }
+
+  private fmtMid(m: number): string {
+    return Math.abs(m * 100 - Math.round(m * 100)) > 1e-6 ? m.toFixed(3) : m.toFixed(2)
+  }
+
+  protected onSubmit(): void {
+    if (this.locked) return
+    this.locked = true
+    this.setCanSubmit(false)
+
+    const spread = this.ask - this.bid
+    const mid = (this.ask + this.bid) / 2
+    const valid = this.bid < this.ask
+    const onTarget = this.cents(spread) === this.cents(this.target)
+    const correct = valid && onTarget
+
+    // freeze the picture; flash the result colour on the caliper
+    const col = correct ? C.green : C.red
+    this.caliper.clear()
+    const calX = this.axisX + 100
+    const yBid = this.yFor(this.bid)
+    const yAsk = this.yFor(this.ask)
+    this.caliper.lineStyle(3, col, 1)
+    this.caliper.lineBetween(calX, yAsk, calX, yBid)
+    this.caliper.lineBetween(calX - 8, yAsk, calX + 8, yAsk)
+    this.caliper.lineBetween(calX - 8, yBid, calX + 8, yBid)
+    this.spreadLabel.setColor(hex(col))
+
+    let title: string
+    let detail: string
+    if (correct) {
+      title = `Valid book · ${fmtPrice(this.target)} spread`
+      detail = `bid ${fmtPrice(this.bid)} < ask ${fmtPrice(this.ask)}, so the book is valid, and ask − bid = ${fmtPrice(spread)} hits the target exactly. Mid sits at the fair middle, ${this.fmtMid(mid)}.`
+    } else if (!valid) {
+      title = 'Crossed book — impossible'
+      detail = `You set bid ${fmtPrice(this.bid)} ≥ ask ${fmtPrice(this.ask)} (spread ${fmtPrice(spread)}). A book can never cross: a buyer willing to pay at or above the ask would simply trade. Always keep bid < ask.`
+    } else {
+      const dir = this.cents(spread) > this.cents(this.target) ? 'wide' : 'tight'
+      title = `Valid, but ${fmtPrice(spread)} — not the target`
+      detail = `bid ${fmtPrice(this.bid)} < ask ${fmtPrice(this.ask)} is a valid book, but ask − bid = ${fmtPrice(spread)}, which is too ${dir}. The target was ${fmtPrice(this.target)} — measure the gap, not just the validity.`
+    }
+    this.report(correct, title, detail)
   }
 }

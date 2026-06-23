@@ -13,6 +13,9 @@ import { intrinsic, pnlPerShare, breakeven, maxLoss, maxGain, type OptType, type
  *                   a draggable "spot at expiry" dot with a live P&L readout.
  *  - 'quiz'         draws the masked setup; onReveal() snaps the hidden breakeven /
  *                   completes the leg.
+ *  - 'challenge'    self-grading interactive (see `challenge`): either an EXERCISE vs
+ *                   LET-EXPIRE decision (challenge:'exercise') or a draggable breakeven
+ *                   marker (challenge:'breakeven'). onSubmit() simulates + reports.
  */
 export interface PayoffParams {
   type?: OptType
@@ -22,7 +25,7 @@ export interface PayoffParams {
   /** Visible price range on the x-axis. */
   sMin?: number
   sMax?: number
-  mode?: 'teach' | 'interactive' | 'quiz'
+  mode?: 'teach' | 'interactive' | 'quiz' | 'challenge'
   /** teach: animate long → reflected short to show the flip. */
   showMirror?: boolean
   /** interactive: allow in-canvas controls + draggable spot dot. */
@@ -35,6 +38,10 @@ export interface PayoffParams {
   hideBreakeven?: boolean
   /** quiz: distractor price dots to expose on reveal {S, label, good}. */
   revealDots?: Array<{ S: number; label: string; good?: boolean }>
+  /** challenge variant. 'exercise' = exercise-vs-expire buttons; 'breakeven' = drag a marker. */
+  challenge?: 'exercise' | 'breakeven'
+  /** challenge:'exercise' — the underlying price at expiry the decision is made at. */
+  expiryS?: number
 }
 
 const PAD = { left: 56, right: 18, top: 46, bottom: 76 }
@@ -57,6 +64,25 @@ export default class PayoffScene extends ModuleScene {
   private pnlLabel?: Phaser.GameObjects.Text
   private riskBadge?: Phaser.GameObjects.Container
   private revealed = false
+
+  // --- challenge state ---
+  private submitted = false
+  /** challenge:'exercise' — current pick (true = exercise, false = let expire). */
+  private exercisePick = false
+  private exerciseBtns: Array<{
+    key: 'exercise' | 'expire'
+    bg: Phaser.GameObjects.Graphics
+    txt: Phaser.GameObjects.Text
+    x: number
+    y: number
+    w: number
+    h: number
+  }> = []
+  /** challenge:'breakeven' — current dragged guess for the breakeven price. */
+  private beGuess = 0
+  private beGuessLine?: Phaser.GameObjects.Graphics
+  private beGuessDot?: Phaser.GameObjects.Arc
+  private beGuessLabel?: Phaser.GameObjects.Text
 
   protected build(): void {
     const raw = this.params as PayoffParams
@@ -88,6 +114,8 @@ export default class PayoffScene extends ModuleScene {
 
     if (this.p.mode === 'quiz') {
       this.drawQuizSetup()
+    } else if (this.p.mode === 'challenge') {
+      this.buildChallenge()
     } else {
       this.redraw()
       if (this.p.mode === 'interactive' && this.p.controls && this.p.legToggles !== false) this.buildControls()
@@ -96,6 +124,106 @@ export default class PayoffScene extends ModuleScene {
       else this.animateCurveIn()
     }
     this.emitReady()
+  }
+
+  // === Challenge mode =======================================================
+  private buildChallenge(): void {
+    // Always draw the full payoff curve so the learner can reason about it.
+    this.redraw()
+    this.animateCurveIn()
+    if (this.p.challenge === 'breakeven') this.buildBreakevenChallenge()
+    else this.buildExerciseChallenge()
+    this.setCanSubmit(true)
+  }
+
+  // --- challenge:'exercise' — EXERCISE vs LET EXPIRE buttons -----------------
+  private buildExerciseChallenge(): void {
+    const expiryS = this.p.expiryS ?? this.p.K
+    // Mark where the stock landed at expiry with a vertical guide.
+    const xS = this.xFor(expiryS)
+    const g = this.add.graphics()
+    g.lineStyle(1.5, C.ink, 0.5)
+    for (let yy = this.plot.t; yy < this.plot.b; yy += 10) g.lineBetween(xS, yy, xS, Math.min(yy + 6, this.plot.b))
+    this.label(xS, this.plot.t - 6, `S=${expiryS} at expiry`, { size: 11, col: C.ink, bold: true, align: 'center' })
+
+    const defs: Array<{ key: 'exercise' | 'expire'; label: string }> = [
+      { key: 'exercise', label: 'EXERCISE' },
+      { key: 'expire', label: 'LET EXPIRE' },
+    ]
+    const w = 150
+    const h = 38
+    const gap = 16
+    const totalW = w * defs.length + gap
+    let x = (this.plot.l + this.plot.r) / 2 - totalW / 2
+    const y = this.H - 30
+    for (const d of defs) {
+      const bg = this.add.graphics()
+      const txt = this.add
+        .text(x + w / 2, y, d.label, { fontFamily: FONT, fontSize: '14px', fontStyle: 'bold' })
+        .setOrigin(0.5)
+      const hit = this.add
+        .rectangle(x + w / 2, y, w, h, 0x000000, 0)
+        .setInteractive({ useHandCursor: true })
+      hit.on('pointerup', () => {
+        if (this.submitted) return
+        this.exercisePick = d.key === 'exercise'
+        this.refreshExerciseBtns()
+      })
+      this.exerciseBtns.push({ key: d.key, bg, txt, x, y, w, h })
+      x += w + gap
+    }
+    this.refreshExerciseBtns()
+  }
+
+  private refreshExerciseBtns(): void {
+    for (const b of this.exerciseBtns) {
+      const selected = (this.exercisePick && b.key === 'exercise') || (!this.exercisePick && b.key === 'expire')
+      const fill = selected ? C.blue : C.white
+      b.bg.clear()
+      b.bg.fillStyle(fill, 1)
+      b.bg.fillRoundedRect(b.x, b.y - b.h / 2, b.w, b.h, 10)
+      b.bg.lineStyle(1.5, selected ? C.blue : C.hairline)
+      b.bg.strokeRoundedRect(b.x, b.y - b.h / 2, b.w, b.h, 10)
+      b.txt.setColor(hex(selected ? C.white : C.muted))
+    }
+  }
+
+  // --- challenge:'breakeven' — drag a marker to where P&L crosses zero -------
+  private buildBreakevenChallenge(): void {
+    // Start the guess at the strike (a tempting-but-wrong anchor).
+    this.beGuess = this.p.K
+    this.beGuessLine = this.add.graphics()
+    const y0 = this.yFor(0)
+    this.beGuessDot = this.add
+      .circle(this.xFor(this.beGuess), y0, 8, C.blue)
+      .setStrokeStyle(3, C.white)
+      .setInteractive({ useHandCursor: true, draggable: true })
+    this.input.setDraggable(this.beGuessDot)
+    this.beGuessLabel = this.label(0, this.plot.t + 22, '', { size: 12, col: C.blue, bold: true, align: 'center' })
+    this.beGuessDot.on('drag', (_p: Phaser.Input.Pointer, dx: number) => {
+      if (this.submitted) return
+      const t = Phaser.Math.Clamp((dx - this.plot.l) / this.plot.w, 0, 1)
+      this.beGuess = this.p.sMin + t * (this.p.sMax - this.p.sMin)
+      this.redrawBeGuess()
+    })
+    this.redrawBeGuess()
+    this.label((this.plot.l + this.plot.r) / 2, this.H - 26, '↔ drag the marker to where the line crosses $0', {
+      size: 11,
+      col: C.muted,
+      align: 'center',
+    })
+  }
+
+  private redrawBeGuess(): void {
+    if (!this.beGuessLine || !this.beGuessDot || !this.beGuessLabel) return
+    const x = this.xFor(this.beGuess)
+    const y0 = this.yFor(0)
+    this.beGuessLine.clear()
+    this.beGuessLine.lineStyle(1.6, C.blue, 0.9)
+    for (let yy = this.plot.t; yy < this.plot.b; yy += 12)
+      this.beGuessLine.lineBetween(x, yy, x, Math.min(yy + 7, this.plot.b))
+    this.beGuessDot.setPosition(x, y0)
+    this.beGuessLabel.setX(x).setText(`your BE ${this.fmt(this.beGuess)}`)
   }
 
   // --- scales ---------------------------------------------------------------
@@ -499,6 +627,91 @@ export default class PayoffScene extends ModuleScene {
         g.lineBetween(x, y0, x, y)
       })
     })
+  }
+
+  // --- challenge grading ----------------------------------------------------
+  protected onSubmit(): void {
+    if (this.p.mode !== 'challenge' || this.submitted) return
+    this.submitted = true
+    this.setCanSubmit(false)
+    if (this.p.challenge === 'breakeven') this.gradeBreakeven()
+    else this.gradeExercise()
+  }
+
+  private gradeExercise(): void {
+    const expiryS = this.p.expiryS ?? this.p.K
+    const pos = { type: this.p.type, side: this.p.side, K: this.p.K, premium: this.p.premium }
+    // The hold-and-let-expire P&L is the long option's payoff at expiry (exact).
+    const expireV = pnlPerShare(pos, expiryS)
+    // Exercising a call at K when S < K means buying at K into an S market: you take
+    // the intrinsic (here 0) AND eat the (K − S) overpay vs the market on top.
+    const intr = intrinsic(this.p.type, expiryS, this.p.K)
+    const overpay = this.p.type === 'call' ? Math.max(this.p.K - expiryS, 0) : Math.max(expiryS - this.p.K, 0)
+    const exerciseV = intr - this.p.premium - overpay
+
+    const correct = !this.exercisePick // letting it expire is the right call here
+    const exC = exerciseV * 100
+    const expC = expireV * 100
+    const fmtMoney = (v: number) => `${v >= 0 ? '+' : '−'}$${Math.abs(v).toFixed(0)}`
+
+    // Mark the outcomes on the curve at the expiry price.
+    const x = this.xFor(expiryS)
+    const yExpire = this.yFor(expireV)
+    this.add.circle(x, yExpire, 6, correct ? C.green : C.red).setStrokeStyle(2, C.white)
+    this.fadeIn(
+      this.label(x, yExpire + 16, `let expire ${fmtMoney(expC)}`, {
+        size: 11,
+        col: C.green,
+        bold: true,
+        align: 'center',
+      }),
+    )
+
+    const title = correct
+      ? `Let it expire · ${fmtMoney(expC)}`
+      : `Exercising overpays · ${fmtMoney(exC)}`
+    const detail = correct
+      ? `At S=${expiryS} the ${this.p.K}-strike call is out-of-the-money (intrinsic 0). You decline to exercise and lose only the ${this.fmt(
+          this.p.premium,
+        )} premium → ${fmtMoney(
+          expC,
+        )}. An option is a right, not an obligation — that decline is exactly why a long option's loss is capped at the premium.`
+      : `Exercising buys 100 shares at ${this.p.K} when the market is only ${expiryS} — a ${this.fmt(
+          this.p.K - expiryS,
+        )}/share overpay on top of the premium, for ${fmtMoney(
+          exC,
+        )}. Letting it expire loses only the premium (${fmtMoney(expC)}). Never exercise an OTM option.`
+    this.report(correct, title, detail)
+  }
+
+  private gradeBreakeven(): void {
+    const be = breakeven(this.p.type, this.p.K, this.p.premium)
+    const err = Math.abs(this.beGuess - be)
+    const tol = (this.p.sMax - this.p.sMin) * 0.03 // ~3% of the visible range
+    const correct = err <= tol
+
+    // Reveal the true breakeven marker (blue) so the learner sees where it should sit.
+    this.revealed = true
+    this.drawBreakeven()
+    // Lock the guess marker's colour to the verdict.
+    const verdictCol = correct ? C.green : C.red
+    this.beGuessDot?.setFillStyle(verdictCol)
+    if (this.beGuessLabel) this.beGuessLabel.setColor(hex(verdictCol))
+
+    const title = correct
+      ? `Breakeven ${this.fmt(be)} — nailed it`
+      : `Breakeven is ${this.fmt(be)} (you said ${this.fmt(this.beGuess)})`
+    const sign = this.p.type === 'call' ? '+' : '−'
+    const detail = correct
+      ? `Right where the rising leg crosses $0. BE = K ${sign} premium = ${this.p.K} ${sign} ${this.fmt(
+          this.p.premium,
+        )} = ${this.fmt(
+          be,
+        )}. At the strike itself the option is worth 0, so you're still down the full premium — profit only starts past breakeven.`
+      : `BE = K ${sign} premium = ${this.p.K} ${sign} ${this.fmt(this.p.premium)} = ${this.fmt(
+          be,
+        )}, marked in blue. A common trap is the strike (${this.p.K}): there the option's intrinsic is exactly 0, so you've still lost the whole premium. You only recoup the premium once intrinsic equals it.`
+    this.report(correct, title, detail)
   }
 
   // --- fmt ------------------------------------------------------------------

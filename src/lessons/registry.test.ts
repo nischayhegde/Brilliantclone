@@ -58,10 +58,17 @@ describe.each(PACKAGES.map((p) => [p.lesson.id, p] as const))('lesson %s', (_id,
     }
   })
 
-  it('every quiz module has a well-formed quiz', () => {
+  it('every quiz/challenge module is well-formed', () => {
     for (const m of pkg.lesson.modules) {
       if (m.type === 'quiz') {
         expect(m.quiz, `${pkg.lesson.id} #${m.id} missing quiz`).toBeTruthy()
+      }
+      if (m.type === 'challenge') {
+        expect(m.challenge, `${pkg.lesson.id} #${m.id} missing challenge`).toBeTruthy()
+        expect(
+          (m.challenge?.prompt ?? '').length,
+          `${pkg.lesson.id} #${m.id} challenge.prompt`,
+        ).toBeGreaterThan(0)
       }
       if (m.quiz) {
         expect(m.quiz.options.length, `${pkg.lesson.id} #${m.id} options`).toBeGreaterThanOrEqual(2)

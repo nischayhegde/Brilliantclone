@@ -3,11 +3,13 @@ import { ModuleScene } from '../../../engine/ModuleScene'
 import { C, hex, FONT } from '../../../engine/palette'
 
 interface ExerciseParams {
-  /** 'timeline' = module 4 American/European ; 'doors' = module 14 sell-vs-exercise quiz. */
+  /** 'timeline' = module 4 American/European ; 'doors' = module 14 sell-vs-exercise. */
   variant?: 'timeline' | 'doors'
   /** module 4 illustrative values. */
   intrinsicNow?: number
   timeValueNow?: number
+  /** doors variant: make the doors a self-grading challenge (pick one + Submit). */
+  challenge?: boolean
 }
 
 /**
@@ -29,6 +31,7 @@ export default class ExerciseTimelineScene extends ModuleScene {
       variant: raw.variant ?? 'timeline',
       intrinsicNow: raw.intrinsicNow ?? 6,
       timeValueNow: raw.timeValueNow ?? 2,
+      challenge: raw.challenge ?? false,
     }
     if (this.p.variant === 'doors') this.buildDoors()
     else this.buildTimeline()
@@ -143,6 +146,8 @@ export default class ExerciseTimelineScene extends ModuleScene {
 
   // --- MODULE 14: three doors ----------------------------------------------
   private doors: Array<{ key: string; c: Phaser.GameObjects.Container; body: Phaser.GameObjects.Text }> = []
+  private pick: string | null = null
+  private doorPicked = false
   private buildDoors(): void {
     const intr = this.p.intrinsicNow // 6
     const tv = this.p.timeValueNow // 2
@@ -206,12 +211,85 @@ export default class ExerciseTimelineScene extends ModuleScene {
       const c = this.add.container(x, y, [panel, title, closed, body])
       c.setData('closed', closed)
       this.doors.push({ key: d.key, c, body })
+      if (this.p.challenge) {
+        const hit = this.add
+          .rectangle(x + dw / 2, y + dh / 2, dw, dh, 0x000000, 0)
+          .setInteractive({ useHandCursor: true })
+        hit.on('pointerup', () => {
+          if (this.revealed) return
+          this.pick = d.key
+          this.doorPicked = true
+          this.refreshDoorSelection()
+        })
+      }
     })
-    this.label(280, 290, 'Submit your choice to open the doors →', { size: 11, col: C.muted })
+
+    if (this.p.challenge) {
+      this.label(280, 290, 'Tap a door to choose, then Submit to open them →', { size: 11, col: C.muted })
+      this.setCanSubmit(false) // require a pick before Submit is enabled
+    } else {
+      this.label(280, 290, 'Submit your choice to open the doors →', { size: 11, col: C.muted })
+    }
+  }
+
+  private refreshDoorSelection(): void {
+    this.setCanSubmit(this.doorPicked)
+    const dw = 150
+    const dh = 150
+    for (const d of this.doors) {
+      const selected = d.key === this.pick
+      const panel = d.c.list[0] as Phaser.GameObjects.Graphics
+      panel.clear()
+      panel.fillStyle(selected ? C.blueSoft : C.gray100, 1)
+      panel.fillRoundedRect(0, 0, dw, dh, 12)
+      panel.lineStyle(selected ? 2.5 : 1.5, selected ? C.blue : C.muted)
+      panel.strokeRoundedRect(0, 0, dw, dh, 12)
+    }
   }
 
   protected onReveal(): void {
-    if (this.revealed || this.p.variant !== 'doors') return
+    if (this.revealed || this.p.variant !== 'doors' || this.p.challenge) return
+    this.openAllDoors()
+  }
+
+  protected onSubmit(): void {
+    if (this.revealed || this.p.variant !== 'doors' || !this.p.challenge) return
+    this.setCanSubmit(false)
+    this.openAllDoors()
+
+    const intr = this.p.intrinsicNow
+    const tv = this.p.timeValueNow
+    const total = intr + tv
+    const correct = this.pick === 'sell'
+    const kept = this.pick === 'sell' ? total : this.pick === 'exercise' ? intr : 0
+    const keptNote = correct
+      ? ''
+      : ` Your choice keeps ${kept.toFixed(2)} vs ${total.toFixed(2)} by selling.`
+    const title = correct
+      ? `Sell-to-close · keep ${total.toFixed(2)}`
+      : this.pick === 'exercise'
+        ? `Exercising forfeits the time value (kept ${intr.toFixed(2)})`
+        : `Letting it expire wastes all ${total.toFixed(2)}`
+    const detail = correct
+      ? `Selling-to-close captures the full ${total.toFixed(2)} — including the ${tv.toFixed(
+          2,
+        )} of time value. Exercising would realize only the ${intr.toFixed(
+          2,
+        )} intrinsic and throw away the ${tv.toFixed(
+          2,
+        )}; early exercise of an American option is usually suboptimal (the exception is special cases like capturing a dividend).`
+      : this.pick === 'exercise'
+        ? `Exercising realizes only the ${intr.toFixed(2)} intrinsic and forfeits the ${tv.toFixed(
+            2,
+          )} time value (and ties up K×100 in capital). Sell-to-close instead — a buyer pays for intrinsic AND the remaining time value, so you keep the full ${total.toFixed(2)}.`
+        : `Letting it expire would waste all ${total.toFixed(2)} (you'd only auto-exercise the ${intr.toFixed(
+            2,
+          )} intrinsic at best). Sell-to-close hands the contract to a buyer who pays for intrinsic AND the remaining time value — you keep the full ${total.toFixed(2)}.`
+    this.report(correct, title, `${detail}${keptNote}`)
+  }
+
+  private openAllDoors(): void {
+    if (this.revealed) return
     this.revealed = true
     const intr = this.p.intrinsicNow
     const tv = this.p.timeValueNow

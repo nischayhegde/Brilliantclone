@@ -42,12 +42,24 @@ export abstract class ModuleScene extends Phaser.Scene {
     if (e.type === 'reveal') this.onReveal()
     else if (e.type === 'reset') this.onReset()
     else if (e.type === 'set') this.onSet(e.key, e.value)
+    else if (e.type === 'submit') this.onSubmit()
   }
 
   // Optional override points -------------------------------------------------
   protected onReveal(): void {}
   protected onReset(): void {}
   protected onSet(_key: string, _value: number | string | boolean): void {}
+  /** Challenge modules: run the simulation/reveal, then call this.report(...). */
+  protected onSubmit(): void {}
+
+  /** Challenge: enable/disable the renderer's Submit button. */
+  protected setCanSubmit(value: boolean): void {
+    this.bus.emit({ type: 'canSubmit', value })
+  }
+  /** Challenge: report the graded outcome (renderer shows banner + detail). */
+  protected report(correct: boolean, title: string, detail: string): void {
+    this.bus.emit({ type: 'result', correct, title, detail })
+  }
 
   /** Tell the renderer the intro animation finished (optional gating). */
   protected emitReady(): void {

@@ -4,7 +4,7 @@ import { C, hex, FONT } from '../../../engine/palette'
 import { intrinsic, moneyness, type OptType } from './optionMath'
 
 interface PremiumBarParams {
-  mode?: 'interactive' | 'quiz'
+  mode?: 'interactive' | 'quiz' | 'challenge'
   type?: OptType
   K?: number
   /** starting spot. */
@@ -72,6 +72,7 @@ export default class PremiumBarScene extends ModuleScene {
     this.totalLabel = this.label(BAR_X + BAR_W / 2, AXIS_Y + 16, '', { size: 12, col: C.ink, bold: true, align: 'center' })
 
     if (this.p.mode === 'quiz') this.buildQuiz()
+    else if (this.p.mode === 'challenge') this.buildChallenge()
     else this.buildInteractive()
     this.emitReady()
   }
@@ -161,6 +162,134 @@ export default class PremiumBarScene extends ModuleScene {
     this.drawBar(intr, this.timeValue())
     const m = moneyness(this.type, this.S, this.p.K)
     this.setTag(this.moneyTag, m)
+  }
+
+  // --- challenge: DRAG the split point to divide the premium -----------------
+  private chSubmitted = false
+  private splitFrac = 0.5 // fraction of the bar that is intrinsic (from the bottom)
+  private splitLine!: Phaser.GameObjects.Graphics
+  private splitHandle!: Phaser.GameObjects.Arc
+  private splitIntrLabel!: Phaser.GameObjects.Text
+  private splitTimeLabel!: Phaser.GameObjects.Text
+
+  private get chTotalH(): number {
+    return this.p.premium * SCALE
+  }
+
+  private buildChallenge(): void {
+    // hide the deterministic interactive labels — this bar is fully learner-driven
+    this.intrLabel.setAlpha(0)
+    this.timeLabel.setAlpha(0)
+
+    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.p.S}`, { size: 14, col: C.ink, bold: true })
+    this.label(60, 174, `The ${this.p.premium.toFixed(2)} premium — split it into real value vs time value.`, {
+      size: 12,
+      col: C.muted,
+    })
+
+    // single outlined block representing the whole premium
+    const totalH = this.chTotalH
+    const outline = this.add.graphics()
+    outline.lineStyle(1.5, C.blue)
+    outline.strokeRect(BAR_X, AXIS_Y - totalH, BAR_W, totalH)
+    this.label(BAR_X + BAR_W / 2, AXIS_Y + 16, `premium ${this.p.premium.toFixed(2)}`, {
+      size: 12,
+      col: C.ink,
+      bold: true,
+      align: 'center',
+    })
+
+    // live segments + split handle
+    this.splitLine = this.add.graphics()
+    this.splitIntrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 12, col: C.blue, bold: true })
+    this.splitTimeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 12, col: C.blue })
+
+    this.splitHandle = this.add
+      .circle(BAR_X + BAR_W / 2, 0, 9, C.ink)
+      .setStrokeStyle(3, C.white)
+      .setInteractive({ useHandCursor: true, draggable: true })
+    this.input.setDraggable(this.splitHandle)
+    this.splitHandle.on('drag', (_pp: Phaser.Input.Pointer, _dx: number, dy: number) => {
+      if (this.chSubmitted) return
+      // dy is the pointer's game-y; clamp to the bar, convert to intrinsic fraction
+      const top = AXIS_Y - totalH
+      const yy = Phaser.Math.Clamp(dy, top, AXIS_Y)
+      this.splitFrac = (AXIS_Y - yy) / totalH
+      this.redrawSplit()
+    })
+    this.redrawSplit()
+    this.label(60, 230, '↕ drag the divider: below = intrinsic (real), above = time value', {
+      size: 10,
+      col: C.muted,
+    })
+    this.setCanSubmit(true)
+  }
+
+  private redrawSplit(): void {
+    const totalH = this.chTotalH
+    const intrH = this.splitFrac * totalH
+    const tvH = totalH - intrH
+    const splitY = AXIS_Y - intrH
+    const intrVal = this.splitFrac * this.p.premium
+    const tvVal = this.p.premium - intrVal
+
+    this.barIntrinsic.clear()
+    this.barTime.clear()
+    // intrinsic (solid blue) at bottom
+    this.barIntrinsic.fillStyle(C.blue, 1)
+    this.barIntrinsic.fillRect(BAR_X, splitY, BAR_W, intrH)
+    // time value (light blue) on top
+    this.barTime.fillStyle(C.blue, 0.28)
+    this.barTime.fillRect(BAR_X, AXIS_Y - totalH, BAR_W, tvH)
+
+    this.splitLine.clear()
+    this.splitLine.lineStyle(2, C.ink)
+    this.splitLine.lineBetween(BAR_X - 6, splitY, BAR_X + BAR_W + 6, splitY)
+    this.splitHandle.setY(splitY)
+
+    this.splitIntrLabel.setText(`intrinsic ${intrVal.toFixed(2)}`).setY(AXIS_Y - intrH / 2)
+    this.splitTimeLabel.setText(`time value ${tvVal.toFixed(2)}`).setY(AXIS_Y - intrH - tvH / 2)
+  }
+
+  protected onSubmit(): void {
+    if (this.p.mode !== 'challenge' || this.chSubmitted) return
+    this.chSubmitted = true
+    this.setCanSubmit(false)
+
+    const trueIntr = intrinsic(this.type, this.p.S, this.p.K) // exact: max(S−K,0)
+    const trueTv = this.p.premium - trueIntr
+    const guessIntr = this.splitFrac * this.p.premium
+    const tol = 0.5 // within $0.50 of the exact intrinsic
+    const correct = Math.abs(guessIntr - trueIntr) <= tol
+
+    // snap the divider to the exact split and label the math
+    this.splitFrac = trueIntr / this.p.premium
+    this.redrawSplit()
+    this.splitHandle.setFillStyle(correct ? C.green : C.red)
+    this.label(BAR_X - 30, AXIS_Y - trueIntr * SCALE - 6, `max(${this.p.S}−${this.p.K},0)=${trueIntr.toFixed(0)}`, {
+      size: 11,
+      col: C.blue,
+      bold: true,
+      align: 'right',
+    })
+
+    const title = correct
+      ? `Intrinsic ${trueIntr.toFixed(2)} · time ${trueTv.toFixed(2)} — correct`
+      : `It splits ${trueIntr.toFixed(2)} / ${trueTv.toFixed(2)} (you said ${guessIntr.toFixed(2)} intrinsic)`
+    const detail = correct
+      ? `Call intrinsic = max(S−K,0) = max(${this.p.S}−${this.p.K},0) = ${trueIntr.toFixed(
+          2,
+        )}. The remaining ${this.p.premium.toFixed(2)} − ${trueIntr.toFixed(2)} = ${trueTv.toFixed(
+          2,
+        )} is time (extrinsic) value — what you pay for the chance the stock climbs further before expiry.`
+      : `Intrinsic is the in-the-money part only: max(S−K,0) = max(${this.p.S}−${this.p.K},0) = ${trueIntr.toFixed(
+          2,
+        )}, so time value is ${this.p.premium.toFixed(2)} − ${trueIntr.toFixed(2)} = ${trueTv.toFixed(
+          2,
+        )}. The whole premium isn't "real" value, and an ITM call isn't all time value either — only ${trueTv.toFixed(
+          2,
+        )} of it decays away.`
+    this.report(correct, title, detail)
   }
 
   // --- quiz: masked premium bar -> 7/2 split --------------------------------

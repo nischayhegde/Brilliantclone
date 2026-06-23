@@ -4,6 +4,7 @@ import PremiumBarScene from './scenes/PremiumBarScene'
 import ThetaDecayScene from './scenes/ThetaDecayScene'
 import PayoffScene from './scenes/PayoffScene'
 import PayoffQuadScene from './scenes/PayoffQuadScene'
+import PositionBuilderScene from './scenes/PositionBuilderScene'
 import DeltaCurveScene from './scenes/DeltaCurveScene'
 import ExerciseTimelineScene from './scenes/ExerciseTimelineScene'
 import LeverageScene from './scenes/LeverageScene'
@@ -49,14 +50,14 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 3 — QUIZ right not obligation ------------------------------------------
+  // 3 — CHALLENGE right not obligation -------------------------------------
   {
     id: 3,
-    type: 'quiz',
-    kicker: 'Quiz · CALL K=100',
+    type: 'challenge',
+    kicker: 'Challenge · CALL K=100',
     title: 'Right, Not Obligation',
     intro:
-      'You hold a CALL with strike 100. At expiry the stock is 95. The exercise fork is hidden — you decide first.',
+      'You hold a CALL with strike 100. At expiry the stock is 95. You decide what to do — exercise the right to buy at 100, or let the contract expire.',
     scene: {
       kind: 'payoff',
       params: {
@@ -66,27 +67,16 @@ const modules: ModuleSpec[] = [
         premium: 4,
         sMin: 80,
         sMax: 120,
-        mode: 'quiz',
-        hideBreakeven: true,
-        revealDots: [
-          { S: 95, label: 'expire: lose premium only (−4)', good: true },
-          { S: 100, label: 'exercise at 100 into 95 = overpay', good: false },
-        ],
+        mode: 'challenge',
+        challenge: 'exercise',
+        expiryS: 95,
       },
     },
-    quiz: {
-      prompt: 'You hold a CALL, strike 100. At expiry the stock is 95. Should you exercise (buy at 100)?',
-      options: [
-        { id: 'yes', label: 'Yes — exercise' },
-        { id: 'no', label: 'No — let it expire' },
-      ],
-      correctId: 'no',
-      explainRight:
-        'Right. Exercising would mean buying at 100 when the market is 95 — overpaying $5/share. You let it expire and lose only the premium you already paid. An option is a right, not an obligation.',
-      explainWrong:
-        'You should let it expire. Exercising buys at 100 into a 95 market — an instant $5/share loss on top of the premium. The cap on a long option’s loss (= the premium) exists precisely because you can decline to exercise.',
+    challenge: {
+      prompt: 'The stock closed at 95 with your 100-strike call. What do you do?',
+      instructions: 'Tap EXERCISE or LET EXPIRE, then Submit to settle the contract.',
+      submitLabel: 'Settle',
     },
-    cta: 'Check',
   },
 
   // 4 — TEACH American vs European -----------------------------------------
@@ -117,32 +107,23 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 6 — QUIZ split the premium ---------------------------------------------
+  // 6 — CHALLENGE split the premium ----------------------------------------
   {
     id: 6,
-    type: 'quiz',
-    kicker: 'Quiz · CALL K=100, S=107',
+    type: 'challenge',
+    kicker: 'Challenge · CALL K=100, S=107',
     title: 'How Much Is Real Value?',
     intro:
-      'A CALL, strike 100, with the stock at 107, trades for a 9.00 premium. The split is hidden — call it before the bar splits.',
+      'A CALL, strike 100, with the stock at 107, trades for a 9.00 premium. Drag the divider on the premium bar to split it into intrinsic (real) value and time value.',
     scene: {
       kind: 'premium',
-      params: { mode: 'quiz', type: 'call', K: 100, S: 107, premium: 9, quizIntrinsic: 7, quizTimeValue: 2 },
+      params: { mode: 'challenge', type: 'call', K: 100, S: 107, premium: 9 },
     },
-    quiz: {
-      prompt: 'CALL, strike 100, stock at 107, premium 9.00. What is its intrinsic value (and therefore time value)?',
-      options: [
-        { id: 'a', label: 'Intrinsic 9.00 (time 0.00)' },
-        { id: 'b', label: 'Intrinsic 7.00 (time 2.00)' },
-        { id: 'c', label: 'Intrinsic 0.00 (time 9.00)' },
-      ],
-      correctId: 'b',
-      explainRight:
-        'Correct. Call intrinsic = max(S−K,0) = max(107−100,0) = 7. The remaining 9 − 7 = 2 is time/extrinsic value — what you pay for the chance the stock climbs further before expiry.',
-      explainWrong:
-        'It splits 7 + 2. Intrinsic = max(107−100,0) = 7; the rest (9 − 7 = 2) is time value, which decays to zero by expiry. The whole 9 isn’t "real" value, and an ITM call isn’t all time value either.',
+    challenge: {
+      prompt: 'Divide the 9.00 premium: how much is intrinsic value, and how much is time value?',
+      instructions: 'Drag the divider — below it is intrinsic, above it is time value — then Submit.',
+      submitLabel: 'Split it',
     },
-    cta: 'Check',
   },
 
   // 7 — TEACH theta ---------------------------------------------------------
@@ -176,14 +157,14 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 9 — QUIZ breakeven ------------------------------------------------------
+  // 9 — CHALLENGE breakeven -------------------------------------------------
   {
     id: 9,
-    type: 'quiz',
-    kicker: 'Quiz · CALL K=50, prem 2.50',
+    type: 'challenge',
+    kicker: 'Challenge · CALL K=50, prem 2.50',
     title: 'Find the Breakeven',
     intro:
-      'You buy a CALL, strike 50, for a 2.50 premium. The breakeven marker is hidden (a "?" floats on the rising leg). Where does the stock have to be at expiry to break even?',
+      'You buy a CALL, strike 50, for a 2.50 premium. Drag the blue marker along the payoff to where your P&L line crosses $0 — that is your breakeven price.',
     scene: {
       kind: 'payoff',
       params: {
@@ -193,28 +174,16 @@ const modules: ModuleSpec[] = [
         premium: 2.5,
         sMin: 40,
         sMax: 62,
-        mode: 'quiz',
+        mode: 'challenge',
+        challenge: 'breakeven',
         hideBreakeven: true,
-        revealDots: [
-          { S: 50, label: 'at strike: still −2.50', good: false },
-          { S: 52.5, label: 'breakeven 52.50', good: true },
-        ],
       },
     },
-    quiz: {
-      prompt: 'You buy a CALL, strike 50, for a 2.50 premium. What stock price at expiry is your breakeven?',
-      options: [
-        { id: 'a', label: '47.50' },
-        { id: 'b', label: '50.00' },
-        { id: 'c', label: '52.50' },
-      ],
-      correctId: 'c',
-      explainRight:
-        'Correct. BE = K + premium = 50 + 2.50 = 52.50. The call is worth max(S−50,0) at expiry; you only recoup the 2.50 you paid once S − 50 = 2.50, i.e. S = 52.50.',
-      explainWrong:
-        'It’s 52.50 = K + premium. At 50 (the strike) intrinsic is exactly 0, so you’re still down the full 2.50 — "above the strike" is not profit. 47.50 is K − premium, the long-PUT breakeven; a call needs the stock to go up past 52.50.',
+    challenge: {
+      prompt: 'Drag the marker to the stock price where this long call breaks even.',
+      instructions: 'The marker starts at the strike — slide it to where the line crosses $0, then Submit.',
+      submitLabel: 'Lock in',
     },
-    cta: 'Check',
   },
 
   // 10 — TEACH writer's side -----------------------------------------------
@@ -245,30 +214,20 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 11 — QUIZ unlimited risk -----------------------------------------------
+  // 11 — CHALLENGE unlimited risk ------------------------------------------
   {
     id: 11,
-    type: 'quiz',
-    kicker: 'Quiz · all four legs',
+    type: 'challenge',
+    kicker: 'Challenge · build a leg',
     title: 'Who Has Unlimited Risk?',
     intro:
-      'Four single-leg positions (long/short × call/put), each at K=100, premium 5, with their loss tails fogged. Pick the one whose loss is theoretically unbounded before the fog lifts.',
-    scene: { kind: 'quad', params: { K: 100, premium: 5, sMin: 60, sMax: 140 } },
-    quiz: {
-      prompt: 'Which single-leg option position has theoretically UNLIMITED loss?',
-      options: [
-        { id: 'a', label: 'Long call' },
-        { id: 'b', label: 'Long put' },
-        { id: 'c', label: 'Short call' },
-        { id: 'd', label: 'Short put' },
-      ],
-      correctId: 'c',
-      explainRight:
-        'Correct. A naked short call is obligated to deliver 100 shares at K however high S goes; to deliver, the writer buys at an arbitrarily high market price, so loss grows without bound. There is no ceiling on a stock price.',
-      explainWrong:
-        'It’s the short call. A short put feels symmetric but the stock can’t fall below 0, so its worst case is bounded: (K − premium) × 100 = $9,500. Long options are capped at the premium you paid. Only the naked short call is unbounded.',
+      'Build a single-leg position by toggling CALL/PUT and LONG/SHORT (K=100, premium 5). The payoff redraws live. Submit when you have built the one position whose loss is theoretically unbounded.',
+    scene: { kind: 'builder', params: { K: 100, premium: 5, sMin: 60, sMax: 140 } },
+    challenge: {
+      prompt: 'Build the single-leg position with theoretically UNLIMITED loss, then Submit.',
+      instructions: 'Toggle CALL/PUT and LONG/SHORT — watch the max-loss readout — then Submit.',
+      submitLabel: 'Check my position',
     },
-    cta: 'Check',
   },
 
   // 12 — INTERACTIVE delta --------------------------------------------------
@@ -320,29 +279,20 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 14 — QUIZ exercise/sell/expire -----------------------------------------
+  // 14 — CHALLENGE exercise/sell/expire ------------------------------------
   {
     id: 14,
-    type: 'quiz',
-    kicker: 'Quiz · ITM call worth 8.00',
+    type: 'challenge',
+    kicker: 'Challenge · ITM call worth 8.00',
     title: 'Exercise, Sell, or Let It Expire?',
     intro:
-      'You hold an ITM call worth 8.00 (intrinsic 6.00, time value 2.00) with a week left, and you want out now. Three action doors are closed — pick before they open.',
-    scene: { kind: 'timeline', params: { variant: 'doors', intrinsicNow: 6, timeValueNow: 2 } },
-    quiz: {
-      prompt: 'You hold an ITM call worth 8.00 (intrinsic 6.00, time value 2.00) with a week left and want out now. Exercise or sell-to-close?',
-      options: [
-        { id: 'a', label: 'Exercise' },
-        { id: 'b', label: 'Sell-to-close' },
-        { id: 'c', label: 'Let it expire' },
-      ],
-      correctId: 'b',
-      explainRight:
-        'Correct. Selling-to-close captures the full 8.00 — including the 2.00 of time value. Exercising realizes only the 6.00 intrinsic and throws away the 2.00. Early exercise of an American option is usually suboptimal (the exception is special cases like capturing a dividend).',
-      explainWrong:
-        'Sell-to-close is better here. Exercising forfeits the 2.00 time value (and ties up K×100 in capital); letting it expire would waste all 8.00. Selling hands the contract to a buyer who pays for intrinsic AND the remaining time value. (At expiry an ITM option auto-exercises, an OTM one expires worthless, and shorts get assigned.)',
+      'You hold an ITM call worth 8.00 (intrinsic 6.00, time value 2.00) with a week left, and you want out now. Pick one of the three action doors, then Submit to open them and see what each keeps.',
+    scene: { kind: 'timeline', params: { variant: 'doors', intrinsicNow: 6, timeValueNow: 2, challenge: true } },
+    challenge: {
+      prompt: 'You want out of an ITM call (intrinsic 6.00, time value 2.00). Which action keeps the most value?',
+      instructions: 'Tap Exercise, Sell-to-close, or Let it expire — then Submit.',
+      submitLabel: 'Open the doors',
     },
-    cta: 'Check',
   },
 
   // 15 — CAPSTONE -----------------------------------------------------------
@@ -404,6 +354,7 @@ const pkg: LessonPackage = {
     theta: ThetaDecayScene,
     payoff: PayoffScene,
     quad: PayoffQuadScene,
+    builder: PositionBuilderScene,
     delta: DeltaCurveScene,
     timeline: ExerciseTimelineScene,
     leverage: LeverageScene,

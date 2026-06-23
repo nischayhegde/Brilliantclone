@@ -42,11 +42,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 2,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · PLTR · Bull Flag',
-    title: 'Does this Bull Flag complete?',
+    title: 'Trade this Bull Flag',
     intro:
-      'PLTR rocketed on a Feb earnings gap, then coiled in a tight flag under ~$25.5. The right half is hidden — you decide.',
+      'PLTR rocketed on a Feb earnings gap, then coiled in a tight flag under ~$25.5. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -56,22 +56,15 @@ const modules: ModuleSpec[] = [
         hlines: [{ price: 25.5, col: 'blue', label: 'Flag resistance ~25.5', dashed: true }],
         markers: [
           { date: '2024-02-21', price: 22.29, kind: 'dot', label: 'Flag low 22.29' },
-          { date: '2024-03-06', price: 26.16, kind: 'buy', label: 'Breakout 26.16' },
         ],
-        outcome: { text: 'Breakout confirmed — the flag completed', good: true },
+        trade: { direction: 'long', entry: 25.5, completes: true },
       },
     },
-    quiz: {
-      prompt: 'Does price break ABOVE the flag and resume the uptrend?',
-      options: [
-        { id: 'yes', label: 'Yes — it breaks out' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct. On March 6 PLTR pushed decisively above the ~$25.5 flag resistance (close $26.16) and followed through to $27.50 — a textbook bullish continuation.',
-      explainWrong:
-        'It actually completed. March 6 broke above the ~$25.5 flag resistance (close $26.16) with follow-through to $27.50 — price broke UP out of the flag, not down through the $22.29 low, so the pattern confirmed.',
+    challenge: {
+      prompt:
+        "If you'd trade this Bull Flag long off the breakout, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -108,11 +101,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 4,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · DIS · Cup with Handle',
-    title: 'Does this Cup with Handle complete?',
+    title: 'Trade this Cup with Handle',
     intro:
-      'Disney carved a rounded cup (rim ~187, bottom ~171) and recovered to the rim with a tight handle. The resolution is hidden — does it break out?',
+      'Disney carved a rounded cup (rim ~187, bottom ~171) and recovered to the rim with a tight handle. The resolution is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -122,22 +115,15 @@ const modules: ModuleSpec[] = [
         hlines: [{ price: 187.0, col: 'blue', label: 'Cup rim ~187', dashed: true }],
         markers: [
           { date: '2021-09-09', price: 187.58, kind: 'dot', label: 'Right rim 187.58' },
-          { date: '2021-09-21', price: 171.17, kind: 'sell', label: 'Breakdown 171.17' },
         ],
-        outcome: { text: 'Rejected at the rim — the cup failed', good: false },
+        trade: { direction: 'long', entry: 187, completes: false },
       },
     },
-    quiz: {
-      prompt: 'Will price break out above the ~$187 rim and complete the bullish pattern?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'no',
-      explainRight:
-        'Correct. A valid cup-with-handle completes only on a confirmed breakout ABOVE the rim (~$187.58). At the split (close $183.47) price was still under the trigger, then reversed: Sept 21 collapsed to a $169.03 low, breaking handle support and rolling over to $142 by December. The rim breakout, not the pretty shape, is what must confirm.',
-      explainWrong:
-        'It actually failed. The breakout never came — instead of clearing the ~$187 rim, DIS gapped down Sept 21 to a $169.03 low and slid to $142 by December, a ~24% drop. A disciplined trader was never triggered long because confirmation above the rim never occurred.',
+    challenge: {
+      prompt:
+        "If you'd trade this Cup with Handle long off the rim breakout, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -174,11 +160,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 6,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · AMD · Ascending Triangle',
-    title: 'Does this Ascending Triangle complete?',
+    title: 'Trade this Ascending Triangle',
     intro:
-      'AMD has stalled at a flat ~122-125 ceiling while its pullback lows keep climbing, coiling into the apex. The right half is hidden.',
+      'AMD has stalled at a flat ~122-125 ceiling while its pullback lows keep climbing, coiling into the apex. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -189,22 +175,15 @@ const modules: ModuleSpec[] = [
         markers: [
           { date: '2023-11-29', price: 125.73, kind: 'dot', label: 'Resistance 125.73' },
           { date: '2023-11-30', price: 119.65, kind: 'dot', label: 'Higher low 119.65' },
-          { date: '2023-12-07', price: 128.37, kind: 'buy', label: 'Breakout 128.37' },
         ],
-        outcome: { text: 'Broke out above resistance — it completed', good: true },
+        trade: { direction: 'long', entry: 125, completes: true },
       },
     },
-    quiz: {
-      prompt: 'Does price break UP through the flat resistance and follow through to the upside?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct. An ascending triangle is a bullish continuation, and AMD confirmed it: equal highs (~122-126) over a rising support line, then a Dec 7 gap-and-go close of 128.37 above resistance, with follow-through to a 150.41 high — a genuine break, not a fakeout.',
-      explainWrong:
-        'It actually completed. The Dec 7 candle gapped above the ~$125 ceiling (close 128.37) and ran almost straight up to 150.41 — roughly a 20% advance. The breakout in the expected bullish direction validated the triangle.',
+    challenge: {
+      prompt:
+        "If you'd trade this Ascending Triangle long off the breakout, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -240,11 +219,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 8,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · TSLA · Bear Flag',
-    title: 'Does this Bear Flag complete?',
+    title: 'Trade this Bear Flag',
     intro:
-      'Tesla dropped sharply (flagpole), then consolidated sideways. On March 14 it closed at 255.46, breaking below the flag near ~265. Does it continue lower?',
+      'Tesla dropped sharply (flagpole), then consolidated sideways and is pressing the flag near ~265. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -254,23 +233,15 @@ const modules: ModuleSpec[] = [
         hlines: [{ price: 265.0, col: 'blue', label: 'Flag support ~265', dashed: true }],
         markers: [
           { date: '2022-02-24', price: 233.33, kind: 'dot', label: 'Flagpole low 233.33' },
-          { date: '2022-03-14', price: 255.46, kind: 'sell', label: 'Breakdown 255.46' },
-          { date: '2022-03-15', price: 267.3, kind: 'buy', label: 'Snap-back 267.30' },
         ],
-        outcome: { text: 'Snapped back up — the bear flag faked out', good: false },
+        trade: { direction: 'short', entry: 265, completes: false },
       },
     },
-    quiz: {
-      prompt: 'Does this bear flag CONTINUE downward as expected?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'no',
-      explainRight:
-        'Correct. The breakdown was a bear trap. The March 14 pierce of the ~$265 boundary failed to follow through; March 15 snapped back to a 267.30 close (triggering the stop), and TSLA rallied ~50% to a 381.82 close by April 4 — the opposite of the bearish target.',
-      explainWrong:
-        'It actually failed. The March 14 close (255.46) looked like a valid short trigger, but there was no sustained close lower — the very next session reclaimed the boundary (267.30) and a powerful multi-week rally followed. The bear flag faked out.',
+    challenge: {
+      prompt:
+        "If you'd short this Bear Flag on the breakdown, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -306,11 +277,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 10,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · PYPL · Inverted Cup with Handle',
-    title: 'Does this Inverted Cup with Handle complete?',
+    title: 'Trade this Inverted Cup with Handle',
     intro:
-      'PayPal formed a rounded n-shaped top (peak ~310) and a small handle retrace to 273.27, sitting on the ~253 neckline. The resolution is hidden.',
+      'PayPal formed a rounded n-shaped top (peak ~310) and a small handle retrace to 273.27, sitting on the ~253 neckline. The resolution is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -321,22 +292,15 @@ const modules: ModuleSpec[] = [
         markers: [
           { date: '2021-07-26', price: 310.0, kind: 'dot', label: 'Cup peak ~310' },
           { date: '2021-10-19', price: 273.27, kind: 'dot', label: 'Handle high 273.27' },
-          { date: '2021-10-21', price: 243.21, kind: 'sell', label: 'Breakdown 243.21' },
         ],
-        outcome: { text: 'Broke below neckline — it completed', good: true },
+        trade: { direction: 'short', entry: 253, completes: true },
       },
     },
-    quiz: {
-      prompt: 'Will price break DOWN below the neckline and complete the bearish pattern?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct. Right after the Oct 19 handle high (273.27), PYPL gapped down — Oct 20 closed 258.36, Oct 21 closed 243.21 — slicing through the ~253 neckline, then accelerated to a 179.15 low (a ~30% drop). The decisive close below support with a follow-through breakaway gap confirmed it.',
-      explainWrong:
-        'It actually completed. Cup height ≈ 310 − 253 ≈ 57 projects a target near 196, and price blew through it to 179.15. The decisive close below the ~$253 neckline on Oct 20-21 with expanding range confirmed the bearish breakdown — the 273.27 handle high was never threatened.',
+    challenge: {
+      prompt:
+        "If you'd short this Inverted Cup with Handle on the neckline breakdown, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -373,11 +337,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 12,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · GE · Descending Triangle',
-    title: 'Does this Descending Triangle complete?',
+    title: 'Trade this Descending Triangle',
     intro:
-      'GE has coiled into a descending triangle: lower highs pressing on a flat ~$83 support, with price sitting on the floor. Does it break DOWN as expected?',
+      'GE has coiled into a descending triangle: lower highs pressing on a flat ~$83 support, with price sitting on the floor. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -388,22 +352,15 @@ const modules: ModuleSpec[] = [
         markers: [
           { date: '2017-12-18', price: 86.5, kind: 'dot', label: 'Lower high 86.50' },
           { date: '2017-12-28', price: 82.67, kind: 'dot', label: 'Support 82.67' },
-          { date: '2018-01-11', price: 91.15, kind: 'buy', label: 'Broke UP 91.15' },
         ],
-        outcome: { text: 'Bounced and broke UP — the triangle faked out', good: false },
+        trade: { direction: 'short', entry: 83, completes: false },
       },
     },
-    quiz: {
-      prompt: 'Does the pattern complete and break DOWN as expected?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'no',
-      explainRight:
-        'Correct. Instead of slicing through the flat ~$83 support, GE bounced hard: Jan 2 closed 86.17, and by Jan 11 it broke UP through the descending resistance to a 92.93 high — a bullish fakeout of the bearish setup. Support held and the pattern failed.',
-      explainWrong:
-        'It actually failed. The chart looked like a bearish descending triangle ready to break, but support at ~$83 held and price reversed UP, closing 86.17 on Jan 2 and pushing to 92.93 by Jan 11 — decisively breaking the falling resistance line. The bearish pattern faked out.',
+    challenge: {
+      prompt:
+        "If you'd short this Descending Triangle on the breakdown, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -438,11 +395,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 14,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · NFLX · Double Top',
-    title: 'Does this Double Top complete?',
+    title: 'Trade this Double Top',
     intro:
-      'Netflix printed two peaks (~69 and ~70) separated by a ~64.5 trough, and is rolling over off the second peak. Does it confirm below the neckline?',
+      'Netflix printed two peaks (~69 and ~70) separated by a ~64.5 trough, and is rolling over off the second peak. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -453,22 +410,15 @@ const modules: ModuleSpec[] = [
         markers: [
           { date: '2021-10-29', price: 69.1, kind: 'dot', label: 'Peak 1 69.10' },
           { date: '2021-11-17', price: 70.1, kind: 'dot', label: 'Peak 2 70.10' },
-          { date: '2021-12-01', price: 61.78, kind: 'sell', label: 'Breakdown 61.78' },
         ],
-        outcome: { text: 'Broke below neckline — it completed', good: true },
+        trade: { direction: 'short', entry: 64.5, completes: true },
       },
     },
-    quiz: {
-      prompt: 'Will this double top CONFIRM by closing below the ~$64.5 neckline and following through?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct. The two near-equal peaks (~69.10 and ~70.10) sat over a ~64.50 trough. The reversal confirmed when NFLX closed 64.19 on Nov 30 and gapped to 61.78 on Dec 1, breaking the neckline with follow-through to a 59.40 low — right at the measured-move target (64.5 − 4.6 = 59.9).',
-      explainWrong:
-        'It actually completed. After the second peak (high 70.10), NFLX rolled over and closed below the ~$64.5 neckline (64.19 on Nov 30, then 61.78 on Dec 1) with continuation to 59.40. The pattern would have been invalidated only if price had reclaimed the ~70 peaks; it did not.',
+    challenge: {
+      prompt:
+        "If you'd short this Double Top on the neckline breakdown, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -503,11 +453,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 16,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · META · Head and Shoulders',
-    title: 'Does this Head and Shoulders complete?',
+    title: 'Trade this Head and Shoulders',
     intro:
-      'Meta carved an H&S top: left shoulder ~319, a higher head ~326, a lower right shoulder ~313, with a neckline near $290. Does it break below?',
+      'Meta carved an H&S top: left shoulder ~319, a higher head ~326, a lower right shoulder ~313, with a neckline near $290. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -518,22 +468,15 @@ const modules: ModuleSpec[] = [
         markers: [
           { date: '2023-07-28', price: 326.2, kind: 'dot', label: 'Head 326.20' },
           { date: '2023-09-14', price: 312.87, kind: 'dot', label: 'Right shoulder 312.87' },
-          { date: '2023-11-22', price: 342.92, kind: 'buy', label: 'Broke UP 342.92' },
         ],
-        outcome: { text: 'Neckline held, broke UP — H&S faked out', good: false },
+        trade: { direction: 'short', entry: 290, completes: false },
       },
     },
-    quiz: {
-      prompt: 'Will it close BELOW the neckline and complete the bearish breakdown?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'no',
-      explainRight:
-        'Correct. A valid H&S needs a decisive CLOSE below the neckline. META only briefly poked to a 279.40 intraday low (Oct 26 close 288.35) before snapping back above ~$290, then broke out ABOVE the head to 342.92 by Nov 22. No sustained breakdown — the pattern faked out.',
-      explainWrong:
-        'It actually failed. Recognizing the setup was correct, but the neckline (~$290) held — only a brief intraday poke to 279.40, no sustained close-based breakdown. Price reversed to 342.92 (above the head) by Nov 22, so the bearish target of ~254 was never approached. Truth beats the textbook.',
+    challenge: {
+      prompt:
+        "If you'd short this Head and Shoulders on the neckline breakdown, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -569,11 +512,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 18,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · BABA · Triple Top',
-    title: 'Does this Triple Top complete?',
+    title: 'Trade this Triple Top',
     intro:
-      'Alibaba printed three tops near 310-319 and is now sitting on the ~$300 support shelf after the third peak failed. Does it confirm below support?',
+      'Alibaba printed three tops near 310-319 and is now sitting on the ~$300 support shelf after the third peak failed. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -584,22 +527,15 @@ const modules: ModuleSpec[] = [
         markers: [
           { date: '2020-10-21', price: 314.0, kind: 'dot', label: 'Top 2 314.00' },
           { date: '2020-10-27', price: 319.32, kind: 'dot', label: 'Top 3 319.32' },
-          { date: '2020-11-10', price: 266.54, kind: 'sell', label: 'Breakdown 266.54' },
         ],
-        outcome: { text: 'Broke below support — it completed', good: true },
+        trade: { direction: 'short', entry: 300, completes: true },
       },
     },
-    quiz: {
-      prompt: 'Will it confirm the triple top by closing BELOW support and following through?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct. Three tops (310.01, 314.00, 319.32) sat on ~$300 support. Price closed below it on Nov 9 (290.53) and confirmed with the Nov 10 breakdown (close 266.54), then fell to a 252.55 low — blowing through the measured-move target of ~281.',
-      explainWrong:
-        'It actually completed. After the third peak failed, BABA gapped and broke down: Nov 9 closed 290.53 (below the ~$300 support) and Nov 10 plunged to a 266.54 close with follow-through to 252.55. The pattern would have failed only if price had reclaimed the ~319 peaks; it did not.',
+    challenge: {
+      prompt:
+        "If you'd short this Triple Top on the support breakdown, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -634,11 +570,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 20,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · SNAP · Double Bottom',
-    title: 'Does this Double Bottom complete?',
+    title: 'Trade this Double Bottom',
     intro:
-      'SNAP printed two bottoms near 27 with a neckline peak around 39.5, and is lifting off the second trough. Does it confirm above the neckline?',
+      'SNAP printed two bottoms near 27 with a neckline peak around 39.5, and is lifting off the second trough. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -649,22 +585,15 @@ const modules: ModuleSpec[] = [
         markers: [
           { date: '2022-03-14', price: 27.67, kind: 'dot', label: 'Trough 1 27.67' },
           { date: '2022-04-27', price: 26.56, kind: 'dot', label: 'Trough 2 26.56' },
-          { date: '2022-05-06', price: 24.92, kind: 'sell', label: 'Broke down 24.92' },
         ],
-        outcome: { text: 'Broke below the right foot — the W failed', good: false },
+        trade: { direction: 'long', entry: 39.5, completes: false },
       },
     },
-    quiz: {
-      prompt: 'Will this Double Bottom confirm by closing above the ~$39.5 neckline?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'no',
-      explainRight:
-        'Correct. A double bottom is valid only once price CLOSES above the neckline (~39.5), and confirmation never came. Two sessions after the split the right foot gave way: May 6 closed 24.92 (below the 26.56 trough, the stop level), sliding to a 21.70 low and then a 12.79 close on a May 24 profit warning — a ~58% collapse.',
-      explainWrong:
-        'It actually failed. The W looked plausible, but price never approached the ~$39.5 neckline. Instead the right foot broke: May 6 closed 24.92 below the second-trough low (26.56), a hard invalidation, then collapsed into the May 24 guidance-warning gap to 12.79. The setup faked out.',
+    challenge: {
+      prompt:
+        "If you'd trade this Double Bottom long off the neckline breakout, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -699,11 +628,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 22,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · NVDA · Inverted Head and Shoulders',
-    title: 'Does this Inverted Head and Shoulders complete?',
+    title: 'Trade this Inverted Head and Shoulders',
     intro:
-      'NVDA formed an inverted H&S: left shoulder ~14.9, a lower head ~13.9, a right shoulder ~14.0, with a neckline near $15. Price sits just under it at 14.86.',
+      'NVDA formed an inverted H&S: left shoulder ~14.9, a lower head ~13.9, a right shoulder ~14.0, with a neckline near $15. Price sits just under it at 14.86. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -715,22 +644,15 @@ const modules: ModuleSpec[] = [
           { date: '2022-12-22', price: 14.88, kind: 'dot', label: 'Left shoulder 14.88' },
           { date: '2022-12-28', price: 13.88, kind: 'dot', label: 'Head 13.88' },
           { date: '2023-01-05', price: 14.03, kind: 'dot', label: 'Right shoulder 14.03' },
-          { date: '2023-01-09', price: 15.63, kind: 'buy', label: 'Breakout 15.63' },
         ],
-        outcome: { text: 'Closed above neckline — it completed', good: true },
+        trade: { direction: 'long', entry: 15.0, completes: true },
       },
     },
-    quiz: {
-      prompt: 'Will it close above the neckline and complete the bullish reversal?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct. The structure was a textbook inverted H&S (left shoulder ~14.88, lower head 13.88, right shoulder ~14.03). The confirming signal arrived Jan 9 with a 15.63 close above the ~$15 neckline, then ran to 17.70, 20.36 and 22.34 — far surpassing the ~16.1 measured target.',
-      explainWrong:
-        'It actually completed. Three sessions after the split, NVDA closed 15.63 on Jan 9 (high 16.06), decisively clearing the ~$15 neckline, and never looked back — 22.34 by Feb 9. Measured target = 15.0 + (15.0 − 13.88) ≈ 16.1, hit within days and then vastly exceeded.',
+    challenge: {
+      prompt:
+        "If you'd trade this Inverted Head and Shoulders long off the neckline breakout, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 
@@ -766,11 +688,11 @@ const modules: ModuleSpec[] = [
   },
   {
     id: 24,
-    type: 'quiz',
+    type: 'challenge',
     kicker: 'Quiz · DIS · Triple Bottom',
-    title: 'Does this Triple Bottom complete?',
+    title: 'Trade this Triple Bottom',
     intro:
-      'Disney printed three troughs near $79-82 under a ~$86 resistance ceiling. Does price close ABOVE the resistance and break out higher?',
+      'Disney printed three troughs near $79-82 under a ~$86 resistance ceiling. The right half is hidden — set your trade and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -781,22 +703,15 @@ const modules: ModuleSpec[] = [
         markers: [
           { date: '2023-10-04', price: 79.0, kind: 'dot', label: 'Trough ~79' },
           { date: '2023-10-26', price: 80.0, kind: 'dot', label: 'Trough ~80' },
-          { date: '2023-11-09', price: 90.34, kind: 'buy', label: 'Breakout 90.34' },
         ],
-        outcome: { text: 'Closed above resistance — it completed', good: true },
+        trade: { direction: 'long', entry: 86, completes: true },
       },
     },
-    quiz: {
-      prompt: 'Will price close ABOVE the ~$86 resistance to confirm the triple bottom?',
-      options: [
-        { id: 'yes', label: 'Yes — it completes' },
-        { id: 'no', label: 'No — it fails' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct. The triple bottom confirms on a close above the ~$86 resistance set by the two interior peaks. DIS delivered exactly that on Nov 9 with a breakaway gap closing at 90.34, then followed through to ~96.5 — a breakout in the expected bullish direction.',
-      explainWrong:
-        'It actually completed. After the split (Nov 1 close 81.07), DIS gapped sharply higher on Nov 9 to close 90.34, decisively breaking the ~$86 resistance, and continued to a 96.51 high by Nov 24. The breakout with follow-through confirmed the triple bottom.',
+    challenge: {
+      prompt:
+        "If you'd trade this Triple Bottom long off the resistance breakout, set your take-profit and stop — or stay out.",
+      instructions:
+        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
     },
   },
 ]

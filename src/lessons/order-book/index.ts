@@ -71,38 +71,31 @@ const modules: ModuleSpec[] = [
       'Spread = ask − bid = 100.02 − 100.00 = 0.02. Mid = (100.00 + 100.02)/2 = 100.01. Drag the handles — but you can never make the buyer pay more than the seller asks.',
   },
 
-  // 3 — QUIZ spot the spread -------------------------------------------------
+  // 3 — CHALLENGE set the quote ----------------------------------------------
   {
     id: 3,
-    type: 'quiz',
-    kicker: 'Quiz',
-    title: 'Spot the Spread',
-    intro: 'Three quotes. Each shows a bid and an ask, but the spread, mid, and validity are hidden.',
+    type: 'challenge',
+    kicker: 'Challenge',
+    title: 'Set the Quote',
+    intro:
+      'Build a valid market quote. Drag the green BID and the red ASK handles so the book is valid (bid < ask) AND the spread is exactly the target. Two checks, every time.',
     scene: {
       kind: 'quoteCards',
       params: {
-        cards: [
-          { id: 'A', bid: 50.1, ask: 50.14 },
-          { id: 'B', bid: 50.2, ask: 50.18 },
-          { id: 'C', bid: 50.0, ask: 50.3 },
-        ],
+        bid: 50.1,
+        ask: 50.16,
+        targetSpread: 0.04,
+        pMin: 49.9,
+        pMax: 50.3,
       },
     },
-    quiz: {
-      prompt: 'Which quote has a 4-cent spread AND a valid book?',
-      options: [
-        { id: 'A', label: 'A' },
-        { id: 'B', label: 'B' },
-        { id: 'C', label: 'C' },
-      ],
-      correctId: 'A',
-      explainRight:
-        'Correct. A: spread = 50.14 − 50.10 = 0.04, mid = 50.12, and bid < ask — so it is both 4-cent and valid.',
-      explainWrong:
-        'A is the answer. B is crossed (bid 50.20 > ask 50.18) — impossible, a buyer paying ≥ the ask would just trade; its "spread" would be −0.02. C is valid but its spread is 0.30, not 0.04 — tempting if you checked validity but forgot to measure the gap.',
+    challenge: {
+      prompt: 'Make a valid book with a 4-cent spread.',
+      instructions: 'Drag the BID and ASK handles. Goal: bid < ask and ask − bid = 0.04.',
+      submitLabel: 'Lock the quote',
     },
     caption:
-      'Two checks every time: bid < ask? (valid) and ask − bid = ? (the spread). A passes both at 4 cents.',
+      'Two checks every time: bid < ask? (valid) and ask − bid = ? (the spread). Cross the book and it becomes impossible — a buyer paying ≥ the ask would simply trade.',
   },
 
   // 4 — TEACH the ladder & top of book --------------------------------------
@@ -211,13 +204,14 @@ const modules: ModuleSpec[] = [
       'Two rules, in order: price first (20.00 before 20.01), then time (A before B at 20.00). A 300-share market buy prints A → B → C — exactly that sequence.',
   },
 
-  // 8 — QUIZ who gets filled -------------------------------------------------
+  // 8 — CHALLENGE who gets filled --------------------------------------------
   {
     id: 8,
-    type: 'quiz',
-    kicker: 'Quiz',
+    type: 'challenge',
+    kicker: 'Challenge',
     title: 'Who Gets Filled?',
-    intro: 'A small book. X and Y rest at 20.00; Z rests at 20.01. A market buy for 100 shares is about to arrive.',
+    intro:
+      'A small book. X and Y rest at 20.00; Z rests at 20.01. A market buy for 100 shares is about to arrive. Use the matching rule: price first, then time.',
     scene: {
       kind: 'whoFills',
       params: {
@@ -226,21 +220,12 @@ const modules: ModuleSpec[] = [
           { id: 'Y', price: 20.0, arrival: '9:30:05' },
           { id: 'Z', price: 20.01, arrival: '9:30:02' },
         ],
-        winnerId: 'X',
       },
     },
-    quiz: {
-      prompt: 'A market buy for 100 shares arrives. Which resting order fills first?',
-      options: [
-        { id: 'X', label: 'X' },
-        { id: 'Y', label: 'Y' },
-        { id: 'Z', label: 'Z' },
-      ],
-      correctId: 'X',
-      explainRight:
-        'Correct. The engine takes the best (lowest) ask first → 20.00, and among the orders there, time priority fills the earliest arrival (9:30:01) → X.',
-      explainWrong:
-        'X fills first. Z arrived early (9:30:02) but rests at 20.01 — a worse price, and no 20.01 share fills until every 20.00 share is gone. Y is at the right price but arrived later (9:30:05) than X. Price first, then time.',
+    challenge: {
+      prompt: 'Click the resting order that fills first.',
+      instructions: 'A MARKET BUY 100 arrives. Best price first, then earliest arrival.',
+      submitLabel: 'Run the match',
     },
     caption:
       'Price, then time. Best price (20.00) clears before 20.01; within 20.00, the 9:30:01 order beats the 9:30:05 order. X fills first.',
@@ -270,14 +255,14 @@ const modules: ModuleSpec[] = [
       '1,000 shares but only 500 at the 100.02 touch — the rest fills at 100.05. Blended avg = 100.035, which is 0.015 above the touch: $15 of slippage, paid for taking size in one gulp. (Simulated depth; math exact.)',
   },
 
-  // 10 — QUIZ compute the average fill --------------------------------------
+  // 10 — CHALLENGE fill the order -------------------------------------------
   {
     id: 10,
-    type: 'quiz',
-    kicker: 'Quiz',
-    title: "What's the Average Fill?",
+    type: 'challenge',
+    kicker: 'Challenge',
+    title: 'Fill the Order',
     intro:
-      'A market buy for 1,000 shares hits asks 100.00 × 400, then 100.05 × 600. The average fill is masked — what is it, approximately?',
+      'The touch holds 400 @ 100.00; behind it sits 600 @ 100.05. Size up a market buy with the slider, then sweep the book and read your realized average against the touch.',
     scene: {
       kind: 'avgFillQuiz',
       params: {
@@ -285,24 +270,17 @@ const modules: ModuleSpec[] = [
           { price: 100.0, size: 400 },
           { price: 100.05, size: 600 },
         ],
-        orderSize: 1000,
+        startSize: 700,
+        maxSize: 1000,
       },
     },
-    quiz: {
-      prompt: 'The average fill is approximately…?',
-      options: [
-        { id: 'a', label: '100.00' },
-        { id: 'b', label: '100.03' },
-        { id: 'c', label: '100.05' },
-      ],
-      correctId: 'b',
-      explainRight:
-        'Correct. avg = (400×100.00 + 600×100.05) / 1000 = (40,000 + 60,030) / 1000 = 100.03 — 0.03 above the 100.00 touch (3¢/sh = $30 of slippage on 1,000 shares).',
-      explainWrong:
-        'It is 100.03. 100.00 is just the touch — only 400 of the 1,000 fill there; the other 600 walk up to 100.05. 100.05 is the top level reached — it ignores the 400 cheaper shares at 100.00. The weighted average sits between, pulled toward 100.05 because more shares (600) filled there: (400×100.00 + 600×100.05)/1000 = 100.03.',
+    challenge: {
+      prompt: 'Fill a 700-share market buy — what average price do you pay?',
+      instructions: 'Drag the slider to set the order size, then sweep. Notice your average vs the 100.00 touch.',
+      submitLabel: 'Sweep the book',
     },
     caption:
-      'Weighted average, not the touch and not the top: (400×100.00 + 600×100.05)/1000 = 100.03. Three cents of slippage — $30 on 1,000 shares.',
+      'Weighted average, not the touch and not the top. At 700 shares: (400×100.00 + 300×100.05)/700 ≈ 100.021 — above the 100.00 touch. Size past the touch and you always pay more than the best price.',
   },
 
   // 11 — TEACH the spread is a cost -----------------------------------------
@@ -370,14 +348,14 @@ const modules: ModuleSpec[] = [
       'Buys print at 100.01, sells print at 100.00, back and forth — a 1-cent sawtooth — while the mid never moves. That wiggle is the bid-ask bounce, not a price change.',
   },
 
-  // 14 — QUIZ limit vs market -----------------------------------------------
+  // 14 — CHALLENGE limit vs market ------------------------------------------
   {
     id: 14,
-    type: 'quiz',
-    kicker: 'Quiz',
-    title: 'Limit or Market? Pick the Tool',
+    type: 'challenge',
+    kicker: 'Challenge',
+    title: 'Limit or Market? Place the Order',
     intro:
-      'You must buy 200 shares of this thin small-cap. You refuse to pay above 5.05, and you can wait. The touch holds only 100 shares; the next rung is 5.40.',
+      'You must buy 200 shares of this thin small-cap. You refuse to pay above 5.05, and you can wait. The touch holds only 100 shares; the next rung is 5.40. Pick the right tool — then place it.',
     scene: {
       kind: 'orderTypeQuiz',
       params: {
@@ -387,20 +365,14 @@ const modules: ModuleSpec[] = [
         ],
         orderSize: 200,
         limitPrice: 5.05,
-        correctChoice: 'limit',
+        limitMin: 4.95,
+        limitMax: 5.45,
       },
     },
-    quiz: {
-      prompt: 'To buy your 200 shares: market order now, or a limit at 5.05?',
-      options: [
-        { id: 'market', label: 'Market (buy 200 now)' },
-        { id: 'limit', label: 'Limit 200 @ 5.05 (rest and wait)' },
-      ],
-      correctId: 'limit',
-      explainRight:
-        'Correct. Only 100 shares sit at the 5.00 touch, so a 200-share market order fills 100 @ 5.00 then walks to 5.40 — a 5.20 blended average (+4%), blowing past your 5.05 ceiling. A resting limit at 5.05 guarantees you never overpay, and the constraint says you can wait — the right tool when the book is thin and time is not urgent.',
-      explainWrong:
-        'A limit at 5.05 is the answer. "Buy now" feels safe, but on a thin book the touch holds only 100 of the 200 shares you need, so a market order walks to 5.40 — a 5.20 blended average (+4%) that violates your own 5.05 rule. Market orders are for deep books or true urgency; here you can wait, so control the price.',
+    challenge: {
+      prompt: 'Pick an order type to buy 200 without paying above 5.05.',
+      instructions: 'Choose MARKET or LIMIT. If LIMIT, drag the price. Then place it — your goal is best price, and you can wait.',
+      submitLabel: 'Place the order',
     },
     caption:
       '200 shares, thin book, a hard 5.05 limit, and patience → limit order. A 200-share market order fills 100 @ 5.00 then walks to 5.40 — a 5.20 blended average (+4%) that breaks your rule. Limit controls price; market controls fill.',

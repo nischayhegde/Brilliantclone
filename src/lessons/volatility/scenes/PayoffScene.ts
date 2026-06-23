@@ -63,6 +63,16 @@ interface PayoffParams {
   quiz?: boolean
   /** On reveal, snap breakevens to these (defaults to computed). */
   // (computed from current legs)
+
+  /**
+   * CHALLENGE mode — interactive self-grading (type:'challenge'). One of:
+   *  - 'breakevens' : drag the two breakeven markers onto where the V crosses zero (M5)
+   *  - 'compareMove': choose straddle vs strangle for a given expected move, run it (M8)
+   *  - 'pickVol'    : choose long-vol vs short-vol for a scenario, run it (M13)
+   */
+  challenge?: 'breakevens' | 'compareMove' | 'pickVol'
+  /** compareMove: the expected absolute move from 100 (e.g. 6 → S lands at 106). */
+  expectedMove?: number
 }
 
 const PAD = { left: 52, right: 24, top: 30, bottom: 92 }
@@ -110,6 +120,24 @@ export default class PayoffScene extends ModuleScene {
   private maskG?: Phaser.GameObjects.Container
   private revealed = false
 
+  // --- challenge state ---
+  private graded = false
+  /** M5: learner-dragged breakeven guesses (prices). */
+  private beGuessLo = 90
+  private beGuessHi = 110
+  /** M8/M13: learner's structure/side pick. */
+  private pick: 'straddle' | 'strangle' | null = null
+  private volPick: 'long' | 'short' | null = null
+  private pickBtns: Array<{
+    key: string
+    bg: Phaser.GameObjects.Graphics
+    txt: Phaser.GameObjects.Text
+    x: number
+    y: number
+    w: number
+  }> = []
+  private beHandleRedraws: Array<() => void> = []
+
   protected build(): void {
     this.p = this.params as PayoffParams
     this.structure = this.p.structure ?? 'straddle'
@@ -150,13 +178,20 @@ export default class PayoffScene extends ModuleScene {
       this.animateLegMerge()
     } else {
       this.redraw()
-      // In quiz mode the breakevens are the answer, so don't draw them yet.
-      if (!this.p.quiz) this.maybeShowBreakevens(true)
+      // In quiz/challenge mode the breakevens are the answer, so don't draw them yet.
+      if (!this.p.quiz && this.p.challenge !== 'breakevens') this.maybeShowBreakevens(true)
     }
 
     if (this.p.quiz) this.drawQuizMask()
-    if (this.p.draggableDot && !this.p.quiz) this.addDraggableDot()
-    if (this.p.sliders && !this.p.quiz) this.buildSliders(this.p.sliders)
+    if (this.p.draggableDot && !this.p.quiz && !this.p.challenge) this.addDraggableDot()
+    if (this.p.sliders && !this.p.quiz && !this.p.challenge) this.buildSliders(this.p.sliders)
+
+    // Challenge setup (interactive controls + enable Submit). Only when a challenge
+    // param is present, so the shared TEACH/QUIZ modules are untouched.
+    if (this.p.challenge === 'breakevens') this.setupBreakevenChallenge()
+    else if (this.p.challenge === 'compareMove') this.setupCompareChallenge()
+    else if (this.p.challenge === 'pickVol') this.setupPickVolChallenge()
+
     if (this.p.caption) {
       const cap = this.label(this.plot.l, this.H - 16, this.p.caption, { size: 12, col: C.muted })
       cap.setWordWrapWidth(this.plot.w + 28)
@@ -582,6 +617,13 @@ export default class PayoffScene extends ModuleScene {
     this.children.bringToTop(this.maskG)
   }
 
+  protected onSubmit(): void {
+    if (this.graded) return
+    if (this.p.challenge === 'breakevens') this.gradeBreakevens()
+    else if (this.p.challenge === 'compareMove') this.gradeCompare()
+    else if (this.p.challenge === 'pickVol') this.gradePickVol()
+  }
+
   protected onReveal(): void {
     if (this.revealed) return
     this.revealed = true
@@ -642,4 +684,276 @@ export default class PayoffScene extends ModuleScene {
     g.fillTriangle(x1 + 7, y - 4, x1 + 7, y + 4, x1, y)
     this.label((x1 + x2) / 2, y - 9, label, { size: 10, col, bold: true, align: 'center' })
   }
+
+  // ===================== CHALLENGE: M5 — drag the breakevens =================
+
+  /** Convert a screen-x back to a price (inverse of xFor), clamped to the window. */
+  private priceFor(x: number): number {
+    const cx = Phaser.Math.Clamp(x, this.plot.l, this.plot.r)
+    const t = (cx - this.plot.l) / this.plot.w
+    return this.xMin + t * (this.xMax - this.xMin)
+  }
+
+  /**
+   * M5 — two draggable vertical breakeven markers. The learner slides each onto where
+   * the V crosses zero; onSubmit grades both vs the exact breakevens (93 / 107) and
+   * confirms the vertex (max loss −7 at K=100). The curve + zero line are already drawn.
+   */
+  private setupBreakevenChallenge(): void {
+    // Sensible starting guesses, away from the real answers so it's a real task.
+    this.beGuessLo = Math.max(this.xMin + 2, this.K - 12)
+    this.beGuessHi = Math.min(this.xMax - 2, this.K + 12)
+
+    this.makeBEHandle(() => this.beGuessLo, (v) => (this.beGuessLo = v))
+    this.makeBEHandle(() => this.beGuessHi, (v) => (this.beGuessHi = v))
+
+    this.label(this.plot.l, this.plot.t - 4, 'drag the two markers to where P&L = 0', {
+      size: 11, col: C.muted,
+    })
+    this.setCanSubmit(true)
+  }
+
+  private makeBEHandle(get: () => number, set: (v: number) => void): void {
+    const y0 = this.yFor(0)
+    const lineG = this.add.graphics()
+    const knob = this.add.circle(0, y0, 10, C.blue).setStrokeStyle(3, C.white)
+    const lbl = this.label(0, this.plot.t - 18, '', { size: 12, col: C.blue, bold: true, align: 'center' })
+    // Wide invisible vertical hit strip so the whole marker is grabbable.
+    const hit = this.add.rectangle(0, this.plot.t + this.plot.h / 2, 26, this.plot.h, 0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+
+    const redraw = () => {
+      const price = get()
+      const x = this.xFor(price)
+      lineG.clear()
+      lineG.lineStyle(2, C.blue, this.graded ? 0.35 : 1)
+      for (let yy = this.plot.t; yy < this.plot.b; yy += 11) lineG.lineBetween(x, yy, x, Math.min(yy + 6, this.plot.b))
+      knob.setPosition(x, y0)
+      knob.setAlpha(this.graded ? 0.5 : 1)
+      lbl.setPosition(x, this.plot.t - 18)
+      lbl.setText(`${fmt(price)}`)
+      hit.x = x
+    }
+    redraw()
+
+    let dragging = false
+    hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.graded) return
+      dragging = true
+      set(this.priceFor(p.x))
+      redraw()
+    })
+    const onMove = (p: Phaser.Input.Pointer) => {
+      if (dragging) { set(this.priceFor(p.x)); redraw() }
+    }
+    const onUp = () => { dragging = false }
+    this.input.on('pointermove', onMove)
+    this.input.on('pointerup', onUp)
+    this.input.on('pointerupoutside', onUp)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.off('pointermove', onMove)
+      this.input.off('pointerup', onUp)
+      this.input.off('pointerupoutside', onUp)
+    })
+    // store redraw so grading can dim the handles
+    this.beHandleRedraws.push(redraw)
+  }
+
+  private gradeBreakevens(): void {
+    this.graded = true
+    this.setCanSubmit(false)
+    const legs = this.legs()
+    const be = breakevens(legs)
+    const total = totalPremium(legs)
+    // Snap the learner's two guesses to lower/upper.
+    const guessLo = Math.min(this.beGuessLo, this.beGuessHi)
+    const guessHi = Math.max(this.beGuessLo, this.beGuessHi)
+    this.beGuessLo = guessLo
+    this.beGuessHi = guessHi
+    for (const redraw of this.beHandleRedraws) redraw()
+
+    const tol = 1.0 // ±1 price unit is "on the breakeven"
+    const okLo = Math.abs(guessLo - be.lower) <= tol
+    const okHi = Math.abs(guessHi - be.upper) <= tol
+    const correct = okLo && okHi
+
+    // Draw the TRUE breakevens in (animated) + flash the vertex / max loss.
+    this.p.showBreakevens = true
+    this.drawBreakevens(true)
+    const midX = this.xFor(this.K)
+    const flash = this.add.circle(midX, this.yFor(-total), 10, C.red).setAlpha(0)
+    this.tweens.add({ targets: flash, alpha: 1, scale: 1.6, duration: 240, yoyo: true, repeat: 2 })
+    this.label(midX, this.yFor(-total) + 30, `vertex: max loss ${fmtSigned(-total)} at K=${fmt(this.K)}`, {
+      size: 11, col: C.red, bold: true, align: 'center',
+    })
+
+    const title = correct
+      ? `Both breakevens nailed · ${fmt(be.lower)} / ${fmt(be.upper)}`
+      : `Off — the breakevens are ${fmt(be.lower)} / ${fmt(be.upper)}`
+    const detail = correct
+      ? `Right where the V crosses zero. Breakevens = K ± total premium = ${fmt(this.K)} ± ${fmt(total)} = ${fmt(be.lower)} and ${fmt(be.upper)}. The vertex sits at (${fmt(this.K)}, ${fmtSigned(-total)}) — pin at the strike and you lose the full ${fmt(total)} premium (${fmtDollars(-total)}). You must move MORE than the premium to profit.`
+      : `You placed ${fmt(guessLo)} / ${fmt(guessHi)}; the V crosses zero at ${fmt(be.lower)} / ${fmt(be.upper)}. Breakevens = K ± TOTAL premium = ${fmt(this.K)} ± ${fmt(total)} (not one leg). Max loss is the vertex ${fmtSigned(-total)} at K=${fmt(this.K)} — you must clear a breakeven, not merely move.`
+    this.report(correct, title, detail)
+  }
+
+  // ===================== CHALLENGE: M8 — straddle vs strangle ================
+
+  /**
+   * M8 — both structures are drawn (compareBoth). A target price for the expected move
+   * is marked; the learner picks straddle or strangle, then Submit runs the move and
+   * grades which one actually profits at that price (cheaper-but-needs-more tradeoff).
+   */
+  private setupCompareChallenge(): void {
+    const move = this.p.expectedMove ?? 6
+    const S = 100 + move
+    // mark the expected landing price (label at the TOP of the plot to clear the axis)
+    const x = this.xFor(S)
+    const g = this.add.graphics()
+    this.dashLineV(g, x, this.plot.t, this.plot.b, C.ink, 0.8, 7, 5)
+    this.label(x, this.plot.t + 8, `expected → S = ${fmt(S)}`, {
+      size: 11, col: C.ink, bold: true, align: 'center',
+    })
+
+    // pick buttons along the bottom strip (clear of the x-axis title at plot.b+28)
+    const by = this.H - 26
+    this.makePickButton('straddle', 'Straddle (cost 7)', this.plot.l + 30, by, 210, C.green, () => {
+      this.pick = 'straddle'; this.refreshPickButtons()
+    })
+    this.makePickButton('strangle', 'Strangle (cost 3)', this.plot.l + 270, by, 210, C.blue, () => {
+      this.pick = 'strangle'; this.refreshPickButtons()
+    })
+    this.refreshPickButtons()
+    this.setCanSubmit(false)
+  }
+
+  private gradeCompare(): void {
+    const pick = this.pick
+    if (!pick) return
+    this.graded = true
+    this.setCanSubmit(false)
+    const move = this.p.expectedMove ?? 6
+    const S = 100 + move
+    const strad = straddle(100, 4, 3, 'long')
+    const stran = strangle(95, 105, 1.25, 1.75, 'long')
+    const pnlStrad = combinedPnL(strad, S)
+    const pnlStran = combinedPnL(stran, S)
+    const chosen = pick === 'straddle' ? pnlStrad : pnlStran
+    // Best structure AT THIS PRICE = whichever has the higher P&L.
+    const best: 'straddle' | 'strangle' = pnlStrad >= pnlStran ? 'straddle' : 'strangle'
+    const correct = pick === best
+
+    // Reveal both breakevens + drop a dot for each structure at S.
+    this.revealCompareBreakevens()
+    for (const [legs, col] of [[strad, C.green], [stran, C.blue]] as const) {
+      const pnl = Phaser.Math.Clamp(combinedPnL(legs, S), this.yMin, this.yMax)
+      const dot = this.add.circle(this.xFor(S), this.yFor(pnl), 7, col).setStrokeStyle(2, C.white)
+      dot.setScale(0)
+      this.tweens.add({ targets: dot, scale: 1, duration: 300, ease: 'Back.out' })
+    }
+
+    const title = correct
+      ? `${capitalize(pick)} wins at S=${fmt(S)} · ${fmtSigned(chosen)}`
+      : `${capitalize(pick)} loses here · ${fmtSigned(chosen)}`
+    const detail =
+      `At S=${fmt(S)}: straddle P&L ${fmtSigned(pnlStrad)} (${fmtDollars(pnlStrad)}), strangle P&L ${fmtSigned(pnlStran)} (${fmtDollars(pnlStran)}). ` +
+      (move < 8
+        ? `This move clears the straddle's 107 breakeven but NOT the strangle's 108. The cheaper strangle (cost 3) needs the bigger move to escape its 92/108 band — cost vs move. `
+        : `A move this big clears both bands; the cheaper strangle (cost 3) keeps more because it paid less premium. `) +
+      `Breakeven DISTANCE, not price tag, decides: straddle BE 93/107 (7 from 100), strangle BE 92/108 (8 from 100).`
+    this.report(correct, title, detail)
+  }
+
+  // ===================== CHALLENGE: M13 — long vs short vol ==================
+
+  /**
+   * M13 — a "pin near 100, rich IV" scenario. The learner picks LONG VOL or SHORT VOL;
+   * Submit redraws the chosen payoff, walks the dot to the expected pin (S≈100), and
+   * grades: short vol fits a pin (collect premium) but carries large risk; long vol is
+   * the IV-crush trap here.
+   */
+  private setupPickVolChallenge(): void {
+    // mark the expected pin at 100 (label at top of plot, clear of the axis)
+    const xg = this.add.graphics()
+    this.dashLineV(xg, this.xFor(100), this.plot.t, this.plot.b, C.ink, 0.8, 7, 5)
+    this.label(this.xFor(100), this.plot.t + 8, 'expected pin → S = 100', {
+      size: 11, col: C.ink, bold: true, align: 'center',
+    })
+
+    const by = this.H - 26
+    this.makePickButton('long', 'LONG VOL (buy)', this.plot.l + 30, by, 210, C.green, () => {
+      this.volPick = 'long'; this.refreshPickButtons()
+    })
+    this.makePickButton('short', 'SHORT VOL (sell)', this.plot.l + 270, by, 210, C.red, () => {
+      this.volPick = 'short'; this.refreshPickButtons()
+    })
+    this.refreshPickButtons()
+    this.setCanSubmit(false)
+  }
+
+  private gradePickVol(): void {
+    const volPick = this.volPick
+    if (!volPick) return
+    this.graded = true
+    this.setCanSubmit(false)
+    // Rebuild the payoff for the chosen side and reveal its breakevens.
+    this.side = volPick
+    this.redraw()
+    this.p.showBreakevens = true
+    this.drawBreakevens(true)
+
+    // Walk a dot to the expected pin (S = 100, the strike).
+    const S = 100
+    const pnl = combinedPnL(this.legs(), S)
+    const dotCol = volPick === 'short' ? C.green : C.red
+    const dotY = this.yFor(Phaser.Math.Clamp(pnl, this.yMin, this.yMax))
+    const dot = this.add.circle(this.xFor(S), dotY, 8, dotCol).setStrokeStyle(3, C.white)
+    dot.setScale(0)
+    this.tweens.add({ targets: dot, scale: 1, duration: 320, ease: 'Back.out' })
+    this.label(this.xFor(S), dotY - 18, `pin S=100 · P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
+      { size: 11, col: dotCol, bold: true, align: 'center' })
+
+    const correct = volPick === 'short'
+    const title = correct
+      ? `Short vol fits the pin · ${fmtSigned(pnl)} at S=100`
+      : `Long vol is the wrong side here · ${fmtSigned(pnl)} at S=100`
+    const detail = correct
+      ? `Right call for a confident pin + rich IV: SELLING the straddle keeps the full ${fmt(totalPremium(this.legs()))} premium (${fmtDollars(totalPremium(this.legs()))}) if the stock stays inside 93–107, and IV crush works FOR you. The caveat the payoff shows: the inverted tent has large/undefined risk if the move is bigger than you expect — only right when you truly expect quiet.`
+      : `Buying the straddle into a pin is the IV-crush trap (module 11): you pay 7 of rich premium for a move that never comes, so a pin at 100 loses the full ${fmt(totalPremium(straddle(100, 4, 3, 'long')))} (${fmtDollars(-totalPremium(straddle(100, 4, 3, 'long')))}). For an expected pin + rich IV, SELL the premium (short vol) — accepting its large tail risk — or stay flat.`
+    this.report(correct, title, detail)
+  }
+
+  // --- shared pick-button helpers (M8 / M13) --------------------------------
+  private makePickButton(key: string, label: string, x: number, y: number, w: number, col: number, on: () => void): void {
+    const bg = this.add.graphics()
+    const txt = this.add.text(x + w / 2, y, label, {
+      fontFamily: FONT, fontSize: '13px', fontStyle: 'bold',
+    }).setOrigin(0.5)
+    const hit = this.add.rectangle(x + w / 2, y, w, 34, 0x000000, 0).setInteractive({ useHandCursor: true })
+    hit.on('pointerup', () => { if (!this.graded) on() })
+    this.pickBtns.push({ key, bg, txt, x, y, w })
+    // colour stashed on the object for refresh
+    ;(bg as Phaser.GameObjects.Graphics & { _col?: number })._col = col
+  }
+
+  private refreshPickButtons(): void {
+    const selectedKey = this.pick ?? this.volPick
+    let any = false
+    for (const b of this.pickBtns) {
+      const col = (b.bg as Phaser.GameObjects.Graphics & { _col?: number })._col ?? C.blue
+      const selected = b.key === selectedKey
+      if (selected) any = true
+      b.bg.clear()
+      b.bg.fillStyle(selected ? col : C.white, 1)
+      b.bg.fillRoundedRect(b.x, b.y - 17, b.w, 34, 9)
+      b.bg.lineStyle(2, selected ? col : C.hairline)
+      b.bg.strokeRoundedRect(b.x, b.y - 17, b.w, 34, 9)
+      b.txt.setColor(hex(selected ? C.white : col))
+    }
+    if (any) this.setCanSubmit(true)
+  }
+}
+
+/** Capitalise the first letter (for banner titles). */
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }

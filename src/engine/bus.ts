@@ -14,6 +14,13 @@ export type SceneEvent =
   | { type: 'set'; key: string; value: number | string | boolean }
   | { type: 'ready' }
   | { type: 'readout'; key: string; value: number | string | boolean }
+  // --- interactive challenge flow ---
+  // React -> scene: run/grade the challenge the learner has set up.
+  | { type: 'submit' }
+  // scene -> React: enable/disable the Submit button as the setup becomes valid.
+  | { type: 'canSubmit'; value: boolean }
+  // scene -> React: the graded outcome (shown as a banner + explanation).
+  | { type: 'result'; correct: boolean; title: string; detail: string }
 
 type Handler = (e: SceneEvent) => void
 

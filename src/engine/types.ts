@@ -1,7 +1,7 @@
 import type Phaser from 'phaser'
 
-/** The five module kinds across all lessons. */
-export type ModuleType = 'intro' | 'teach' | 'interactive' | 'quiz' | 'capstone'
+/** Module kinds across all lessons. */
+export type ModuleType = 'intro' | 'teach' | 'interactive' | 'quiz' | 'challenge' | 'capstone'
 
 /** A scene class constructable by Phaser (PhaserCanvas adds it with init data). */
 export type SceneCtor = new (config?: Phaser.Types.Scenes.SettingsConfig) => Phaser.Scene
@@ -32,7 +32,22 @@ export interface QuizSpec {
   explainWrong: string
 }
 
-/** One module. `scene` drives the Phaser body; `quiz` is required for type 'quiz'. */
+/**
+ * An interactive challenge (type 'challenge'). The learner manipulates the scene
+ * (places a stop, builds a position, fills an order, …) and presses Submit; the SCENE
+ * runs the simulation/reveal and reports a graded {correct, title, detail} via the bus
+ * (`this.report(...)`). The renderer shows Submit, then the result banner + detail.
+ */
+export interface ChallengeSpec {
+  /** The task, e.g. "If you'd take this trade, set your take-profit and stop." */
+  prompt: string
+  /** Optional one-line how-to under the prompt. */
+  instructions?: string
+  /** Submit-button label (default "Submit"). */
+  submitLabel?: string
+}
+
+/** One module. `scene` drives the Phaser body. */
 export interface ModuleSpec {
   id: number
   type: ModuleType
@@ -46,6 +61,8 @@ export interface ModuleSpec {
   caption?: string
   /** For 'quiz' (and an optional embedded check inside 'capstone'). */
   quiz?: QuizSpec
+  /** For 'challenge' — the scene grades itself and reports via the bus. */
+  challenge?: ChallengeSpec
   /** Advance-button label override (defaults per type). */
   cta?: string
 }

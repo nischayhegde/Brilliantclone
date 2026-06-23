@@ -4,19 +4,23 @@ import IntroFlipScene from './scenes/IntroFlipScene'
 import BorrowFeeScene from './scenes/BorrowFeeScene'
 import NetPnLQuizScene from './scenes/NetPnLQuizScene'
 import PayoffScene from './scenes/PayoffScene'
+import PayoffChallengeScene from './scenes/PayoffChallengeScene'
 import MarginGaugeScene from './scenes/MarginGaugeScene'
 import SqueezeLoopScene from './scenes/SqueezeLoopScene'
+import SqueezeChoiceScene from './scenes/SqueezeChoiceScene'
 import ManageShortScene from './scenes/ManageShortScene'
 import CapstoneScene from './scenes/CapstoneScene'
 
 /**
  * LESSON 3 — "Short Selling: Profiting When Stocks Fall" (planning/Lesson3Spec.md).
  *
- * 15 modules: INTRO · TEACH · INTERACTIVE · QUIZ · CAPSTONE. Real-chart modules
- * (2, 9, 11, 12, 13) reuse the frozen CandleChartScene via `candle`; the simulations and
- * sandboxes use the custom scenes under ./scenes. All P&L / fee / payoff / days-to-cover
- * math is exact; real-chart anchors are the verified values from the spec; example
- * rates/premiums are illustrative simulations.
+ * 15 modules: INTRO · TEACH · INTERACTIVE · CHALLENGE · CAPSTONE. Real-chart modules
+ * (2, 9, 11, 12, 13) reuse the frozen CandleChartScene via `candle` — module 13 in its
+ * interactive `trade` mode (drag TP/SL for a short, simulate on submit). The four former
+ * quizzes (4, 6, 10, 13) are now self-grading CHALLENGEs: the learner manipulates the
+ * scene and onSubmit runs the sim/reveal and reports a tailored result. All P&L / fee /
+ * payoff / days-to-cover math is exact; real-chart anchors are the verified values from
+ * the spec; example rates/premiums are illustrative simulations.
  */
 const modules: ModuleSpec[] = [
   // 1 — INTRO / INTERACTIVE
@@ -70,30 +74,25 @@ const modules: ModuleSpec[] = [
     cta: 'Continue',
   },
 
-  // 4 — QUIZ · net P&L
+  // 4 — CHALLENGE · net P&L
   {
     id: 4,
-    type: 'quiz',
-    kicker: 'Quiz · Net P&L',
+    type: 'challenge',
+    kicker: 'Challenge · Net P&L',
     title: 'Did the Short Make Money?',
     intro:
-      'You short 100 shares at $50 and cover at $44, holding 30 days. Total borrow cost = $0.50/share ($50). You owed $0.20/share in dividends ($20). What was your NET profit?',
-    scene: { kind: 'netPnl', params: { shares: 100, sell: 50, cover: 44, borrowPerShare: 0.5, divPerShare: 0.2 } },
-    quiz: {
-      prompt: 'Pick the correct NET profit.',
-      options: [
-        { id: 'a', label: '$600' },
-        { id: 'b', label: '$530' },
-        { id: 'c', label: '$480' },
-      ],
-      correctId: 'b',
-      explainRight:
-        'Correct. Gross = (50 − 44) × 100 = $600. Borrow = $0.50/sh × 100 = $50. Dividend = $0.20/sh × 100 = $20. Net = 600 − 50 − 20 = $530.',
-      explainWrong:
-        '$530 is right. $600 is only the gross — it ignores the borrow fee and owed dividends, which are real cash you pay. $480 over-subtracts (it double-counts a cost). Net = 600 − 50 − 20 = $530.',
+      'You shorted 100 shares at $50. Drag the BUY-TO-COVER price down the axis and set the holding period — a borrow fee accrues every day and you owe $0.20/share in dividends. Watch the ledger and find a NET-profitable exit.',
+    scene: {
+      kind: 'netPnl',
+      params: { shares: 100, sell: 50, cover: 44, borrowPerShareDay: 0.02, divPerShare: 0.2, days: 30 },
+    },
+    challenge: {
+      prompt: 'Set a buy-to-cover and holding period that ends NET profitable.',
+      instructions: 'Drag the green COVER line down the price axis; drag the days slider. The bar shows gross minus borrow fee minus dividends = your NET.',
+      submitLabel: 'Close the short',
     },
     caption:
-      'A short can be right on direction and still lag — borrow fees and owed dividends turn a $600 gross into a $530 net. Always trade the net.',
+      'A short can be right on direction and still lose — borrow fees and owed dividends erode the gross. Cover far enough below entry, fast enough, that the net stays green. Always trade the net.',
   },
 
   // 5 — TEACH / INTERACTIVE · asymmetry
@@ -109,26 +108,19 @@ const modules: ModuleSpec[] = [
       'This is THE reason shorting is dangerous: the best case is the stock going to zero (+100%, and that\'s all), but the worst case has no limit — a stock can double, triple, 10×, and your loss grows right with it.',
   },
 
-  // 6 — QUIZ · long vs short risk (reuses PayoffScene reveal)
+  // 6 — CHALLENGE · long vs short risk
   {
     id: 6,
-    type: 'quiz',
-    kicker: 'Quiz · Risk shape',
+    type: 'challenge',
+    kicker: 'Challenge · Risk shape',
     title: 'Long vs Short: Which Risk Is Worse?',
     intro:
-      'You take one position on the same stock at $30 × 100 shares: either LONG or SHORT. The stock then triples to $90. Which suffers the larger loss — and which side has theoretically unlimited downside?',
-    scene: { kind: 'payoff', params: { entry: 30, priceMax: 120, shares: 100, mode: 'quiz', revealPrice: 90 } },
-    quiz: {
-      prompt: 'Which is the worse position here, and which has unlimited downside?',
-      options: [
-        { id: 'a', label: 'The LONG — longs can lose everything, so it is worse and unbounded.' },
-        { id: 'b', label: 'The SHORT — it loses $6,000 here, and the short has unlimited downside.' },
-      ],
-      correctId: 'b',
-      explainRight:
-        'Correct. With the stock tripling to $90, the SHORT loses (90 − 30) × 100 = $6,000 and keeps losing if price rises further — its downside is unbounded. The long actually profits $6,000 here; a long only loses if price falls, capped at the $3,000 paid.',
-      explainWrong:
-        'It is the SHORT. "You can lose your whole investment" (a long, capped at the $3,000 stake) is not the same as "unlimited loss." With price at $90 the short is down $6,000 and would keep losing as price rises — no cap at all. Losing everything ≠ losing without limit.',
+      'Same stock, two mirror positions opened at $30 × 100 shares: one LONG, one SHORT. Drag the future price upward and watch each P&L. The long can only lose its $3,000 stake — see how far the short can fall.',
+    scene: { kind: 'payoffChallenge', params: { entry: 30, priceMax: 150, shares: 100, startPrice: 30 } },
+    challenge: {
+      prompt: "Push the price high enough to make the short's loss exceed the long's worst case.",
+      instructions: "Drag the cursor right (price up). The long's loss is floored at −$3,000; keep going until the short blows past it.",
+      submitLabel: 'Lock it in',
     },
     caption:
       "A long's worst case is −100% (you lose what you put in). A short's worst case is −∞ (price can rise forever). Same stock, opposite risk shapes — that asymmetry is why shorts demand a stop.",
@@ -184,35 +176,22 @@ const modules: ModuleSpec[] = [
       'GME was the spring from Module 8 fully loaded — short interest reportedly over 100% of the float. When it ignited, shorts had to cover into a stock that barely existed to buy, and it ran to $483.00 intraday. A short near the base didn\'t lose 100% — it lost multiples of the stake.',
   },
 
-  // 10 — QUIZ · squeeze or settle (reuses GME real chart, masked)
+  // 10 — CHALLENGE · squeeze or settle (read the dials, choose)
   {
     id: 10,
-    type: 'quiz',
-    kicker: 'Quiz · GME',
+    type: 'challenge',
+    kicker: 'Challenge · GME',
     title: 'Squeeze or Settle? Read the Setup',
     intro:
-      'Short interest ≈ 140% of float · Days-to-cover > 5 · Low float · Retail buying surging (bullish catalyst). You are short here. Does price squeeze sharply higher from here? (The right half is hidden.)',
+      "You're short this name. Read the dials — short interest, days-to-cover, free float — and the catalyst flag. Decide whether the spring is loaded enough to crush you, then choose SHORT IT or STEP ASIDE.",
     scene: {
-      kind: 'candle',
-      params: {
-        candlesKey: 'gme_squeeze_2021',
-        mode: 'quiz',
-        splitDate: '2021-01-21',
-        markers: [{ date: '2021-01-28', price: 483.0, kind: 'sell', label: '~$483 peak' }],
-        outcome: { text: 'It squeezed to ~$483 — the short was crushed', good: false },
-      },
+      kind: 'squeezeChoice',
+      params: { shortPct: 140, daysToCover: 6, floatM: 50, catalyst: true, stepAsideIsRight: true },
     },
-    quiz: {
-      prompt: 'Will this squeeze higher?',
-      options: [
-        { id: 'yes', label: 'YES — it squeezes sharply higher; this is loaded squeeze fuel.' },
-        { id: 'no', label: 'NO — it will drift lower because it is overvalued.' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct. When short interest exceeds the available float and days-to-cover is high, forced covering must buy more shares than easily exist — so any up-move snowballs. This is exactly the GME dynamic; it ran toward ~$483.',
-      explainWrong:
-        'It squeezed. A short may anchor on "it\'s overvalued, it must drop," but valuation doesn\'t matter short-term when the mechanics force buying. Staying short into that fuel is how the unlimited-loss tail (M5) gets realized — right on value, still obliterated.',
+    challenge: {
+      prompt: 'Read the squeeze fuel, then choose SHORT IT or STEP ASIDE.',
+      instructions: 'Tap a choice button in the scene; the dials show the fuel. Submit to reveal what the setup did.',
+      submitLabel: 'Reveal the squeeze',
     },
     caption:
       'When more shares are sold short than exist to buy back, the exit door is too small for the crowd. That setup is when a smart short steps aside — being "right" on value won\'t save you from the squeeze.',
@@ -266,39 +245,30 @@ const modules: ModuleSpec[] = [
       'When the thesis is right and price keeps falling, a short pays — short the breakdown near $50, cover near $8, keep the decline minus borrow. The skill isn\'t just getting short; it\'s choosing the exit: too early leaves profit behind, too late lets a bounce take it back.',
   },
 
-  // 13 — QUIZ · REAL chart (HOOD, masked at split)
+  // 13 — CHALLENGE · REAL chart (HOOD, masked at split; set TP/SL for the short)
   {
     id: 13,
-    type: 'quiz',
-    kicker: 'Quiz · HOOD',
+    type: 'challenge',
+    kicker: 'Challenge · HOOD',
     title: 'Will This Short Pay Off?',
     intro:
-      'HOOD blew off the top — an $85 IPO-week spike on a call-option frenzy — and is rolling over off the spike, back to $55.01 by 2021-08-06. You are short here. Does price continue lower (short wins)? The right half is hidden.',
+      'HOOD blew off the top — an $85 IPO-week spike on a call-option frenzy — and is rolling over, back to ~$55 by 2021-08-06. You can short here. Set a take-profit BELOW and a stop-loss ABOVE (or stay out), then watch the real candles play out. The right half is hidden.',
     scene: {
       kind: 'candle',
       params: {
         candlesKey: 'short_quiz_HOOD',
         mode: 'quiz',
         splitDate: '2021-08-06',
-        hlines: [{ price: 85.0, col: 'red', label: 'Spike high 85 (stop above)', dashed: true }],
-        markers: [{ date: '2021-12-29', price: 16.68, kind: 'buy', label: 'Low 16.68' }],
-        outcome: { text: 'Kept falling — the short won', good: true },
+        trade: { direction: 'short', entry: 55, completes: true },
       },
     },
-    quiz: {
-      prompt: "You're short at this decision point — does it continue lower (short wins)?",
-      options: [
-        { id: 'yes', label: 'YES — the failed IPO spike keeps falling and the short wins.' },
-        { id: 'no', label: 'NO — it reverses and re-ignites higher; the short loses (unbounded).' },
-      ],
-      correctId: 'yes',
-      explainRight:
-        'Correct, confirmed by the real candles. The spike was a liquidity-driven blow-off (IPO + a flood of call-buying), not a fundamental re-rating. Once the forced buying exhausted there was no demand at $70 — HOOD broke support and slid from $55 to ~$17 (−66.9%).',
-      explainWrong:
-        'The data went the short\'s way: HOOD slid from $55.01 to a $16.68 low. But picking NO isn\'t "stupid" — a fresh spike CAN re-ignite, and a short\'s loss is unbounded if it reverses (M5). That\'s why a stop ABOVE the $85 spike high is mandatory even on a winning-looking setup.',
+    challenge: {
+      prompt: 'If you take the short, drag your take-profit (below) and stop-loss (above). Or stay out.',
+      instructions: 'Drag the green TP line down and the red SL line up; toggle Take trade / Stay out. Submit to reveal HOOD and simulate your exit.',
+      submitLabel: 'Run the short',
     },
     caption:
-      'Reading a fresh chart is the whole game. A failed blow-off often keeps falling — HOOD did, $55 → ~$17 — but a short that reverses has no loss limit, so even a "winning" setup demands a stop above the spike. The answer is whatever the real market did.',
+      'Reading a fresh chart is the whole game. A failed blow-off often keeps falling — HOOD did, $55 → ~$17 — but a short that reverses has no loss limit, so even a "winning" setup demands a stop above the spike. Your TP/SL decides what you actually keep.',
   },
 
   // 14 — INTERACTIVE · manage a live short
@@ -371,8 +341,10 @@ const pkg: LessonPackage = {
     borrowFee: BorrowFeeScene,
     netPnl: NetPnLQuizScene,
     payoff: PayoffScene,
+    payoffChallenge: PayoffChallengeScene,
     marginGauge: MarginGaugeScene,
     squeezeLoop: SqueezeLoopScene,
+    squeezeChoice: SqueezeChoiceScene,
     manageShort: ManageShortScene,
     capstone: CapstoneScene,
   },

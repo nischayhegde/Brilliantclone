@@ -9,7 +9,7 @@ import CapstoneScene from './scenes/CapstoneScene'
 /**
  * LESSON 5 — Straddles & Strangles: Trading Volatility (planning/Lesson5Spec.md).
  *
- * 15 modules: 1 intro · 8 teach · 4 quiz · 1 interactive · 1 capstone. Builds on
+ * 15 modules: 1 intro · 8 teach · 4 challenge · 1 interactive · 1 capstone. Builds on
  * Lesson 4's single options. Every premium / IV / breakeven / P&L figure is an
  * ILLUSTRATIVE simulation computed by exact option math (scenes/payoffMath.ts) — the
  * math is exactly correct; the round numbers are chosen to read clearly. Clean $100
@@ -115,14 +115,14 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 5 — QUIZ · find the straddle breakevens
+  // 5 — CHALLENGE · drag the straddle breakevens onto where the V crosses zero
   {
     id: 5,
-    type: 'quiz',
-    kicker: 'Quiz',
+    type: 'challenge',
+    kicker: 'Challenge',
     title: 'Find the Straddle Breakevens',
     intro:
-      'This ATM straddle has strike 100, a call premium of 4, and a put premium of 3 (total 7). The breakevens are hidden — you compute them.',
+      'This ATM straddle has strike 100, a call premium of 4, and a put premium of 3 (total 7). Drag the two blue markers onto the prices where the V crosses zero.',
     scene: {
       kind: 'payoff',
       params: {
@@ -130,25 +130,16 @@ const modules: ModuleSpec[] = [
         K: 100,
         callPremium: 4,
         putPremium: 3,
-        showBreakevens: true,
-        quiz: true,
-        title: 'Where does this V cross zero?',
+        challenge: 'breakevens',
+        title: 'Drag both markers to where P&L = 0',
       },
     },
-    quiz: {
-      prompt: 'Strike 100, call premium 4, put premium 3 (total 7). What are the two breakevens, and the most you can lose?',
-      options: [
-        { id: 'a', label: 'Breakevens 96 and 104; max loss 7 at S = 100' },
-        { id: 'b', label: 'Breakevens 93 and 107; max loss 7 (= $700) at S = 100' },
-        { id: 'c', label: "Breakevens 93 and 107; max loss 0 — a straddle can't lose" },
-      ],
-      correctId: 'b',
-      explainRight:
-        'Correct. Breakevens = K ± totalPremium = 100 ± 7 = 93 and 107. If the stock pins at 100, both legs expire worthless and you lose the full 7 premium (×100 = $700) — that is the max loss, at the vertex.',
-      explainWrong:
-        'It is B. Breakevens depend on the TOTAL premium (7), not one leg: 100 ± 7 = 93 and 107. Answer A used only the 4-premium (±4 → 96/104). Answer C is the "either-way" optimism trap — the straddle still costs money, so a small/zero move loses the premium; the V dips to −7. You must clear a breakeven, not merely move.',
+    challenge: {
+      prompt: 'Place the two breakevens where this V crosses zero.',
+      instructions: 'Drag each blue marker. Breakevens = strike ± TOTAL premium; the vertex is the max loss at K.',
+      submitLabel: 'Check breakevens',
     },
-    cta: 'Check',
+    cta: 'Continue',
   },
 
   // 6 — TEACH · the long strangle
@@ -212,37 +203,29 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 8 — QUIZ · straddle vs strangle: cost vs move
+  // 8 — CHALLENGE · pick the structure that profits at a given move
   {
     id: 8,
-    type: 'quiz',
-    kicker: 'Quiz',
+    type: 'challenge',
+    kicker: 'Challenge',
     title: 'Straddle vs Strangle: Cost vs Move',
     intro:
-      'A straddle at K=100 costs 7 (breakevens 93/107). A strangle with Kp=95, Kc=105 costs 3 (breakevens 92/108). Both are shown; the breakevens are masked.',
+      'A straddle at K=100 costs 7 (breakevens 93/107). A strangle with Kp=95, Kc=105 costs 3 (breakevens 92/108). The stock is expected to land at the dashed line — pick the structure that PROFITS there.',
     scene: {
       kind: 'payoff',
       params: {
         compareBoth: true,
-        showBreakevens: true,
-        quiz: true,
-        title: 'Straddle (V, cost 7) vs Strangle (valley, cost 3)',
+        challenge: 'compareMove',
+        expectedMove: 7.5, // S = 107.5: clears straddle BE 107 but NOT strangle BE 108
+        title: 'Straddle (cost 7) vs Strangle (cost 3) — which wins at this move?',
       },
     },
-    quiz: {
-      prompt: 'Starting from 100, which structure needs the BIGGER move to break even?',
-      options: [
-        { id: 'a', label: 'The straddle — it costs more, so it must need a bigger move' },
-        { id: 'b', label: 'The strangle — its nearest breakeven (108/92) is 8 from 100 vs the straddle’s 7 (107/93)' },
-        { id: 'c', label: 'The same — both are centered on 100' },
-      ],
-      correctId: 'b',
-      explainRight:
-        'Correct. Breakeven distance, not price tag, sets the required move. Strangle nearest BE = 105 + 3 = 108 (or 95 − 3 = 92), 8 from 100. Straddle nearest BE = 100 + 7 = 107 (or 93), 7 from 100. The cheaper strangle needs the larger move — the cost-vs-move tradeoff.',
-      explainWrong:
-        'It is B. Answer A inverts it: the straddle’s higher cost buys breakevens CLOSER to spot (ATM strike), so it needs a SMALLER move. Answer C ignores the strike spread: the strangle’s 95/105 strikes are already apart before premium, pushing its breakevens to 92/108. Symmetric centering does not mean equal breakeven distance.',
+    challenge: {
+      prompt: 'The stock lands at the dashed price. Which structure profits there?',
+      instructions: 'Tap Straddle or Strangle, then Submit. The cheaper structure needs the bigger move — breakeven distance, not cost, decides.',
+      submitLabel: 'Run the move',
     },
-    cta: 'Check',
+    cta: 'Continue',
   },
 
   // 9 — TEACH · when you'd use them
@@ -290,37 +273,30 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 11 — QUIZ · the stock moved — did you win?
+  // 11 — CHALLENGE · drag the landing price; submit applies IV crush, reveals P&L
   {
     id: 11,
-    type: 'quiz',
-    kicker: 'Quiz',
+    type: 'challenge',
+    kicker: 'Challenge',
     title: 'The Stock Moved — Did You Win?',
     intro:
-      'You own a straddle: K=100, total premium 7, breakevens 93/107. After earnings the stock gaps UP 4% to 104 and IV crushes. The outcome is masked.',
+      'You own a straddle: K=100, total premium 7, breakevens 93/107. The marker starts at 104 (a +4% gap up). Drag it to a price where this straddle would actually PROFIT, then run the IV crush.',
     scene: {
       kind: 'ivcrush',
       params: {
         K: 100,
         premium: 7,
         move: 0.04,
-        quiz: true,
-        title: 'Straddle K=100, premium 7 · gap +4% to 104 · IV crush',
+        challenge: true,
+        title: 'Straddle K=100, premium 7 · drag the landing price · IV crush',
       },
     },
-    quiz: {
-      prompt: 'After earnings the stock gaps up 4% to 104 and IV crushes. Did the straddle PROFIT?',
-      options: [
-        { id: 'yes', label: 'Yes — the stock moved, so my volatility bet won' },
-        { id: 'no', label: 'No — 104 is inside the 93/107 breakevens, so it lost' },
-      ],
-      correctId: 'no',
-      explainRight:
-        'Correct. 104 is INSIDE the breakevens (93–107), so it is a loss even though the stock moved. Pure breakeven math: at expiry the straddle is worth its intrinsic value max(104−100,0)+max(100−104,0) = 4, less than the 7 paid, so P&L = 4 − 7 = −3 (−$300). To profit, price had to clear 107 (up) or 93 (down). (IV crush is the separate, pre-expiry reason you could not even sell out for leftover time value.)',
-      explainWrong:
-        'It is No. "It moved 4%, so my bet won" conflates "moved" with "cleared a breakeven." The move needed just to break even was 7 points (the total premium); a 4-point move never reaches 107. P&L = 4 − 7 = −3 (−$300). And IV crush removes any extrinsic value you might have hoped to sell. Clear the breakeven — do not just move.',
+    challenge: {
+      prompt: 'Drag the marker to where the stock must land for this straddle to PROFIT.',
+      instructions: 'A move alone isn’t enough — profit needs to CLEAR a breakeven (below 93 or above 107). Submit applies the IV crush and reveals the P&L.',
+      submitLabel: 'Run earnings + IV crush',
     },
-    cta: 'Check',
+    cta: 'Continue',
   },
 
   // 12 — TEACH · the short mirror
@@ -350,41 +326,32 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 13 — QUIZ · quiet or wild
+  // 13 — CHALLENGE · pick long vol vs short vol for a pin scenario
   {
     id: 13,
-    type: 'quiz',
-    kicker: 'Quiz',
+    type: 'challenge',
+    kicker: 'Challenge',
     title: 'Quiet or Wild? Pick the Right Trade',
     intro:
-      'IV is very rich heading into earnings, and you expect the stock to barely move — pinning near the 100 strike. Which trade fits best?',
+      'IV is very rich heading into earnings, and you expect the stock to barely move — pinning near the 100 strike. Pick LONG VOL or SHORT VOL, then run it.',
     scene: {
       kind: 'payoff',
       params: {
         structure: 'straddle',
-        side: 'short',
+        side: 'long',
         K: 100,
         callPremium: 4,
         putPremium: 3,
-        showBreakevens: true,
-        quiz: true,
-        title: 'Rich IV · you expect a pin near 100 — which trade?',
+        challenge: 'pickVol',
+        title: 'Rich IV · you expect a PIN near 100 — long vol or short vol?',
       },
     },
-    quiz: {
-      prompt: 'IV is very rich into earnings and you expect a pin near the 100 strike. Which trade fits best?',
-      options: [
-        { id: 'a', label: 'Long straddle — buy volatility into the event' },
-        { id: 'b', label: 'Short straddle — sell the rich premium, accepting the large risk' },
-        { id: 'c', label: 'Stay flat — do nothing' },
-      ],
-      correctId: 'b',
-      explainRight:
-        'Correct (best-fit). If you genuinely expect a pin and IV is rich, SELLING the straddle lets you keep the fat premium if the stock stays inside 93–107 and benefit from IV crush. The caveat: a short straddle has large/undefined risk if the move is bigger than you expect — so it is only right when you truly expect quiet. (Staying flat, C, is also a reasonable risk-averse choice.)',
-      explainWrong:
-        'The best-fit for a confident "pin + rich IV" view is B (short straddle). Answer A is the IV-crush trap from module 11 — buying rich premium for an expected small move loses to the move + crush. Answer C (stay flat) is not wrong — it is a defensible, risk-averse call given the short’s unbounded tail risk; it simply forfeits the clearest edge (selling overpriced premium you expect to decay).',
+    challenge: {
+      prompt: 'You expect a pin near 100 with rich IV. Long vol or short vol?',
+      instructions: 'Long vol = BUY the straddle (needs a big move). Short vol = SELL it (keeps premium on a pin, but large risk). Submit runs the pin at 100.',
+      submitLabel: 'Run the pin',
     },
-    cta: 'Check',
+    cta: 'Continue',
   },
 
   // 14 — INTERACTIVE · volatility lab

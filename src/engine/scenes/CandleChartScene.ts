@@ -1,3 +1,4 @@
+import Phaser from 'phaser'
 import { ModuleScene } from '../ModuleScene'
 import { C, color, hex, FONT, type ColorName } from '../palette'
 import { CANDLES, type Candle } from '../../data/candles'
@@ -28,6 +29,24 @@ interface Marker {
   col?: ColorName | number
 }
 
+/**
+ * Trade challenge: the learner drags a take-profit + stop-loss (or chooses to stay
+ * out); on Submit the hidden candles reveal and the trade is simulated bar-by-bar.
+ * Used by `type: 'challenge'` modules with mode:'quiz'.
+ */
+interface TradeChallenge {
+  direction: 'long' | 'short'
+  /** Entry price (the breakout/decision level at the split). */
+  entry: number
+  /** Optional initial take-profit / stop-loss (else sensible defaults). */
+  tp0?: number
+  sl0?: number
+  /** Did the pattern actually complete? Used to grade a "stay out" decision. */
+  completes: boolean
+  /** Position size for the dollar P&L (default 100). */
+  shares?: number
+}
+
 interface CandleParams {
   candlesKey?: string
   candles?: Candle[]
@@ -42,6 +61,13 @@ interface CandleParams {
   markers?: Marker[]
   /** Shown on reveal (quiz). */
   outcome?: { text: string; good?: boolean }
+  /** Present → this is an interactive TP/SL trade challenge (see onSubmit). */
+  trade?: TradeChallenge
+}
+
+interface PriceLine {
+  get: () => number
+  setActive: (active: boolean) => void
 }
 
 const PAD = { left: 12, right: 76, top: 20, bottom: 30 }
@@ -59,6 +85,19 @@ export default class CandleChartScene extends ModuleScene {
   private bodyW = 6
   private revealed = false
   private p!: CandleParams
+
+  // --- trade challenge state ---
+  private took = true
+  private locked = false
+  private tpCtl?: PriceLine
+  private slCtl?: PriceLine
+  private toggleBtns: Array<{
+    key: 'take' | 'stay'
+    bg: Phaser.GameObjects.Graphics
+    txt: Phaser.GameObjects.Text
+    w: number
+    x: number
+  }> = []
 
   protected build(): void {
     this.p = this.params as CandleParams
@@ -105,6 +144,10 @@ export default class CandleChartScene extends ModuleScene {
     this.drawCandles(0, split, this.p.drawMs ?? 700, () => {
       if (mode === 'quiz') {
         this.drawMask(split)
+        if (this.p.trade) {
+          this.setupTrade()
+          this.setCanSubmit(true)
+        }
         this.emitReady()
       } else {
         this.annotate(() => this.emitReady())
@@ -341,5 +384,231 @@ export default class CandleChartScene extends ModuleScene {
     panel.alpha = 0
     t.alpha = 0
     this.tweens.add({ targets: [panel, t], alpha: 1, duration: 360, delay: 120 })
+  }
+
+  // ===================== Trade challenge =====================
+
+  private yToPrice(y: number): number {
+    const cy = Math.max(this.plot.t, Math.min(this.plot.b, y))
+    const t = (this.plot.b - cy) / this.plot.h
+    return this.pmin + t * (this.pmax - this.pmin)
+  }
+
+  private setupTrade(): void {
+    const tr = this.p.trade!
+    const long = tr.direction === 'long'
+    const entry = tr.entry
+    const span = this.pmax - this.pmin
+    const tick = span * 0.012
+
+    const ey = this.yFor(entry)
+    const eg = this.add.graphics()
+    eg.lineStyle(1.5, C.blue, 0.9)
+    eg.lineBetween(this.plot.l, ey, this.plot.r, ey)
+    this.label(this.plot.l + 6, ey - 10, `Entry ${this.fmtPrice(entry)}`, { size: 11, col: C.blue, bold: true })
+
+    const tp0 = tr.tp0 ?? (long ? entry + span * 0.2 : entry - span * 0.2)
+    const sl0 = tr.sl0 ?? (long ? entry - span * 0.1 : entry + span * 0.1)
+    this.tpCtl = this.addPriceLine(tp0, C.green, 'TP', (pr) =>
+      long ? Math.min(this.pmax, Math.max(entry + tick, pr)) : Math.max(this.pmin, Math.min(entry - tick, pr)),
+    )
+    this.slCtl = this.addPriceLine(sl0, C.red, 'SL', (pr) =>
+      long ? Math.max(this.pmin, Math.min(entry - tick, pr)) : Math.min(this.pmax, Math.max(entry + tick, pr)),
+    )
+
+    this.buildTradeToggle()
+  }
+
+  private addPriceLine(
+    price0: number,
+    col: number,
+    prefix: string,
+    constrain: (p: number) => number,
+  ): PriceLine {
+    let price = constrain(price0)
+    let active = true
+    const lineG = this.add.graphics()
+    const knob = this.add.circle(this.plot.r - 5, 0, 6, col).setStrokeStyle(2, C.white)
+    const lbl = this.label(this.plot.l + 6, 0, '', { size: 11, col, bold: true })
+    const hit = this.add
+      .rectangle((this.plot.l + this.plot.r) / 2, 0, this.plot.w, 22, 0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+
+    const redraw = () => {
+      const y = this.yFor(price)
+      lineG.clear()
+      lineG.lineStyle(1.6, col, active ? 1 : 0.22)
+      for (let x = this.plot.l; x < this.plot.r; x += 10) lineG.lineBetween(x, y, Math.min(x + 6, this.plot.r), y)
+      knob.y = y
+      knob.setAlpha(active ? 1 : 0.25)
+      lbl.setPosition(this.plot.l + 6, y - 10)
+      lbl.setText(`${prefix} ${this.fmtPrice(price)}`)
+      lbl.setAlpha(active ? 1 : 0.3)
+      hit.y = y
+    }
+    redraw()
+
+    let dragging = false
+    hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.locked || !active) return
+      dragging = true
+      price = constrain(this.yToPrice(p.y))
+      redraw()
+    })
+    const onMove = (p: Phaser.Input.Pointer) => {
+      if (dragging) {
+        price = constrain(this.yToPrice(p.y))
+        redraw()
+      }
+    }
+    const onUp = () => {
+      dragging = false
+    }
+    this.input.on('pointermove', onMove)
+    this.input.on('pointerup', onUp)
+    this.input.on('pointerupoutside', onUp)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.input.off('pointermove', onMove)
+      this.input.off('pointerup', onUp)
+      this.input.off('pointerupoutside', onUp)
+    })
+
+    return {
+      get: () => price,
+      setActive: (a: boolean) => {
+        active = a
+        redraw()
+      },
+    }
+  }
+
+  private buildTradeToggle(): void {
+    const labels: Array<['take' | 'stay', string, number]> = [
+      ['take', 'Take trade', 96],
+      ['stay', 'Stay out', 86],
+    ]
+    let x = this.plot.l + 6
+    const y = this.plot.t + 14
+    for (const [key, label, w] of labels) {
+      const bg = this.add.graphics()
+      const txt = this.add
+        .text(x + w / 2, y, label, { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold' })
+        .setOrigin(0.5)
+      const hit = this.add.rectangle(x + w / 2, y, w, 26, 0x000000, 0).setInteractive({ useHandCursor: true })
+      hit.on('pointerup', () => {
+        if (this.locked) return
+        this.took = key === 'take'
+        this.refreshToggle()
+        this.tpCtl?.setActive(this.took)
+        this.slCtl?.setActive(this.took)
+      })
+      this.toggleBtns.push({ key, bg, txt, w, x })
+      x += w + 8
+    }
+    this.refreshToggle()
+  }
+
+  private refreshToggle(): void {
+    const y = this.plot.t + 14
+    for (const b of this.toggleBtns) {
+      const selected = (this.took && b.key === 'take') || (!this.took && b.key === 'stay')
+      const fill = selected ? (b.key === 'take' ? C.green : C.muted) : C.white
+      b.bg.clear()
+      b.bg.fillStyle(fill, 1)
+      b.bg.fillRoundedRect(b.x, y - 13, b.w, 26, 7)
+      b.bg.lineStyle(1.5, selected ? fill : C.hairline)
+      b.bg.strokeRoundedRect(b.x, y - 13, b.w, 26, 7)
+      b.txt.setColor(hex(selected ? C.white : C.muted))
+    }
+  }
+
+  protected onSubmit(): void {
+    if (!this.p.trade || this.locked) return
+    this.locked = true
+    this.setCanSubmit(false)
+    if (this.maskG) {
+      this.tweens.add({
+        targets: this.maskG,
+        x: this.W,
+        alpha: 0,
+        duration: 520,
+        ease: 'Cubic.inOut',
+        onComplete: () => this.maskG?.destroy(),
+      })
+    }
+    this.time.delayedCall(160, () => {
+      this.drawCandles(this.splitIdx, this.candles.length, 600, () => this.simulateTrade())
+    })
+  }
+
+  private simulateTrade(): void {
+    const tr = this.p.trade!
+    const long = tr.direction === 'long'
+    const shares = tr.shares ?? 100
+    const entry = tr.entry
+
+    if (!this.took) {
+      const correct = !tr.completes
+      const title = correct ? 'Good discipline — you stayed out' : 'You sat out a winner'
+      const detail = tr.completes
+        ? 'The pattern confirmed and ran in the trade’s favour, so staying out left profit on the table. When a setup confirms, a measured entry with a stop is the play.'
+        : 'The setup faked out and broke the wrong way — standing aside avoided the loss. Knowing when NOT to trade is half the edge.'
+      this.report(correct, title, detail)
+      return
+    }
+
+    const tp = this.tpCtl!.get()
+    const sl = this.slCtl!.get()
+    let exit = this.candles[this.candles.length - 1].c
+    let hit: 'tp' | 'sl' | 'end' = 'end'
+    let exitIdx = this.candles.length - 1
+    for (let i = this.splitIdx; i < this.candles.length; i++) {
+      const c = this.candles[i]
+      // Stop checked first within a bar (conservative).
+      if (long ? c.l <= sl : c.h >= sl) {
+        exit = sl
+        hit = 'sl'
+        exitIdx = i
+        break
+      }
+      if (long ? c.h >= tp : c.l <= tp) {
+        exit = tp
+        hit = 'tp'
+        exitIdx = i
+        break
+      }
+    }
+    const perShare = long ? exit - entry : entry - exit
+    const pnl = perShare * shares
+    const correct = pnl > 0
+    const money = `${pnl >= 0 ? '+' : '−'}$${Math.abs(pnl).toFixed(0)}`
+    this.drawExitMarker(exitIdx, exit, hit, correct)
+
+    let title: string
+    let detail: string
+    if (hit === 'tp') {
+      title = `Take-profit hit · ${money}`
+      detail = `Price reached your target at ${this.fmtPrice(tp)} before your stop — you banked ${money} on ${shares} shares (entry ${this.fmtPrice(entry)} → ${this.fmtPrice(exit)}).`
+    } else if (hit === 'sl') {
+      title = `Stopped out · ${money}`
+      detail = tr.completes
+        ? `Your stop at ${this.fmtPrice(sl)} was hit even though the pattern ultimately worked — too tight a stop got shaken out on the noise. Give a confirmed trade room beyond the recent swing.`
+        : `Your stop at ${this.fmtPrice(sl)} was hit: the setup faked out and broke the wrong way. The stop did its job and capped the loss at ${money}.`
+    } else {
+      title = `Closed at the end · ${money}`
+      detail = `Neither your target (${this.fmtPrice(tp)}) nor your stop (${this.fmtPrice(sl)}) was reached, so the trade closed at ${this.fmtPrice(exit)} for ${money}.`
+    }
+    this.report(correct, title, detail)
+  }
+
+  private drawExitMarker(idx: number, price: number, hit: 'tp' | 'sl' | 'end', good: boolean): void {
+    const x = this.xFor(idx)
+    const y = this.yFor(price)
+    const col = good ? C.green : C.red
+    const dot = this.add.circle(x, y, 6, col).setStrokeStyle(2, C.white)
+    dot.setScale(0)
+    this.tweens.add({ targets: dot, scale: 1, duration: 300, ease: 'Back.out' })
+    const tag = hit === 'tp' ? 'TP hit' : hit === 'sl' ? 'SL hit' : 'exit'
+    this.fadeIn(this.label(x, y - 16, tag, { size: 11, col, bold: true, align: 'center' }), 120)
   }
 }
