@@ -1,0 +1,1 @@
+Lesson 3 should be about shorting stocks. Create a list of good modules and animations

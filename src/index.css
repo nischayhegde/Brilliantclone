@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+/* Brilliant-style palette: minimalist white, blue, green. Defining colors in
+   @theme generates utilities like bg-brand-blue / text-brand-green / etc. */
+@theme {
+  --color-brand-blue: #1d4ed8;
+  --color-brand-blue-dark: #1e40af;
+  --color-brand-blue-soft: #eff4ff;
+  --color-brand-green: #16a34a;
+  --color-brand-green-light: #22c55e;
+  --color-brand-green-soft: #eafaf0;
+  --color-brand-red: #dc2626;
+  --color-ink: #1f2937;
+  --color-muted: #6b7280;
+  --color-hairline: #e5e7eb;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #ffffff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

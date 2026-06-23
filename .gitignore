@@ -1,0 +1,22 @@
+node_modules
+dist
+dist-ssr
+*.tsbuildinfo
+*.local
+.env.local
+.env.*.local
+
+# Firebase
+.firebase
+firebase-debug.log
+firestore-debug.log
+
+# Editor / OS
+.DS_Store
+*.log
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Claude harness
+.claude/

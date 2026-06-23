@@ -1,0 +1,1 @@
+Lesson 4 should be about option contracts, explaining buying and selling american calls and puts and their values compared to the underlying asset. Create a list of good modules and animations

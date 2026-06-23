@@ -1,0 +1,1 @@
+Lesson 2 should be about the orderbook. There should be animated modules about how the bid and ask work, and how the spread works.
