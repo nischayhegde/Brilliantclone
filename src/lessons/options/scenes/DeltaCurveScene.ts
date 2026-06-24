@@ -17,6 +17,8 @@ export default class DeltaCurveScene extends PayoffScene {
   private tangent!: Phaser.GameObjects.Graphics
   private smooth!: Phaser.GameObjects.Graphics
   private deltaText!: Phaser.GameObjects.Text
+  private deltaSub!: Phaser.GameObjects.Text
+  private curveLabel?: Phaser.GameObjects.Text
   private gaugeFill!: Phaser.GameObjects.Graphics
   private gx = 0
   private gy = 0
@@ -39,17 +41,27 @@ export default class DeltaCurveScene extends PayoffScene {
     this.drawSmoothCurve()
 
     this.tangent = this.add.graphics()
-    this.deltaText = this.label(this.plot.l + 8, this.plot.t + 14, '', { size: 13, col: C.blue, bold: true })
 
-    // delta gauge (0 → 1)
-    this.gx = this.plot.r - 170
-    this.gy = this.plot.t + 16
-    this.gw = 150
+    // One compact, bounded readout panel on the LEFT (low-S corner is empty space on
+    // a long call) — keeps everything legible and clear of the inherited risk badge
+    // (top-right) and the K / breakeven labels (top-centre).
+    const px = this.plot.l + 8
+    const py = this.plot.t + 34
+    const pw = 226
+    const ph = 92
+    this.panel(px, py, pw, ph, { fill: C.white, stroke: C.blue, radius: 10, alpha: 0.95 })
+    this.label(px + 12, py + 16, 'DELTA — slope of the curve', { size: 12, col: C.muted, bold: true })
+    this.deltaText = this.label(px + 12, py + 38, '', { size: 18, col: C.blue, bold: true })
+
+    // gauge (0 → 1) inside the panel
+    this.gx = px + 12
+    this.gy = py + 56
+    this.gw = pw - 24
     const gtrack = this.add.graphics()
     gtrack.fillStyle(C.gray200, 1)
     gtrack.fillRoundedRect(this.gx, this.gy, this.gw, 8, 4)
     this.gaugeFill = this.add.graphics()
-    this.label(this.gx, this.gy - 12, 'δ gauge 0 → 1', { size: 10, col: C.muted })
+    this.deltaSub = this.label(px + 12, py + 76, '', { size: 13, col: C.ink })
 
     this.updateDelta(this.deltaSpot())
   }
@@ -76,11 +88,17 @@ export default class DeltaCurveScene extends PayoffScene {
       } else this.smooth.lineTo(x, y)
     }
     this.smooth.strokePath()
-    this.label(this.xFor(this.p.sMax) - 4, this.yFor(this.smoothValue(this.p.sMax)) - 14, 'pre-expiry curve', {
-      size: 10,
-      col: C.blue,
-      align: 'right',
-    })
+    // ONE persistent curve label, re-targeted (CALL/PUT toggle re-runs this) — no
+    // stacking. Anchored just above the curve at a mid-S point so it sits in open
+    // space, clear of the top-right risk badge and the top-centre K / BE labels.
+    const labelS = this.p.K + (this.p.sMax - this.p.K) * 0.5
+    const lx = this.xFor(labelS)
+    const ly = this.yFor(this.smoothValue(labelS)) - 18
+    if (!this.curveLabel) {
+      this.curveLabel = this.label(lx, ly, 'pre-expiry curve', { size: 13, col: C.blue, align: 'center', bg: true })
+    } else {
+      this.curveLabel.setPosition(lx, ly)
+    }
   }
 
   private deltaSpot(): number {
@@ -107,7 +125,7 @@ export default class DeltaCurveScene extends PayoffScene {
   protected updateSpot(S: number): void {
     this.spotOverride = S
     super.updateSpot(S)
-    if (this.tangent && this.deltaText && this.gaugeFill) this.updateDelta(S)
+    if (this.tangent && this.deltaText && this.deltaSub && this.gaugeFill) this.updateDelta(S)
   }
 
   private updateDelta(S: number): void {
@@ -126,11 +144,8 @@ export default class DeltaCurveScene extends PayoffScene {
     this.tangent.lineBetween(x - dx, y + dy, x + dx, y - dy)
 
     const shares = Math.round(delta * 100)
-    this.deltaText.setText(
-      `δ ≈ ${delta.toFixed(2)} (illustrative)   +$1 stock → ~${(delta).toFixed(2)}/sh (≈ $${Math.round(
-        delta * 100,
-      )}/contract)   shares-equiv ${shares}`,
-    )
+    this.deltaText.setText(`δ ≈ ${delta.toFixed(2)}`)
+    this.deltaSub.setText(`≈ ${shares} shares · +$1 stock → +$${shares}/contract`)
     // gauge
     this.gaugeFill.clear()
     this.gaugeFill.fillStyle(C.blue, 1)

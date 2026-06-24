@@ -30,7 +30,7 @@ export default class CapstoneScene extends ModuleScene {
   private worthShorting = true
 
   private candles: Candle[] = []
-  private plot = { l: 430, r: 720, t: 250, b: 410 }
+  private plot = { l: 430, r: 720, t: 280, b: 408 }
   private pmin = 0
   private pmax = 1
   private splitIdx = 0
@@ -46,8 +46,6 @@ export default class CapstoneScene extends ModuleScene {
     this.daysToCover = p.daysToCover ?? 1.5
     this.worthShorting = p.worthShorting ?? true
 
-    this.label(this.W / 2, 20, "The short seller's scorecard", { size: 16, bold: true, col: C.ink, align: 'center' })
-
     this.playRecapReel()
     this.buildChecklist()
     this.buildScenario()
@@ -59,14 +57,14 @@ export default class CapstoneScene extends ModuleScene {
     // 1) lifecycle conveyor (borrow → sell → cover → return)
     const steps = ['Borrow', 'Sell high', 'Cover low', 'Return']
     steps.forEach((s, i) => {
-      const x = 60 + i * 78
-      const box = this.add.rectangle(x, 70, 70, 34, C.blueSoft).setStrokeStyle(1.5, C.blue)
-      const t = this.label(x, 70, s, { size: 10, bold: true, col: C.blue, align: 'center' })
+      const x = 60 + i * 82
+      const box = this.add.rectangle(x, 70, 74, 34, C.blueSoft).setStrokeStyle(1.5, C.blue)
+      const t = this.label(x, 70, s, { size: 12, bold: true, col: C.blue, align: 'center' })
       box.setAlpha(0)
       t.setAlpha(0)
       this.tweens.add({ targets: [box, t], alpha: 1, duration: 280, delay: 200 + i * 220 })
     })
-    this.label(60, 96, 'P&L = sell − cover', { size: 10, col: C.muted })
+    this.label(60, 98, 'P&L = sell − cover', { size: 12, col: C.muted })
 
     // 2) payoff line (+100% ceiling / −∞ tail), middle band
     this.time.delayedCall(1100, () => this.drawMiniPayoff())
@@ -90,8 +88,8 @@ export default class CapstoneScene extends ModuleScene {
     g.lineTo(ox + w * 0.45, oy)
     g.lineTo(ox + w, oy + h)
     g.strokePath()
-    this.label(ox + w + 6, oy - 18, '+100%', { size: 9, col: C.green })
-    this.label(ox + w + 6, oy + h, '−∞', { size: 9, bold: true, col: C.red })
+    this.label(ox + w + 6, oy - 18, '+100%', { size: 12, col: C.green })
+    this.label(ox + w + 6, oy + h, '−∞', { size: 12, bold: true, col: C.red })
     g.alpha = 0
     this.tweens.add({ targets: g, alpha: 1, duration: 400 })
   }
@@ -112,7 +110,7 @@ export default class CapstoneScene extends ModuleScene {
     g.lineTo(ox + w * 0.62, oy + 4)
     g.lineTo(ox + w * 0.8, oy + h - 30)
     g.strokePath()
-    this.label(ox + w * 0.62, oy - 6, 'GME ~$483 (2021)', { size: 9, bold: true, col: C.red, align: 'center' })
+    this.label(ox + w * 0.62, oy - 6, 'GME ~$483 (2021)', { size: 12, bold: true, col: C.red, align: 'center' })
     // VW-style spike (blue, offset)
     g.lineStyle(2, C.blue, 0.8)
     g.beginPath()
@@ -121,7 +119,7 @@ export default class CapstoneScene extends ModuleScene {
     g.lineTo(ox + w * 0.58, oy + 18)
     g.lineTo(ox + w * 0.78, oy + h - 24)
     g.strokePath()
-    this.label(ox + w * 0.2, oy + 10, 'VW Oct 2008', { size: 9, bold: true, col: C.blue })
+    this.label(ox + w * 0.2, oy + 10, 'VW Oct 2008', { size: 12, bold: true, col: C.blue })
     g.alpha = 0
     this.tweens.add({ targets: g, alpha: 1, duration: 400 })
   }
@@ -149,9 +147,11 @@ export default class CapstoneScene extends ModuleScene {
   // --- Final scored scenario (SHORT / PASS) ---
   private buildScenario(): void {
     this.candles = CANDLES[this.candlesKey] ?? []
-    this.label(430, 232, 'Final call — short or pass?', { size: 13, bold: true, col: C.ink })
-    this.label(430, 414, `Short interest ${this.shortInterest}% · Days-to-cover ${this.daysToCover}`, {
-      size: 11,
+    // Title on its own row; SHORT/PASS buttons on the next row so they never sit on the
+    // title text. Chart sits below both.
+    this.label(430, 230, 'Final call — short or pass?', { size: 13, bold: true, col: C.ink })
+    this.label(430, 422, `Short interest ${this.shortInterest}% · Days-to-cover ${this.daysToCover}`, {
+      size: 12,
       col: C.muted,
     })
 
@@ -171,11 +171,12 @@ export default class CapstoneScene extends ModuleScene {
       this.drawScenarioMask()
     }
 
-    // SHORT / PASS buttons
-    this.button(500, 232, 'SHORT', () => this.pick('short'), { w: 90, h: 28, fill: C.red })
-    this.button(600, 232, 'PASS', () => this.pick('pass'), { w: 90, h: 28, fill: C.muted })
-    this.gradeText = this.label(60, 400, '', { size: 12, bold: true, col: C.ink })
-    this.gradeText.setWordWrapWidth(340)
+    // SHORT / PASS buttons (own row, below the title and above the chart)
+    this.button(500, 256, 'SHORT', () => this.pick('short'), { w: 90, h: 28, fill: C.red })
+    this.button(600, 256, 'PASS', () => this.pick('pass'), { w: 90, h: 28, fill: C.muted })
+    this.gradeText = this.label(60, 378, '', { size: 12, bold: true, col: C.ink, align: 'left' })
+    this.gradeText.setOrigin(0, 0)
+    this.gradeText.setWordWrapWidth(350)
   }
 
   private pick(d: 'short' | 'pass'): void {

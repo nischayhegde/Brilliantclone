@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, hex, FONT } from '../../../engine/palette'
 import { fmt, fmtSigned, fmtDollars } from './payoffMath'
 
 interface IVCrushParams {
@@ -39,25 +39,28 @@ export default class IVCrushScene extends ModuleScene {
   private K = 100
   private move = 0.04
 
-  // mini payoff-V panel (right)
-  private vx = 470
-  private vy = 70
-  private vw = 270
-  private vh = 240
+  // mini payoff-V panel (right) — trimmed so the live sliders fit inside the canvas
+  // (the old layout pushed the slider band to y≈438, below the 460-tall canvas).
+  private vx = 462
+  private vy = 52
+  private vw = 268
+  private vh = 196
   private vMin = 86
   private vMax = 114
 
   // premium bar (left)
   private barX = 120
-  private barBottom = 320
-  private barW = 70
-  private pxPerUnit = 22
+  private barBottom = 230
+  private barW = 56
+  private pxPerUnit = 13
 
   private balloon!: Phaser.GameObjects.Arc
   private balloonLabel!: Phaser.GameObjects.Text
   private extrinsicG!: Phaser.GameObjects.Graphics
   private intrinsicG!: Phaser.GameObjects.Graphics
   private vG!: Phaser.GameObjects.Graphics
+  /** Persistent V-axis tick labels (K + the two breakevens), created once & repositioned. */
+  private vAxisLabels: Phaser.GameObjects.Text[] = []
   private dot!: Phaser.GameObjects.Arc
   private ledger!: Phaser.GameObjects.Text
   private badge!: Phaser.GameObjects.Text
@@ -79,27 +82,33 @@ export default class IVCrushScene extends ModuleScene {
     this.K = this.p.K ?? 100
     this.move = this.p.move ?? 0.04
 
-    if (this.p.title) this.label(20, 16, this.p.title, { size: 15, bold: true, col: C.ink })
+    if (this.p.title) this.label(20, 16, this.p.title, { size: this.fs(15, 14, 18), bold: true, col: C.ink })
 
-    // --- premium bar scaffolding (left) ---
-    this.label(this.barX + this.barW / 2, this.barBottom + 16, 'premium', { size: 11, col: C.muted, align: 'center' })
+    // --- premium bar scaffolding (left, framed to fill the left half) ---
+    const cx = this.barX + this.barW / 2
+    this.panel(30, 32, 250, this.barBottom + 24, { fill: C.surface, stroke: C.hairline, radius: 12 })
+    this.label(cx, this.barBottom + 14, 'premium', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
+    // colour key — intrinsic (real value, survives) vs extrinsic (IV/time, gets crushed)
+    this.legendSwatch(46, this.barBottom + 32, C.green, 'intrinsic (real)')
+    this.legendSwatch(46, this.barBottom + 50, C.amber, 'extrinsic (IV/time)')
     this.extrinsicG = this.add.graphics()
     this.intrinsicG = this.add.graphics()
-    this.balloon = this.add.circle(this.barX + this.barW / 2, this.barBottom - 80, 64, C.blueSoft).setStrokeStyle(2, C.blue)
-    this.balloon.setAlpha(0.5)
-    this.balloonLabel = this.label(this.barX + this.barW / 2, this.barBottom - 150, 'high IV — fat premium', {
-      size: 11, col: C.blue, align: 'center', bold: true,
+    // The "IV balloon" = the fat extrinsic value (amber = the volatile energy that pops).
+    this.balloon = this.add.circle(cx, this.barBottom - 80, 46, C.amberSoft).setStrokeStyle(2, C.amber)
+    this.balloon.setAlpha(0.85)
+    this.balloonLabel = this.label(cx, this.barBottom - 142, 'high IV — fat premium', {
+      size: this.fs(12, 12, 15), col: C.amberInk, align: 'center', bold: true,
     })
 
     // --- payoff V panel (right) ---
     this.drawVPanel()
     this.vG = this.add.graphics()
-    this.dot = this.add.circle(0, 0, 8, C.red).setStrokeStyle(3, C.white).setVisible(false)
+    this.dot = this.add.circle(0, 0, 9, C.red).setStrokeStyle(3, C.white).setVisible(false)
 
-    // --- ledger + badge ---
-    this.ledger = this.label(20, 344, '', { size: 12, col: C.ink, bold: true })
+    // --- ledger + badge (clean strip below the panels) ---
+    this.ledger = this.label(20, 304, '', { size: this.fs(12, 12, 15), col: C.ink, bold: true })
     this.badgePanel = this.add.graphics()
-    this.badge = this.add.text(0, 0, '', { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(C.red), fontStyle: 'bold' }).setOrigin(0, 0.5)
+    this.badge = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: `${this.fs(13, 12, 16)}px`, color: hex(C.red), fontStyle: 'bold' }).setOrigin(0, 0.5)
 
     this.drawPremiumBar(false)
     this.drawV()
@@ -109,12 +118,30 @@ export default class IVCrushScene extends ModuleScene {
     } else if (this.p.quiz) {
       this.drawQuizMask()
     } else {
-      // play the inflate → pop → land sequence
-      this.time.delayedCall(700, () => this.popBalloon())
-      this.time.delayedCall(1500, () => this.landDot())
       if (this.p.interactive) this.buildSliders()
+      if (this.reduceMotion) {
+        // Show the finished post-crush state immediately — never gate the dot/ledger
+        // behind a timed pop that won't run under reduced motion or a hidden tab.
+        this.balloon.setVisible(false)
+        this.balloonLabel.setVisible(false)
+        this.popped = true
+        this.drawPremiumBar(true)
+        this.placeDot()
+        this.updateLedger()
+      } else {
+        this.time.delayedCall(700, () => this.popBalloon())
+        this.time.delayedCall(1500, () => this.landDot())
+      }
     }
     this.time.delayedCall(800, () => this.emitReady())
+  }
+
+  /** Small colour-key row: a filled square + label. */
+  private legendSwatch(x: number, y: number, col: number, text: string): void {
+    const g = this.add.graphics()
+    g.fillStyle(col, col === C.amber ? 0.45 : 0.9)
+    g.fillRoundedRect(x, y - 6, 12, 12, 3)
+    this.label(x + 18, y, text, { size: this.fs(11, 12, 14), col: C.inkSoft })
   }
 
   private get S(): number {
@@ -139,12 +166,12 @@ export default class IVCrushScene extends ModuleScene {
     this.intrinsicG.clear()
     const intrinsicH = this.intrinsicTotal * this.pxPerUnit
     const extrinsicH = crushed ? 0 : (this.premium - this.intrinsicTotal) * this.pxPerUnit
-    // intrinsic (solid, bottom)
-    this.intrinsicG.fillStyle(C.blue, 0.85)
+    // intrinsic (green, solid, bottom) — the real value that survives the crush
+    this.intrinsicG.fillStyle(C.green, 0.9)
     this.intrinsicG.fillRect(this.barX, this.barBottom - intrinsicH, this.barW, intrinsicH)
-    // extrinsic (translucent, on top) — the "IV / time value"
+    // extrinsic (amber, translucent, on top) — the IV / time value that gets crushed
     if (extrinsicH > 0) {
-      this.extrinsicG.fillStyle(C.blue, 0.28)
+      this.extrinsicG.fillStyle(C.amber, 0.45)
       this.extrinsicG.fillRect(this.barX, this.barBottom - intrinsicH - extrinsicH, this.barW, extrinsicH)
     }
   }
@@ -152,24 +179,28 @@ export default class IVCrushScene extends ModuleScene {
   private popBalloon(): void {
     if (this.popped) return
     this.popped = true
-    this.label(this.barX + this.barW / 2, this.barBottom - 150, 'IV CRUSH — extrinsic → 0', {
-      size: 11, col: C.red, align: 'center', bold: true,
-    }).setAlpha(0)
-    this.balloonLabel.setText('IV crush!')
-    // particle-ish burst
+    this.balloonLabel.setText('IV crush!').setColor(hex(C.red))
+    if (this.reduceMotion) {
+      this.balloon.setVisible(false)
+      this.balloonLabel.setVisible(false)
+      this.drawPremiumBar(true)
+      return
+    }
+    // particle-ish burst (amber, matching the extrinsic value escaping)
     for (let i = 0; i < 10; i++) {
       const ang = (i / 10) * Math.PI * 2
-      const dotp = this.add.circle(this.balloon.x, this.balloon.y, 4, C.blue, 0.7)
+      const dotp = this.add.circle(this.balloon.x, this.balloon.y, 4, C.amber, 0.8)
       this.tweens.add({
         targets: dotp,
-        x: this.balloon.x + Math.cos(ang) * 60,
-        y: this.balloon.y + Math.sin(ang) * 60,
+        x: this.balloon.x + Math.cos(ang) * 56,
+        y: this.balloon.y + Math.sin(ang) * 56,
         alpha: 0,
         duration: 500,
+        ease: 'Cubic.out',
         onComplete: () => dotp.destroy(),
       })
     }
-    this.tweens.add({ targets: this.balloon, scale: 0, alpha: 0, duration: 400 })
+    this.tweens.add({ targets: this.balloon, scale: 0, alpha: 0, duration: 400, ease: 'Cubic.in' })
     this.tweens.add({ targets: this.balloonLabel, alpha: 0, duration: 400 })
     // deflate the extrinsic portion of the bar
     this.tweens.addCounter({
@@ -180,7 +211,7 @@ export default class IVCrushScene extends ModuleScene {
         const intrinsicH = this.intrinsicTotal * this.pxPerUnit
         const extrinsicH = (this.premium - this.intrinsicTotal) * this.pxPerUnit * f
         if (extrinsicH > 0) {
-          this.extrinsicG.fillStyle(C.blue, 0.28)
+          this.extrinsicG.fillStyle(C.amber, 0.45)
           this.extrinsicG.fillRect(this.barX, this.barBottom - intrinsicH - extrinsicH, this.barW, extrinsicH)
         }
       },
@@ -190,7 +221,7 @@ export default class IVCrushScene extends ModuleScene {
   // --- payoff V -------------------------------------------------------------
   private drawVPanel(): void {
     this.panel(this.vx - 10, this.vy - 24, this.vw + 20, this.vh + 48, { fill: C.white, stroke: C.hairline, radius: 12 })
-    this.label(this.vx + this.vw / 2, this.vy - 12, 'straddle payoff (V)', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.vx + this.vw / 2, this.vy - 12, 'straddle payoff (V)', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
   }
 
   private vxFor(price: number): number {
@@ -209,15 +240,23 @@ export default class IVCrushScene extends ModuleScene {
     this.vG.lineStyle(1.5, C.blue, 0.6)
     this.vG.lineBetween(this.vx, y0, this.vx + this.vw, y0)
     const be = { lower: this.K - this.premium, upper: this.K + this.premium }
-    for (const [px, lab, col] of [
-      [this.K, 'K', C.blue],
-      [be.lower, fmt(be.lower), C.blue],
-      [be.upper, fmt(be.upper), C.blue],
-    ] as const) {
+    const ticks = [
+      [this.K, 'K', 0.4],
+      [be.lower, fmt(be.lower), 0.9],
+      [be.upper, fmt(be.upper), 0.9],
+    ] as const
+    ticks.forEach(([px, lab, alpha], i) => {
       const x = this.vxFor(px)
-      this.dashV(this.vG, x, this.vy, this.vy + this.vh, col, px === this.K ? 0.4 : 0.9)
-      this.label(x, this.vy + this.vh + 6, lab, { size: 10, col: C.blue, align: 'center' })
-    }
+      this.dashV(this.vG, x, this.vy, this.vy + this.vh, C.blue, alpha)
+      // create the axis label ONCE, then reposition/retext on later redraws (no stacking)
+      let t = this.vAxisLabels[i]
+      if (!t) {
+        t = this.label(x, this.vy + this.vh + 10, lab, { size: this.fs(12, 12, 15), col: C.blueDark, align: 'center' })
+        this.vAxisLabels[i] = t
+      } else {
+        t.setText(lab).setPosition(x, this.vy + this.vh + 10)
+      }
+    })
     // V curve + red interior shading
     this.vG.fillStyle(C.red, 0.12)
     this.vG.fillRect(this.vxFor(be.lower), this.vy, this.vxFor(be.upper) - this.vxFor(be.lower), this.vh)
@@ -238,9 +277,13 @@ export default class IVCrushScene extends ModuleScene {
     const S = Phaser.Math.Clamp(this.S, this.vMin, this.vMax)
     const x = this.vxFor(S)
     const y = this.vyFor(Math.max(-12, Math.min(12, this.pnl)))
-    this.dot.setVisible(true).setPosition(this.vxFor(this.K), this.vyFor(-this.premium))
-    this.tweens.add({ targets: this.dot, x, y, duration: 600, ease: 'Cubic.out' })
     this.dot.setFillStyle(this.pnl >= 0 ? C.green : C.red)
+    if (this.reduceMotion) {
+      this.dot.setVisible(true).setPosition(x, y)
+    } else {
+      this.dot.setVisible(true).setPosition(this.vxFor(this.K), this.vyFor(-this.premium))
+      this.tweens.add({ targets: this.dot, x, y, duration: 600, ease: 'Cubic.out' })
+    }
     this.updateLedger()
   }
 
@@ -257,20 +300,22 @@ export default class IVCrushScene extends ModuleScene {
     )
     const cleared = this.S < this.K - this.premium || this.S > this.K + this.premium
     const text = cleared ? 'cleared BE → profit' : 'moved but lost — inside breakevens'
-    const col = cleared ? C.green : C.red
+    const col = cleared ? C.greenText : C.red
+    const badgeY = 332
     this.badge.setText(text).setColor(hex(col))
-    this.badge.setPosition(24, 372)
+    this.badge.setPosition(24, badgeY)
     this.badgePanel.clear()
     this.badgePanel.fillStyle(cleared ? C.greenSoft : C.redSoft, 1)
-    this.badgePanel.fillRoundedRect(18, 372 - 12, this.badge.width + 12, 24, 8)
+    this.badgePanel.fillRoundedRect(18, badgeY - this.badge.height / 2 - 4, this.badge.width + 12, this.badge.height + 8, 8)
     this.children.bringToTop(this.badge)
   }
 
   // --- interactive (module 10) ----------------------------------------------
   private buildSliders(): void {
-    const y = this.H - 22
-    const premText = this.label(20, y - 22, '', { size: 11, col: C.ink, bold: true })
-    const moveText = this.label(300, y - 22, '', { size: 11, col: C.ink, bold: true })
+    const y = 404
+    const labelFs = this.fs(12, 12, 15)
+    const premText = this.label(20, y - 26, '', { size: labelFs, col: C.ink, bold: true })
+    const moveText = this.label(390, y - 26, '', { size: labelFs, col: C.ink, bold: true })
     const refresh = () => {
       premText.setText(`pre-event IV (premium): ${fmt(this.premium)}`)
       moveText.setText(`realized move: ${fmtSigned(this.move * 100)}% → S ${fmt(this.S)}`)
@@ -280,10 +325,9 @@ export default class IVCrushScene extends ModuleScene {
       this.placeDot()
       this.updateLedger()
     }
-    this.slider(20, y, 220, 3, 12, this.premium, (v) => { this.premium = v; refresh() }, { step: 0.5 })
-    this.slider(300, y, 220, -0.15, 0.15, this.move, (v) => { this.move = v; refresh() }, { step: 0.01 })
-    // Set the slider labels now; let the scripted pop/land animation run first, then
-    // hand control to the sliders (a drag triggers refresh() from then on).
+    // amber dials — the live "act on me" affordance
+    this.slider(20, y, 300, 3, 12, this.premium, (v) => { this.premium = v; refresh() }, { step: 0.5, col: C.amber })
+    this.slider(390, y, 300, -0.15, 0.15, this.move, (v) => { this.move = v; refresh() }, { step: 0.01, col: C.amber })
     premText.setText(`pre-event IV (premium): ${fmt(this.premium)}`)
     moveText.setText(`realized move: ${fmtSigned(this.move * 100)}% → S ${fmt(this.S)}`)
   }
@@ -298,7 +342,7 @@ export default class IVCrushScene extends ModuleScene {
     g.strokeRect(this.vx - 10, this.vy - 24, this.vw + 20, this.vh + 48)
     const q = this.add
       .text(this.vx + this.vw / 2, this.vy + this.vh / 2, '?\nstock gaps up 4% to 104\noutcome hidden', {
-        fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(C.blue), fontStyle: 'bold', align: 'center',
+        fontFamily: FONT, fontSize: `${this.fs(13, 12, 16)}px`, color: hex(C.blueDark), fontStyle: 'bold', align: 'center',
       })
       .setOrigin(0.5)
     this.maskG = this.add.container(0, 0, [g, q])
@@ -314,11 +358,13 @@ export default class IVCrushScene extends ModuleScene {
       this.popBalloon()
       this.landDot()
       // "moved but lost" stamp
-      const stamp = this.label(this.vx + this.vw / 2, this.vy + 20, 'MOVED, STILL LOST', {
-        size: 13, col: C.red, bold: true, align: 'center',
+      const stamp = this.label(this.vx + this.vw / 2, this.vy + 40, 'MOVED, STILL LOST', {
+        size: this.fs(13, 12, 16), col: C.red, bold: true, align: 'center', bg: true,
       })
-      stamp.setAlpha(0)
-      this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: 400, yoyo: false })
+      if (!this.reduceMotion) {
+        stamp.setAlpha(0)
+        this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: 400, ease: 'Cubic.out' })
+      }
     })
   }
 
@@ -340,8 +386,11 @@ export default class IVCrushScene extends ModuleScene {
     // Start the guess at the trap price S=104 (move +4%).
     this.move = 0.04
     this.guessG = this.add.graphics()
-    this.guessKnob = this.add.circle(0, this.vy + this.vh / 2, 9, C.blue).setStrokeStyle(3, C.white)
-    this.guessLabel = this.label(0, this.vy - 8, '', { size: 12, col: C.blue, bold: true, align: 'center' })
+    this.guessKnob = this.add.circle(0, this.vy + this.vh / 2, 10, C.amber).setStrokeStyle(3, C.white)
+    const guessChip = this.add.graphics()
+    // label rides just INSIDE the top of the panel (not above it, where it collided with
+    // the "straddle payoff (V)" title)
+    this.guessLabel = this.label(0, this.vy + 14, '', { size: this.fs(13, 12, 16), col: C.amberInk, bold: true, align: 'center' })
 
     const hit = this.add
       .rectangle(this.vx + this.vw / 2, this.vy + this.vh / 2, this.vw + 20, this.vh, 0x000000, 0)
@@ -350,11 +399,22 @@ export default class IVCrushScene extends ModuleScene {
     const redraw = () => {
       const x = this.vxFor(Phaser.Math.Clamp(this.S, this.vMin, this.vMax))
       this.guessG.clear()
-      this.guessG.lineStyle(2, C.blue, this.graded ? 0.3 : 1)
+      this.guessG.lineStyle(2, C.amber, this.graded ? 0.3 : 1)
       for (let yy = this.vy; yy < this.vy + this.vh; yy += 10) this.guessG.lineBetween(x, yy, x, Math.min(yy + 6, this.vy + this.vh))
       this.guessKnob.setPosition(x, this.vy + this.vh / 2).setAlpha(this.graded ? 0.4 : 1)
-      this.guessLabel.setPosition(x, this.vy - 8)
-      this.guessLabel.setText(`land at ${fmt(this.S)}`)
+      this.guessLabel.setText(`land at ${fmt(this.S)}`).setPosition(x, this.vy + 14).setAlpha(this.graded ? 0.5 : 1)
+      const padX = 6
+      const padY = 3
+      guessChip.clear()
+      guessChip.fillStyle(C.white, this.graded ? 0.5 : 0.88)
+      guessChip.fillRoundedRect(
+        this.guessLabel.x - this.guessLabel.width / 2 - padX,
+        this.guessLabel.y - this.guessLabel.height / 2 - padY,
+        this.guessLabel.width + padX * 2,
+        this.guessLabel.height + padY * 2,
+        5,
+      )
+      this.children.moveBelow(guessChip, this.guessLabel)
     }
     redraw()
 
@@ -379,9 +439,10 @@ export default class IVCrushScene extends ModuleScene {
     })
     this.challengeRedraw = redraw
 
-    // hint placed top-left, clear of the V panel, ledger (344) and badge (372)
-    this.label(20, 300, 'drag the marker on the V → then run earnings + IV crush', {
-      size: 11, col: C.muted,
+    // hint in the clear band below the panels/ledger/badge (the prompt + how-to also
+    // live in the footer; this is just an in-canvas nudge by the draggable marker)
+    this.label(20, 386, 'drag the amber marker on the V → then run earnings + IV crush', {
+      size: this.fs(12, 12, 15), col: C.amberInk, bold: true,
     })
     this.setCanSubmit(true)
   }
@@ -400,11 +461,13 @@ export default class IVCrushScene extends ModuleScene {
     const cleared = this.S < be.lower || this.S > be.upper
     const correct = cleared
 
-    const stamp = this.label(this.vx + this.vw / 2, this.vy + 20, cleared ? 'CLEARED A BE → PROFIT' : 'MOVED, STILL LOST', {
-      size: 13, col: cleared ? C.green : C.red, bold: true, align: 'center',
+    const stamp = this.label(this.vx + this.vw / 2, this.vy + 40, cleared ? 'CLEARED A BE → PROFIT' : 'MOVED, STILL LOST', {
+      size: this.fs(13, 12, 16), col: cleared ? C.greenText : C.red, bold: true, align: 'center', bg: true,
     })
-    stamp.setAlpha(0)
-    this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: 400 })
+    if (!this.reduceMotion) {
+      stamp.setAlpha(0)
+      this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: 400, ease: 'Cubic.out' })
+    }
 
     const title = correct
       ? `Profit — ${fmt(this.S)} cleared a breakeven · ${fmtSigned(this.pnl)}`

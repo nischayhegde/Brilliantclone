@@ -3,16 +3,13 @@ type IconProps = { className?: string }
 export function Logo({ className = '' }: IconProps) {
   return (
     <svg viewBox="0 0 32 32" className={`h-7 w-7 ${className}`} aria-hidden="true">
-      <rect width="32" height="32" rx="7" fill="#1d4ed8" />
-      <path
-        d="M8 21 L13 14 L18 17 L24 9"
-        fill="none"
-        stroke="#fff"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <circle cx="24" cy="9" r="2.6" fill="#22c55e" />
+      <rect width="32" height="32" rx="8" fill="#1c1917" />
+      {/* down candle — quiet */}
+      <line x1="11.5" y1="7.5" x2="11.5" y2="24.5" stroke="#a8a29e" strokeWidth="1.6" strokeLinecap="round" />
+      <rect x="8.5" y="13" width="6" height="9" rx="1.2" fill="#a8a29e" />
+      {/* up candle — the amber breakout */}
+      <line x1="20.5" y1="6" x2="20.5" y2="26" stroke="#e0701a" strokeWidth="1.6" strokeLinecap="round" />
+      <rect x="17.5" y="9" width="6" height="11" rx="1.2" fill="#e0701a" />
     </svg>
   )
 }

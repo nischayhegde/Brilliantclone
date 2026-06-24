@@ -33,24 +33,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-white px-4">
-      <div className="mb-8 flex items-center gap-2">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-surface px-4">
+      <div className="mb-8 flex items-center gap-2.5">
         <Logo className="h-9 w-9" />
-        <span className="text-2xl font-extrabold tracking-tight">Brilliant</span>
+        <span className="font-display text-2xl font-bold tracking-tight">Trilliant</span>
       </div>
       <Card className="w-full max-w-sm text-center">
-        <h1 className="text-xl font-extrabold">Learn to trade, interactively</h1>
-        <p className="mt-2 text-sm text-muted">
+        <h1 className="font-display text-2xl font-bold leading-tight">
+          Learn to read the markets.
+        </h1>
+        <p className="mt-2 text-sm text-ink-soft">
           Charts, the order book, shorting, and options — five hands-on lessons.
         </p>
         <button
           onClick={() => void handleSignIn()}
           disabled={busy}
-          className="mt-6 flex w-full items-center justify-center gap-3 rounded-2xl border border-hairline bg-white px-5 py-3 font-semibold text-ink transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-hairline bg-paper px-5 py-3 font-semibold text-ink shadow-sm transition duration-200 ease-out hover:-translate-y-px hover:border-ink/20 hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/35 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <GoogleIcon /> Continue with Google
         </button>
-        {error ? <p className="mt-4 text-sm text-brand-red">{error}</p> : null}
+        {error ? <p className="mt-4 text-sm font-medium text-brand-red">{error}</p> : null}
       </Card>
       <p className="mt-6 max-w-xs text-center text-xs text-muted">
         Sign in to save your progress and pick up where you left off.

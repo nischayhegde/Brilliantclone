@@ -65,17 +65,30 @@ interface CandleParams {
   trade?: TradeChallenge
 }
 
-interface PriceLine {
+/** A draggable price control (take-profit / stop-loss). */
+interface TradeControl {
   get: () => number
   setActive: (active: boolean) => void
+  isActive: () => boolean
+  pixelY: () => number
+  setFromPointerY: (py: number) => void
 }
 
-const PAD = { left: 12, right: 76, top: 20, bottom: 30 }
+const PAD = { left: 12, right: 78, top: 22, bottom: 30 }
 
 /**
- * Reusable real-OHLC candlestick scene. Drives Lesson 1 (teach overlays + quiz
- * mask/reveal) and Lesson 3's real-chart modules entirely via params — no per-module
- * code. Animated candle draw-in, sequenced annotations, and a sliding quiz reveal.
+ * Reusable real-OHLC candlestick scene. Drives Reading the Charts (teach overlays +
+ * quiz mask/reveal) and Short Selling's real-chart modules entirely via params — no
+ * per-module code.
+ *
+ * Craft notes:
+ *  - Colors follow the warm Trilliant identity: green = buy/long, red = sell/stop,
+ *    amber = the level/target (the brand "attention" accent), ink = your entry.
+ *  - All on-canvas text is sized through `fs()` so it stays legible after the canvas
+ *    is FIT-scaled down on phones, and dense structural labels are dropped on compact
+ *    (phone) widths so the chart never clutters.
+ *  - Every text label is de-collided vertically (`placeLabel`) so nothing overlaps.
+ *  - Motion is intentional and respects `prefers-reduced-motion`.
  */
 export default class CandleChartScene extends ModuleScene {
   private candles: Candle[] = []
@@ -86,24 +99,35 @@ export default class CandleChartScene extends ModuleScene {
   private revealed = false
   private p!: CandleParams
 
+  /** Occupied label rectangles, used to nudge new labels clear of existing ones. */
+  private labelRects: Phaser.Geom.Rectangle[] = []
+
   // --- trade challenge state ---
   private took = true
   private locked = false
-  private tpCtl?: PriceLine
-  private slCtl?: PriceLine
+  /** Set once the trade controls exist, so an eager Submit can't run on undefined lines. */
+  private tradeReady = false
+  /** A Submit that arrived during the intro draw is replayed the moment setup finishes. */
+  private pendingSubmit = false
+  private tpCtl?: TradeControl
+  private slCtl?: TradeControl
+  private tradeControls: TradeControl[] = []
+  private dragging?: TradeControl
   private toggleBtns: Array<{
     key: 'take' | 'stay'
     bg: Phaser.GameObjects.Graphics
     txt: Phaser.GameObjects.Text
     w: number
+    h: number
     x: number
+    y: number
   }> = []
 
   protected build(): void {
     this.p = this.params as CandleParams
     this.candles = this.p.candles ?? (this.p.candlesKey ? CANDLES[this.p.candlesKey] : undefined) ?? []
     if (this.candles.length === 0) {
-      this.label(this.W / 2, this.H / 2, 'No chart data', { align: 'center', col: C.muted })
+      this.label(this.W / 2, this.H / 2, 'No chart data', { align: 'center', col: C.muted, size: this.fs(14) })
       this.emitReady()
       return
     }
@@ -146,7 +170,13 @@ export default class CandleChartScene extends ModuleScene {
         this.drawMask(split)
         if (this.p.trade) {
           this.setupTrade()
+          this.tradeReady = true
           this.setCanSubmit(true)
+          // Honour a Submit that was pressed before setup finished.
+          if (this.pendingSubmit) {
+            this.pendingSubmit = false
+            this.onSubmit()
+          }
         }
         this.emitReady()
       } else {
@@ -187,16 +217,17 @@ export default class CandleChartScene extends ModuleScene {
 
   private drawAxis(): void {
     const g = this.add.graphics()
-    g.lineStyle(1, C.hairline)
-    g.lineBetween(this.plot.l, this.plot.b, this.plot.r, this.plot.b)
     // 4 horizontal gridlines + right-edge price labels.
     for (let i = 0; i <= 3; i++) {
       const price = this.pmin + ((this.pmax - this.pmin) * i) / 3
       const y = this.yFor(price)
       g.lineStyle(1, C.gray100)
       g.lineBetween(this.plot.l, y, this.plot.r, y)
-      this.label(this.plot.r + 8, y, this.fmtPrice(price), { size: 11, col: C.muted })
+      this.label(this.plot.r + 8, y, this.fmtPrice(price), { size: this.fs(11), col: C.muted })
     }
+    // Baseline drawn last so it sits crisply over the faint grid.
+    g.lineStyle(1.25, C.hairline)
+    g.lineBetween(this.plot.l, this.plot.b, this.plot.r, this.plot.b)
   }
 
   private fmtPrice(p: number): string {
@@ -205,48 +236,154 @@ export default class CandleChartScene extends ModuleScene {
     return p.toFixed(2)
   }
 
+  // ── Candle draw-in ────────────────────────────────────────────────────────
   private drawCandles(from: number, to: number, totalMs: number, done?: () => void): void {
-    const each = Math.max(6, totalMs / Math.max(1, to - from))
+    if (this.reduceMotion) {
+      for (let i = from; i < to; i++) this.drawOneCandle(i, true)
+      done?.()
+      return
+    }
+    const each = Math.max(5, totalMs / Math.max(1, to - from))
     let i = from
     const drawNext = () => {
       if (i >= to) {
         done?.()
         return
       }
-      this.drawOneCandle(i)
+      this.drawOneCandle(i, false)
       i++
       this.time.delayedCall(each, drawNext)
     }
     drawNext()
   }
 
-  private drawOneCandle(i: number): void {
+  private drawOneCandle(i: number, instant: boolean): void {
     const c = this.candles[i]
     const up = c.c >= c.o
     const col = up ? C.green : C.red
     const x = this.xFor(i)
     const g = this.add.graphics()
-    // wick
     g.lineStyle(1.2, col, 1)
     g.lineBetween(x, this.yFor(c.h), x, this.yFor(c.l))
-    // body
     const yo = this.yFor(c.o)
     const yc = this.yFor(c.c)
     const top = Math.min(yo, yc)
     const bh = Math.max(1.5, Math.abs(yc - yo))
     g.fillStyle(col, 1)
     g.fillRect(x - this.bodyW / 2, top, this.bodyW, bh)
+    if (instant) return
+    // A short fade + tiny rise as each bar prints — gives the series a sense of
+    // being drawn left-to-right without animating layout.
     g.alpha = 0
-    this.tweens.add({ targets: g, alpha: 1, duration: 120, ease: 'Quad.out' })
+    g.y = 5
+    this.tweens.add({ targets: g, alpha: 1, y: 0, duration: 150, ease: 'Sine.out' })
   }
 
-  // --- Teach annotations (sequenced) ---------------------------------------
+  // ── Label placement (collision-free) ──────────────────────────────────────
+  /** Readable text color for a vibrant line/marker color, on a white chip. */
+  private labelInk(col: number): number {
+    if (col === C.amber || col === C.amberDark) return C.amberInk
+    if (col === C.red) return C.redText
+    if (col === C.green || col === C.greenLight) return C.greenText
+    return col
+  }
+
+  /** Shift a text object horizontally so its bounds stay inside the plot. */
+  private clampLabelX(t: Phaser.GameObjects.Text): void {
+    const b = t.getBounds()
+    if (b.x < this.plot.l + 2) t.x += this.plot.l + 2 - b.x
+    const b2 = t.getBounds()
+    if (b2.right > this.plot.r - 2) t.x -= b2.right - (this.plot.r - 2)
+  }
+
+  /** Nearest vertical center for a label that doesn't overlap any reserved rect. */
+  private freeY(t: Phaser.GameObjects.Text, cyWanted: number, pad: number): number {
+    const b = t.getBounds()
+    const half = b.height / 2 + pad
+    const x1 = b.x - pad
+    const x2 = b.x + b.width + pad
+    const lo = this.plot.t + half + 1
+    const hi = this.plot.b - half - 1
+    const clamp = (cy: number) => Math.max(lo, Math.min(hi, cy))
+    const hits = (cy: number) =>
+      this.labelRects.some(
+        (r) => x1 < r.right && x2 > r.x && cy - half < r.bottom && cy + half > r.y,
+      )
+    const start = clamp(cyWanted)
+    if (!hits(start)) return start
+    for (let s = 4; s <= 220; s += 4) {
+      const up = clamp(cyWanted - s)
+      if (!hits(up)) return up
+      const dn = clamp(cyWanted + s)
+      if (!hits(dn)) return dn
+    }
+    return start
+  }
+
+  /**
+   * Create a chip-backed label that never overlaps prior labels. If it gets
+   * nudged away from `anchor`, a faint leader line connects them.
+   */
+  private placeLabel(
+    x: number,
+    yWanted: number,
+    text: string,
+    opts: {
+      col: number
+      align: 'left' | 'center' | 'right'
+      sizePx?: number
+      delay?: number
+      anchor?: { x: number; y: number }
+      chipAlpha?: number
+    },
+  ): Phaser.GameObjects.Text {
+    const t = this.label(x, yWanted, text, {
+      size: this.fs(opts.sizePx ?? 13),
+      col: opts.col,
+      bold: true,
+      align: opts.align,
+    })
+    this.clampLabelX(t)
+    const pad = 3
+    const finalY = this.freeY(t, yWanted, pad)
+    t.setY(finalY)
+    const b = t.getBounds()
+    const rect = new Phaser.Geom.Rectangle(b.x - pad, b.y - pad, b.width + pad * 2, b.height + pad * 2)
+    this.labelRects.push(rect)
+
+    const chip = this.add.graphics()
+    chip.fillStyle(C.white, opts.chipAlpha ?? 0.92)
+    chip.fillRoundedRect(rect.x, rect.y, rect.width, rect.height, 5)
+    this.children.moveBelow(chip, t)
+
+    const objs: Array<Phaser.GameObjects.GameObject & { alpha: number }> = [t, chip]
+    if (opts.anchor && Math.abs(opts.anchor.y - finalY) > 12) {
+      const leader = this.add.graphics()
+      leader.lineStyle(1, opts.col, 0.45)
+      leader.lineBetween(opts.anchor.x, opts.anchor.y, t.x - t.originX * t.width + t.width / 2, finalY)
+      this.children.moveBelow(leader, chip)
+      objs.push(leader)
+    }
+
+    if (!this.reduceMotion) {
+      objs.forEach((o) => (o.alpha = 0))
+      this.tweens.add({ targets: objs, alpha: 1, duration: 300, delay: opts.delay ?? 0, ease: 'Cubic.out' })
+    }
+    return t
+  }
+
+  // ── Teach annotations (sequenced) ─────────────────────────────────────────
   private annotate(done?: () => void): void {
     const items: Array<() => void> = []
     for (const z of this.p.zones ?? []) items.push(() => this.drawZone(z))
     for (const h of this.p.hlines ?? []) items.push(() => this.drawHLine(h))
     for (const m of this.p.markers ?? []) items.push(() => this.drawMarker(m))
 
+    if (this.reduceMotion) {
+      items.forEach((fn) => fn())
+      done?.()
+      return
+    }
     let k = 0
     const next = () => {
       if (k >= items.length) {
@@ -255,41 +392,56 @@ export default class CandleChartScene extends ModuleScene {
       }
       items[k]()
       k++
-      this.time.delayedCall(260, next)
+      this.time.delayedCall(180, next)
     }
     next()
   }
 
   private drawZone(z: Zone): void {
+    const lineCol = color(z.col ?? C.amber)
     const from = z.from ?? (z.fromDate ? this.idxForDate(z.fromDate) : 0)
     const to = z.to ?? (z.toDate ? this.idxForDate(z.toDate) : this.candles.length - 1)
     const x1 = this.xFor(from) - this.bodyW
     const x2 = this.xFor(to) + this.bodyW
     const g = this.add.graphics()
-    g.fillStyle(color(z.col ?? C.blue), 0.08)
-    g.fillRect(x1, this.plot.t, x2 - x1, this.plot.h)
-    g.lineStyle(1, color(z.col ?? C.blue), 0.5)
-    g.strokeRect(x1, this.plot.t, x2 - x1, this.plot.h)
-    if (z.label) this.fadeIn(this.label((x1 + x2) / 2, this.plot.t + 12, z.label, { size: 11, col: z.col ?? C.blue, align: 'center', bold: true }))
-    g.alpha = 0
-    this.tweens.add({ targets: g, alpha: 1, duration: 300 })
+    g.fillStyle(lineCol, 0.1)
+    g.fillRoundedRect(x1, this.plot.t, x2 - x1, this.plot.h, 4)
+    g.lineStyle(1, lineCol, 0.5)
+    g.strokeRoundedRect(x1, this.plot.t, x2 - x1, this.plot.h, 4)
+    if (!this.reduceMotion) {
+      g.alpha = 0
+      this.tweens.add({ targets: g, alpha: 1, duration: 280 })
+    }
+    if (z.label) {
+      this.placeLabel((x1 + x2) / 2, this.plot.t + 11, z.label, {
+        col: this.labelInk(lineCol),
+        align: 'center',
+        sizePx: 12,
+      })
+    }
   }
 
   private drawHLine(h: HLine): void {
+    const lineCol = color(h.col ?? C.amber)
     const y = this.yFor(h.price)
     const line = h.dashed
-      ? this.dashedLine(this.plot.l, y, this.plot.r, h.col ?? C.blue)
+      ? this.dashedLine(this.plot.l, y, this.plot.r, lineCol)
       : (() => {
           const g = this.add.graphics()
-          g.lineStyle(1.5, color(h.col ?? C.blue))
+          g.lineStyle(1.5, lineCol)
           g.lineBetween(this.plot.l, y, this.plot.r, y)
           return g
         })()
-    line.alpha = 0
-    this.tweens.add({ targets: line, alpha: 1, duration: 280 })
+    if (!this.reduceMotion) {
+      line.alpha = 0
+      this.tweens.add({ targets: line, alpha: 1, duration: 260 })
+    }
     if (h.label) {
-      const t = this.label(this.plot.l + 6, y - 10, h.label, { size: 11, col: h.col ?? C.blue, bold: true })
-      this.fadeIn(t)
+      this.placeLabel(this.plot.l + 6, y - 12, h.label, {
+        col: this.labelInk(lineCol),
+        align: 'left',
+        sizePx: 13,
+      })
     }
   }
 
@@ -302,23 +454,36 @@ export default class CandleChartScene extends ModuleScene {
       buy: C.green,
       sell: C.red,
       stop: C.red,
-      target: C.blue,
-      dot: C.blue,
+      target: C.amber,
+      dot: C.inkSoft,
     }
     const col = color(m.col ?? defaultCol[m.kind])
-    const isLow = m.kind === 'buy'
-    const yOff = isLow ? 16 : -16
-    const dot = this.add.circle(x, y, 5, col).setStrokeStyle(2, C.white)
-    const tag = (m.label ?? m.kind.toUpperCase())
-    const t = this.add
-      .text(x, y + yOff, tag, { fontFamily: FONT, fontSize: '11px', color: hex(col), fontStyle: 'bold' })
-      .setOrigin(0.5)
-    dot.setScale(0)
-    this.tweens.add({ targets: dot, scale: 1, duration: 260, ease: 'Back.out' })
-    this.fadeIn(t)
+    const isAction = m.kind !== 'dot'
+    const r = isAction ? 5 : 4
+    const dot = this.add.circle(x, y, r, col).setStrokeStyle(2, C.white)
+    if (this.reduceMotion) {
+      dot.setScale(1)
+    } else {
+      dot.setScale(0)
+      this.tweens.add({ targets: dot, scale: 1, duration: 240, ease: 'Back.out' })
+    }
+
+    // On phones, drop the many quiet "structure" dot labels — they're the main
+    // source of clutter and the caption restates them. Keep the actionable ones.
+    if (this.compact && m.kind === 'dot') return
+
+    const tag = m.label ?? m.kind.toUpperCase()
+    const below = m.kind === 'buy'
+    const yOff = below ? 16 : -16
+    this.placeLabel(x, y + yOff, tag, {
+      col: this.labelInk(col),
+      align: 'center',
+      sizePx: 13,
+      anchor: { x, y },
+    })
   }
 
-  // --- Quiz mask + reveal ---------------------------------------------------
+  // ── Quiz mask + reveal ────────────────────────────────────────────────────
   private maskG?: Phaser.GameObjects.Container
   private splitIdx = 0
   private drawMask(split: number): void {
@@ -326,46 +491,65 @@ export default class CandleChartScene extends ModuleScene {
     const x = this.xFor(split) - this.bodyW
     const w = this.plot.r - x + 4
     const g = this.add.graphics()
-    g.fillStyle(C.blueSoft, 0.95)
+    g.fillStyle(C.amberSoft, 0.96)
     g.fillRect(x, this.plot.t, w, this.plot.h)
-    g.lineStyle(2, C.blue, 0.7)
-    // dashed split boundary
+    // Dashed split boundary.
+    g.lineStyle(2, C.amber, 0.7)
     for (let yy = this.plot.t; yy < this.plot.b; yy += 12) g.lineBetween(x, yy, x, Math.min(yy + 7, this.plot.b))
-    const q = this.add.text(x + w / 2, this.plot.t + this.plot.h / 2, '?', {
-      fontFamily: FONT,
-      fontSize: '54px',
-      color: hex(C.blue),
-      fontStyle: 'bold',
-    }).setOrigin(0.5).setAlpha(0.5)
-    const hint = this.add
-      .text(x + w / 2, this.plot.t + this.plot.h / 2 + 44, 'outcome hidden', {
+    const cx = x + w / 2
+    const cy = this.plot.t + this.plot.h / 2
+    const q = this.add
+      .text(cx, cy - 6, '?', {
         fontFamily: FONT,
-        fontSize: '12px',
-        color: hex(C.blue),
+        fontSize: `${this.fs(46, 24, 70)}px`,
+        color: hex(C.amber),
         fontStyle: 'bold',
       })
       .setOrigin(0.5)
-      .setAlpha(0.7)
+      .setAlpha(0.6)
+    const hint = this.add
+      .text(cx, cy + this.fs(30, 18, 44), 'outcome hidden', {
+        fontFamily: FONT,
+        fontSize: `${this.fs(12)}px`,
+        color: hex(C.amberInk),
+        fontStyle: 'bold',
+      })
+      .setOrigin(0.5)
     this.maskG = this.add.container(0, 0, [g, q, hint])
     // visible-setup markers (index < split)
     for (const m of this.p.markers ?? []) if (this.markerIndex(m) < split) this.drawMarker(m)
   }
 
+  private slideAwayMask(onDone?: () => void): void {
+    if (!this.maskG) {
+      onDone?.()
+      return
+    }
+    if (this.reduceMotion) {
+      this.maskG.destroy()
+      this.maskG = undefined
+      onDone?.()
+      return
+    }
+    this.tweens.add({
+      targets: this.maskG,
+      x: this.W,
+      alpha: 0,
+      duration: 560,
+      ease: 'Expo.out',
+      onComplete: () => {
+        this.maskG?.destroy()
+        this.maskG = undefined
+        onDone?.()
+      },
+    })
+  }
+
   protected onReveal(): void {
     if (this.revealed) return
     this.revealed = true
-    if (this.maskG) {
-      this.tweens.add({
-        targets: this.maskG,
-        x: this.W,
-        alpha: 0,
-        duration: 520,
-        ease: 'Cubic.inOut',
-        onComplete: () => this.maskG?.destroy(),
-      })
-    }
-    // draw the hidden candles
-    this.time.delayedCall(180, () => {
+    this.slideAwayMask()
+    this.time.delayedCall(this.dur(160), () => {
       this.drawCandles(this.splitIdx, this.candles.length, 600, () => {
         for (const m of this.p.markers ?? []) if (this.markerIndex(m) >= this.splitIdx) this.drawMarker(m)
         for (const h of this.p.hlines ?? []) this.drawHLine(h)
@@ -376,18 +560,28 @@ export default class CandleChartScene extends ModuleScene {
 
   private showOutcome(o: { text: string; good?: boolean }): void {
     const col = o.good ? C.green : C.red
-    const w = 300
+    const w = Math.min(320, this.plot.w - 24)
     const x = this.plot.l + this.plot.w / 2 - w / 2
     const y = this.plot.t + 8
-    const panel = this.panel(x, y, w, 34, { fill: o.good ? C.greenSoft : C.redSoft, stroke: col, radius: 10 })
-    const t = this.label(x + w / 2, y + 17, o.text, { size: 13, col, bold: true, align: 'center' })
-    panel.alpha = 0
-    t.alpha = 0
-    this.tweens.add({ targets: [panel, t], alpha: 1, duration: 360, delay: 120 })
+    const panel = this.panel(x, y, w, 36, {
+      fill: o.good ? C.greenSoft : C.redSoft,
+      stroke: col,
+      radius: 10,
+    })
+    const t = this.label(x + w / 2, y + 18, o.text, {
+      size: this.fs(13),
+      col: this.labelInk(col),
+      bold: true,
+      align: 'center',
+    })
+    if (!this.reduceMotion) {
+      panel.alpha = 0
+      t.alpha = 0
+      this.tweens.add({ targets: [panel, t], alpha: 1, duration: 340, delay: 120 })
+    }
   }
 
-  // ===================== Trade challenge =====================
-
+  // ═══════════════════ Trade challenge ═══════════════════
   private yToPrice(y: number): number {
     const cy = Math.max(this.plot.t, Math.min(this.plot.b, y))
     const t = (this.plot.b - cy) / this.plot.h
@@ -401,11 +595,33 @@ export default class CandleChartScene extends ModuleScene {
     const span = this.pmax - this.pmin
     const tick = span * 0.012
 
+    // Entry / current price — neutral ink so it reads as "where you are".
     const ey = this.yFor(entry)
     const eg = this.add.graphics()
-    eg.lineStyle(1.5, C.blue, 0.9)
+    eg.lineStyle(1.5, C.ink, 0.85)
     eg.lineBetween(this.plot.l, ey, this.plot.r, ey)
-    this.label(this.plot.l + 6, ey - 10, `Entry ${this.fmtPrice(entry)}`, { size: 11, col: C.blue, bold: true })
+    this.placeLabel(this.plot.l + 6, ey - 12, `Entry ${this.fmtPrice(entry)}`, {
+      col: C.ink,
+      align: 'left',
+      sizePx: 13,
+    })
+
+    // A single full-plot drag band created BEFORE the toggle, so the toggle (added
+    // after) wins its own taps while a press anywhere else drags the NEAREST active
+    // line. This kills the old bug where two stacked full-width hit-strips made the
+    // lower line ungrabbable.
+    const band = this.add
+      .rectangle((this.plot.l + this.plot.r) / 2, (this.plot.t + this.plot.b) / 2, this.plot.w, this.plot.h, 0x000000, 0)
+      .setInteractive({ useHandCursor: true })
+    band.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.locked) return
+      const actives = this.tradeControls.filter((c) => c.isActive())
+      if (actives.length === 0) return
+      this.dragging = actives.reduce((best, c) =>
+        Math.abs(c.pixelY() - p.y) < Math.abs(best.pixelY() - p.y) ? c : best,
+      )
+      this.dragging.setFromPointerY(p.y)
+    })
 
     const tp0 = tr.tp0 ?? (long ? entry + span * 0.2 : entry - span * 0.2)
     const sl0 = tr.sl0 ?? (long ? entry - span * 0.1 : entry + span * 0.1)
@@ -416,53 +632,11 @@ export default class CandleChartScene extends ModuleScene {
       long ? Math.max(this.pmin, Math.min(entry - tick, pr)) : Math.min(this.pmax, Math.max(entry + tick, pr)),
     )
 
-    this.buildTradeToggle()
-  }
-
-  private addPriceLine(
-    price0: number,
-    col: number,
-    prefix: string,
-    constrain: (p: number) => number,
-  ): PriceLine {
-    let price = constrain(price0)
-    let active = true
-    const lineG = this.add.graphics()
-    const knob = this.add.circle(this.plot.r - 5, 0, 6, col).setStrokeStyle(2, C.white)
-    const lbl = this.label(this.plot.l + 6, 0, '', { size: 11, col, bold: true })
-    const hit = this.add
-      .rectangle((this.plot.l + this.plot.r) / 2, 0, this.plot.w, 22, 0x000000, 0)
-      .setInteractive({ useHandCursor: true })
-
-    const redraw = () => {
-      const y = this.yFor(price)
-      lineG.clear()
-      lineG.lineStyle(1.6, col, active ? 1 : 0.22)
-      for (let x = this.plot.l; x < this.plot.r; x += 10) lineG.lineBetween(x, y, Math.min(x + 6, this.plot.r), y)
-      knob.y = y
-      knob.setAlpha(active ? 1 : 0.25)
-      lbl.setPosition(this.plot.l + 6, y - 10)
-      lbl.setText(`${prefix} ${this.fmtPrice(price)}`)
-      lbl.setAlpha(active ? 1 : 0.3)
-      hit.y = y
-    }
-    redraw()
-
-    let dragging = false
-    hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
-      if (this.locked || !active) return
-      dragging = true
-      price = constrain(this.yToPrice(p.y))
-      redraw()
-    })
     const onMove = (p: Phaser.Input.Pointer) => {
-      if (dragging) {
-        price = constrain(this.yToPrice(p.y))
-        redraw()
-      }
+      if (this.dragging && !this.locked) this.dragging.setFromPointerY(p.y)
     }
     const onUp = () => {
-      dragging = false
+      this.dragging = undefined
     }
     this.input.on('pointermove', onMove)
     this.input.on('pointerup', onUp)
@@ -473,28 +647,85 @@ export default class CandleChartScene extends ModuleScene {
       this.input.off('pointerupoutside', onUp)
     })
 
-    return {
+    this.buildTradeToggle()
+  }
+
+  private addPriceLine(
+    price0: number,
+    col: number,
+    prefix: string,
+    constrain: (p: number) => number,
+  ): TradeControl {
+    let price = constrain(price0)
+    let active = true
+    const labelCol = this.labelInk(col)
+    const lineG = this.add.graphics()
+    const chip = this.add.graphics()
+    const lbl = this.label(this.plot.r - 20, 0, '', { size: this.fs(13), col: labelCol, bold: true, align: 'right' })
+    // Generous knob (a clear grab handle) in the right gutter, comfy on touch.
+    const knobR = this.compact ? 10 : 8
+    const halo = this.add.circle(this.plot.r - 10, 0, knobR + 7, col, 0.16).setVisible(false)
+    const knob = this.add.circle(this.plot.r - 10, 0, knobR, col).setStrokeStyle(2.5, C.white)
+
+    const redraw = () => {
+      const y = this.yFor(price)
+      lineG.clear()
+      lineG.lineStyle(1.8, col, active ? 1 : 0.22)
+      for (let x = this.plot.l; x < this.plot.r - 14; x += 10)
+        lineG.lineBetween(x, y, Math.min(x + 6, this.plot.r - 14), y)
+      knob.y = y
+      halo.y = y
+      knob.setAlpha(active ? 1 : 0.28)
+      lbl.setText(`${prefix} ${this.fmtPrice(price)}`)
+      lbl.setPosition(this.plot.r - 22, y)
+      lbl.setAlpha(active ? 1 : 0.45)
+      const padX = 5
+      const padY = 2
+      const h = lbl.height + padY * 2
+      chip.clear()
+      chip.fillStyle(C.white, active ? 0.92 : 0.55)
+      chip.fillRoundedRect(lbl.x - lbl.width - padX, y - h / 2, lbl.width + padX * 2, h, 4)
+    }
+    redraw()
+
+    const ctl: TradeControl = {
       get: () => price,
+      isActive: () => active,
+      pixelY: () => this.yFor(price),
       setActive: (a: boolean) => {
         active = a
+        halo.setVisible(false)
+        redraw()
+      },
+      setFromPointerY: (py: number) => {
+        if (!active) return
+        price = constrain(this.yToPrice(py))
+        halo.setVisible(true)
         redraw()
       },
     }
+    this.tradeControls.push(ctl)
+    return ctl
   }
 
   private buildTradeToggle(): void {
-    const labels: Array<['take' | 'stay', string, number]> = [
-      ['take', 'Take trade', 96],
-      ['stay', 'Stay out', 86],
-    ]
+    const size = this.fs(13)
+    const padX = 14
+    const y = this.plot.t + (this.compact ? 18 : 16)
     let x = this.plot.l + 6
-    const y = this.plot.t + 14
-    for (const [key, label, w] of labels) {
-      const bg = this.add.graphics()
+    for (const [key, label] of [
+      ['take', 'Take trade'],
+      ['stay', 'Stay out'],
+    ] as Array<['take' | 'stay', string]>) {
       const txt = this.add
-        .text(x + w / 2, y, label, { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold' })
-        .setOrigin(0.5)
-      const hit = this.add.rectangle(x + w / 2, y, w, 26, 0x000000, 0).setInteractive({ useHandCursor: true })
+        .text(0, y, label, { fontFamily: FONT, fontSize: `${size}px`, fontStyle: 'bold' })
+        .setOrigin(0, 0.5)
+      const w = txt.width + padX * 2
+      const h = txt.height + 14
+      txt.setX(x + padX)
+      const bg = this.add.graphics()
+      this.children.moveBelow(bg, txt)
+      const hit = this.add.rectangle(x + w / 2, y, w, h, 0x000000, 0).setInteractive({ useHandCursor: true })
       hit.on('pointerup', () => {
         if (this.locked) return
         this.took = key === 'take'
@@ -502,41 +733,38 @@ export default class CandleChartScene extends ModuleScene {
         this.tpCtl?.setActive(this.took)
         this.slCtl?.setActive(this.took)
       })
-      this.toggleBtns.push({ key, bg, txt, w, x })
+      this.toggleBtns.push({ key, bg, txt, w, h, x, y })
       x += w + 8
     }
     this.refreshToggle()
   }
 
   private refreshToggle(): void {
-    const y = this.plot.t + 14
     for (const b of this.toggleBtns) {
       const selected = (this.took && b.key === 'take') || (!this.took && b.key === 'stay')
-      const fill = selected ? (b.key === 'take' ? C.green : C.muted) : C.white
+      const fill = selected ? (b.key === 'take' ? C.green : C.ink) : C.white
       b.bg.clear()
       b.bg.fillStyle(fill, 1)
-      b.bg.fillRoundedRect(b.x, y - 13, b.w, 26, 7)
+      b.bg.fillRoundedRect(b.x, b.y - b.h / 2, b.w, b.h, 8)
       b.bg.lineStyle(1.5, selected ? fill : C.hairline)
-      b.bg.strokeRoundedRect(b.x, y - 13, b.w, 26, 7)
+      b.bg.strokeRoundedRect(b.x, b.y - b.h / 2, b.w, b.h, 8)
       b.txt.setColor(hex(selected ? C.white : C.muted))
     }
   }
 
   protected onSubmit(): void {
     if (!this.p.trade || this.locked) return
-    this.locked = true
-    this.setCanSubmit(false)
-    if (this.maskG) {
-      this.tweens.add({
-        targets: this.maskG,
-        x: this.W,
-        alpha: 0,
-        duration: 520,
-        ease: 'Cubic.inOut',
-        onComplete: () => this.maskG?.destroy(),
-      })
+    // Eager click during the intro candle draw (before setupTrade): remember it and
+    // replay once the TP/SL lines exist, instead of dereferencing undefined controls.
+    if (!this.tradeReady || !this.tpCtl || !this.slCtl) {
+      this.pendingSubmit = true
+      return
     }
-    this.time.delayedCall(160, () => {
+    this.locked = true
+    this.dragging = undefined
+    this.setCanSubmit(false)
+    this.slideAwayMask()
+    this.time.delayedCall(this.dur(150), () => {
       this.drawCandles(this.splitIdx, this.candles.length, 600, () => this.simulateTrade())
     })
   }
@@ -606,9 +834,13 @@ export default class CandleChartScene extends ModuleScene {
     const y = this.yFor(price)
     const col = good ? C.green : C.red
     const dot = this.add.circle(x, y, 6, col).setStrokeStyle(2, C.white)
-    dot.setScale(0)
-    this.tweens.add({ targets: dot, scale: 1, duration: 300, ease: 'Back.out' })
+    if (this.reduceMotion) {
+      dot.setScale(1)
+    } else {
+      dot.setScale(0)
+      this.tweens.add({ targets: dot, scale: 1, duration: 300, ease: 'Back.out' })
+    }
     const tag = hit === 'tp' ? 'TP hit' : hit === 'sl' ? 'SL hit' : 'exit'
-    this.fadeIn(this.label(x, y - 16, tag, { size: 11, col, bold: true, align: 'center' }), 120)
+    this.placeLabel(x, y - 18, tag, { col: this.labelInk(col), align: 'center', sizePx: 13, anchor: { x, y } })
   }
 }

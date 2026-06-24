@@ -1,21 +1,47 @@
 @import "tailwindcss";
 
-/* Brilliant-style palette: minimalist white, blue, green. Defining colors in
-   @theme generates utilities like bg-brand-blue / text-brand-green / etc. */
+/* ── Trilliant identity ────────────────────────────────────────────────────
+   A confident, editorial teaching brand — not a generic blue/green SaaS shell.
+   Roles:
+     ink   → structure, primary actions, the voice of the brand (warm near-black)
+     amber → energy + progress identity (streak, the active path, lesson numbers)
+     green → "up" / success / completion   ·   red → "down" / loss / error
+   Neutrals are warm-tinted (stone), never cool gray. Display type is the serif
+   (Fraunces) reserved for hero moments; UI/body is Inter.                       */
 @theme {
-  --color-brand-blue: #1d4ed8;
-  --color-brand-blue-dark: #1e40af;
-  --color-brand-blue-soft: #eff4ff;
-  --color-brand-green: #16a34a;
-  --color-brand-green-light: #22c55e;
-  --color-brand-green-soft: #eafaf0;
-  --color-brand-red: #dc2626;
-  --color-ink: #1f2937;
-  --color-muted: #6b7280;
-  --color-hairline: #e5e7eb;
+  /* Structure */
+  --color-ink: #1c1917;
+  --color-ink-soft: #57534e;
+  --color-paper: #ffffff;
+  --color-surface: #faf9f7;
+  --color-surface-2: #f3f1ec;
+  --color-hairline: #e7e2db;
+  --color-muted: #6f6862;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    Helvetica, Arial, sans-serif;
+  /* Accent — amber (energy / the learning path) */
+  --color-brand-amber: #e0701a;
+  --color-brand-amber-dark: #b4530a;
+  --color-brand-amber-soft: #fdf0e2;
+  --color-brand-amber-ink: #9a4209;
+
+  /* Semantic data colors */
+  --color-brand-green: #16a34a;
+  --color-brand-green-text: #15803d;
+  --color-brand-green-light: #22c55e;
+  --color-brand-green-soft: #e8f7ee;
+  --color-brand-red: #dc2626;
+  --color-brand-red-soft: #fdecea;
+
+  /* Retained for chart-annotation parity with the Phaser palette */
+  --color-brand-blue: #1d4ed8;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman",
+    serif;
+
+  /* Decisive easing — exponential ease-out, no bounce */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 html,
@@ -26,9 +52,46 @@ body,
 
 body {
   margin: 0;
-  background: #ffffff;
+  background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Display headings: warm editorial serif, tight and confident. */
+.font-display {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* One signature, restrained entrance for grouped reveals (dashboard cards).
+   Enhances an already-visible default; content is never gated on it. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise-in {
+  animation: rise-in 0.5s var(--ease-out-quint) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

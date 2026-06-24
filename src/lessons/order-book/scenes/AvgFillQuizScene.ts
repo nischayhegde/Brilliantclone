@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtMoney, fmtPrice, fmtShares, walkBuy, type Level } from './book'
 
 interface AvgFillQuizParams {
@@ -69,9 +69,9 @@ export default class AvgFillQuizScene extends ModuleScene {
 
     // live "order size" chip (top-right)
     this.panel(560, 80, 150, 70, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
-    this.add.text(635, 100, 'Order size', { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', color: hex(C.blue) }).setOrigin(0.5)
+    this.add.text(635, 100, 'Order size', { fontFamily: FONT, fontSize: '12px', color: hex(C.blue) }).setOrigin(0.5)
     this.chipText = this.add
-      .text(635, 126, '', { fontFamily: '"Segoe UI", sans-serif', fontSize: '22px', color: hex(C.blue), fontStyle: 'bold' })
+      .text(635, 126, '', { fontFamily: FONT, fontSize: '22px', color: hex(C.blue), fontStyle: 'bold' })
       .setOrigin(0.5)
 
     // slider to size the order
@@ -108,7 +108,7 @@ export default class AvgFillQuizScene extends ModuleScene {
     }
     // touch line
     this.dashedLine(this.plotL, this.yFor(this.asks[0].price), this.plotR, C.muted, 6, 5, 1.5)
-    this.label(this.plotR + 4, this.yFor(this.asks[0].price), 'touch', { size: 11, col: C.muted })
+    this.label(this.plotR + 4, this.yFor(this.asks[0].price), 'touch', { size: 12, col: C.muted, bg: true })
 
     // available depth blocks (outlined, not filled yet)
     let cum = 0
@@ -119,10 +119,10 @@ export default class AvgFillQuizScene extends ModuleScene {
       const blk = this.add.graphics()
       blk.lineStyle(1.5, C.red, 0.4)
       blk.strokeRect(x1, y, x2 - x1, this.plotB - y)
-      this.label((x1 + x2) / 2, y - 12, `${fmtShares(lvl.size)} @ ${fmtPrice(lvl.price)}`, { size: 11, col: C.red, align: 'center' })
+      this.label((x1 + x2) / 2, y - 12, `${fmtShares(lvl.size)} @ ${fmtPrice(lvl.price)}`, { size: 12, col: C.red, align: 'center', bg: true })
       cum += lvl.size
     }
-    this.label((this.plotL + this.plotR) / 2, this.plotB + 18, 'cumulative shares →', { size: 11, col: C.muted, align: 'center' })
+    this.label((this.plotL + this.plotR) / 2, this.plotB + 18, 'cumulative shares →', { size: 12, col: C.muted, align: 'center' })
   }
 
   /** Live preview as the slider moves: a translucent blue bar over the reached depth. */
@@ -152,6 +152,10 @@ export default class AvgFillQuizScene extends ModuleScene {
     this.setCanSubmit(false)
     const r = walkBuy(this.asks, this.orderSize)
 
+    // Guarantee the verdict + explanation reach the footer even if the sweep
+    // animation below is interrupted — the learner always sees the math and passes.
+    this.time.delayedCall(this.dur(r.fills.length * 500 + 1100), () => this.reportResult(r))
+
     // sweep each level with a per-level fill chip
     let cum = 0
     r.fills.forEach((f, i) => {
@@ -170,10 +174,10 @@ export default class AvgFillQuizScene extends ModuleScene {
             fill.fillRect(x1, y, x2 - x1, this.plotB - y)
           },
         })
-        const chip = this.label((x1 + x2) / 2, this.plotB - 16, `fill ${fmtShares(f.shares)} @ ${fmtPrice(f.price)}`, { size: 11, col: C.white, align: 'center', bold: true })
+        const chip = this.label((x1 + x2) / 2, this.plotB - 16, `fill ${fmtShares(f.shares)} @ ${fmtPrice(f.price)}`, { size: 12, col: C.white, align: 'center', bold: true })
         const cbg = this.add.graphics()
-        cbg.fillStyle(C.red, 0.85)
-        cbg.fillRoundedRect(chip.x - chip.width / 2 - 6, chip.y - 9, chip.width + 12, 18, 5)
+        cbg.fillStyle(C.red, 0.9)
+        cbg.fillRoundedRect(chip.x - chip.width / 2 - 6, chip.y - chip.height / 2 - 3, chip.width + 12, chip.height + 6, 5)
         chip.setDepth(5)
         cbg.setDepth(4)
         cum += f.shares
@@ -197,7 +201,7 @@ export default class AvgFillQuizScene extends ModuleScene {
           line.lineBetween(this.plotL, yv, this.xFor(r.filled), yv)
         },
       })
-      this.label(this.plotL + 4, yAvg - 12, `avg fill = ${fmtPrice(r.avgFill, 3)}`, { size: 12, col: C.blue, bold: true })
+      this.label(this.plotL + 4, yAvg - 12, `avg fill = ${fmtPrice(r.avgFill, 3)}`, { size: 12, col: C.blue, bold: true, bg: true })
 
       this.time.delayedCall(600, () => {
         if (yTouch !== yAvg) {
@@ -205,7 +209,6 @@ export default class AvgFillQuizScene extends ModuleScene {
           slip.fillStyle(C.red, 0.12)
           slip.fillRect(this.plotL, yAvg, this.xFor(r.filled) - this.plotL, yTouch - yAvg)
         }
-        this.reportResult(r)
       })
     })
   }

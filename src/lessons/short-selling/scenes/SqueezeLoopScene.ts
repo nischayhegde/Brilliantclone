@@ -45,8 +45,7 @@ export default class SqueezeLoopScene extends ModuleScene {
     this.avgVolM = p.avgVolM ?? 8
     this.shortPct = p.shortPct ?? 90
 
-    this.label(this.W / 2, 22, 'Anatomy of a short squeeze', { size: 16, bold: true, col: C.ink, align: 'center' })
-    this.label(this.W / 2, 40, 'illustrative simulation · days-to-cover math exact', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.W / 2, 14, 'Illustrative simulation · days-to-cover math exact', { size: 12, col: C.muted, align: 'center' })
 
     this.drawRing()
 
@@ -96,16 +95,20 @@ export default class SqueezeLoopScene extends ModuleScene {
     ring.lineStyle(2, C.hairline, 1)
     ring.strokeCircle(this.ringX, this.ringY, this.ringR)
     const angles = [-90, 0, 90, 180]
-    angles.forEach((a, i) => {
+    const firstCircle = angles.map((a, i) => {
       const rad = (a * Math.PI) / 180
       const x = this.ringX + Math.cos(rad) * this.ringR
       const y = this.ringY + Math.sin(rad) * this.ringR
       this.nodePos.push({ x, y })
-      this.add.circle(x, y, 30, C.blueSoft).setStrokeStyle(1.5, C.blue)
-      const t = this.label(x, y, this.nodeNames[i], { size: 10, bold: true, col: C.blue, align: 'center' })
-      t.setWordWrapWidth(70)
-    })
+      const circ = this.add.circle(x, y, 34, C.blueSoft).setStrokeStyle(1.5, C.blue)
+      const t = this.label(x, y, this.nodeNames[i], { size: 12, bold: true, col: C.blue, align: 'center' })
+      t.setWordWrapWidth(66)
+      return circ
+    })[0]
+    // The travelling pulse rides the ring BEHIND the nodes, so it slips into each
+    // node instead of covering the label text (was overlapping "Price ↑").
     this.arrow = this.add.circle(this.nodePos[0].x, this.nodePos[0].y, 7, C.red)
+    this.children.moveBelow(this.arrow, firstCircle)
   }
 
   private arrowT = 0

@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, hex, FONT } from '../../../engine/palette'
 
 /**
  * Module 1 INTRO — "Betting on Motion, Not Direction".
@@ -21,6 +21,9 @@ export default class IntroVibeScene extends ModuleScene {
   private badgePanel!: Phaser.GameObjects.Graphics
   private vibrate = true
   private t0 = 0
+  /** Set once the learner grabs the slider, so the scripted intro's deferred sync never
+   *  yanks the knob back to the anchor on top of their own drag. */
+  private userDragged = false
 
   // layout
   private cx = 300
@@ -31,7 +34,7 @@ export default class IntroVibeScene extends ModuleScene {
   private meterH = 280
 
   protected build(): void {
-    this.label(this.W / 2, 28, 'Win if it MOVES — up OR down', { size: 20, bold: true, align: 'center', col: C.ink })
+    this.label(this.W / 2, 30, 'Win if it MOVES — up OR down', { size: this.fs(20, 16, 24), bold: true, align: 'center', col: C.ink })
 
     this.lineG = this.add.graphics()
     this.upArrow = this.add.graphics()
@@ -39,25 +42,34 @@ export default class IntroVibeScene extends ModuleScene {
 
     // profit meter frame
     this.panel(this.meterX - 26, this.meterTop - 8, 52, this.meterH + 16, { fill: C.gray100, stroke: C.hairline, radius: 12 })
-    this.label(this.meterX, this.meterTop - 22, 'PROFIT', { size: 11, col: C.muted, align: 'center', bold: true })
+    this.label(this.meterX, this.meterTop - 22, 'PROFIT', { size: this.fs(12, 12, 15), col: C.muted, align: 'center', bold: true })
     this.meterFill = this.add.graphics()
 
     // badge readout under the meter
     this.badgePanel = this.add.graphics()
     this.badge = this.add
-      .text(this.meterX, this.meterTop + this.meterH + 30, '', { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', color: hex(C.green), fontStyle: 'bold' })
+      .text(this.meterX, this.meterTop + this.meterH + 30, '', { fontFamily: FONT, fontSize: `${this.fs(13, 12, 16)}px`, color: hex(C.greenText), fontStyle: 'bold' })
       .setOrigin(0.5)
 
     this.label(this.W / 2, this.H - 18, 'Some trades win when the stock moves — up OR down. They lose only if it stays still.', {
-      size: 12,
+      size: this.fs(12, 12, 15),
       col: C.muted,
       align: 'center',
     })
 
     this.t0 = this.time.now
-    this.playIntro()
     this.buildSlider()
-    this.drawAll()
+    if (this.reduceMotion) {
+      // No scripted fan / no ambient vibration — show a calm, representative state and
+      // let the slider carry the interaction.
+      this.vibrate = false
+      this.price = this.anchor
+      this.drawAll()
+      this.emitReady()
+    } else {
+      this.playIntro()
+      this.drawAll()
+    }
   }
 
   /** Scripted intro loop: arrows fan out (meter fills both ways), then settle flat (meter drains). */
@@ -82,14 +94,17 @@ export default class IntroVibeScene extends ModuleScene {
 
   private buildSlider(): void {
     const y = this.cy + 150
-    this.label(this.cx, y - 22, 'drag: future price', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.cx, y - 22, 'drag the future price ↔', { size: this.fs(12, 12, 15), col: C.amberInk, bold: true, align: 'center' })
     const ctrl = this.slider(this.cx - this.lineW / 2, y, this.lineW, 70, 130, this.price, (v) => {
       this.vibrate = false
+      this.userDragged = true
       this.price = v
       this.drawAll()
-    }, { step: 0.5 })
-    // sync slider with the scripted intro's final value
-    this.time.delayedCall(3200, () => ctrl.set(this.anchor))
+    }, { step: 0.5, col: C.amber })
+    // sync slider with the scripted intro's final value (skip under reduced motion,
+    // where there is no scripted intro to sync to, and skip if the learner already grabbed
+    // the slider — otherwise this would snap the knob off their own drag).
+    if (!this.reduceMotion) this.time.delayedCall(3200, () => { if (!this.userDragged) ctrl.set(this.anchor) })
   }
 
   update(): void {
@@ -130,11 +145,14 @@ export default class IntroVibeScene extends ModuleScene {
       g.lineTo(fx, fy)
     }
     g.strokePath()
-    // current price dot
-    const moved = Math.abs(this.price - this.anchor)
-    const dotCol = moved > 12 ? C.green : C.blue
-    g.fillStyle(dotCol, 1)
-    g.fillCircle(x, this.cy, 6)
+    // current price dot — amber: it's the value the learner drives with the slider.
+    // Soft amber halo so the "you control this" point reads at a glance.
+    g.fillStyle(C.amber, 0.18)
+    g.fillCircle(x, this.cy, 13)
+    g.fillStyle(C.amber, 1)
+    g.fillCircle(x, this.cy, 7)
+    g.lineStyle(2.5, C.white, 1)
+    g.strokeCircle(x, this.cy, 7)
   }
 
   private drawArrows(): void {
@@ -180,7 +198,7 @@ export default class IntroVibeScene extends ModuleScene {
     const big = moved > 12
     const worst = moved < 1.5
     const text = worst ? 'worst case — no move' : big ? 'BIG MOVE → profit' : 'too quiet → loss'
-    const col = big ? C.green : C.red
+    const col = big ? C.greenText : C.red
     this.badge.setText(text).setColor(hex(col))
     const w = this.badge.width + 20
     const bx = this.meterX - w / 2

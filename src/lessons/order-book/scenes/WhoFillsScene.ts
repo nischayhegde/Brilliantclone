@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtPrice } from './book'
 
 interface RestingOrder {
@@ -56,7 +56,7 @@ export default class WhoFillsScene extends ModuleScene {
     g.lineStyle(1, C.hairline, 1)
     g.lineBetween(this.rungX, this.rung20Y, 600, this.rung20Y)
     g.lineBetween(this.rungX, this.rung2001Y, 600, this.rung2001Y)
-    this.label(this.rungX + 8, this.rung20Y - 26, '◀ earlier arrival ........ later ▶', { size: 10, col: C.muted })
+    this.label(this.rungX + 8, this.rung20Y - 30, '◀ earlier arrival . . . . later ▶', { size: 12, col: C.muted })
 
     const at20 = this.resting.filter((o) => o.price === 20.0).sort((a, b) => a.arrival.localeCompare(b.arrival))
     const at2001 = this.resting
@@ -93,8 +93,8 @@ export default class WhoFillsScene extends ModuleScene {
     const h = 56
     const g = this.add.graphics()
     g.setName('bg')
-    const idT = this.add.text(0, -12, o.id, { fontFamily: '"Segoe UI", sans-serif', fontSize: '17px', color: hex(C.green), fontStyle: 'bold' }).setOrigin(0.5)
-    const tT = this.add.text(0, 12, o.arrival, { fontFamily: '"Segoe UI", sans-serif', fontSize: '11px', color: hex(C.blue) }).setOrigin(0.5)
+    const idT = this.add.text(0, -12, o.id, { fontFamily: FONT, fontSize: '18px', color: hex(C.green), fontStyle: 'bold' }).setOrigin(0.5)
+    const tT = this.add.text(0, 14, o.arrival, { fontFamily: FONT, fontSize: '12px', color: hex(C.blue) }).setOrigin(0.5)
     const c = this.add.container(x, y, [g, idT, tT]).setSize(w, h)
     c.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains)
     c.input!.cursor = 'pointer'
@@ -144,13 +144,17 @@ export default class WhoFillsScene extends ModuleScene {
     const picked = this.selectedId
     const correct = picked === this.winnerId
 
+    // Guarantee the verdict + explanation reach the footer even if the reveal
+    // animation below is interrupted (the learner must always see why and pass).
+    this.time.delayedCall(this.dur(1100), () => this.reportResult(picked, correct))
+
     // 1. highlight best-ask queue (20.00 row)
     const lane = this.add.graphics()
     lane.fillStyle(C.blueSoft, 0.6)
     lane.fillRoundedRect(this.rungX, this.rung20Y - 36, 540, 72, 10)
     lane.setDepth(-1).setAlpha(0)
     this.tweens.add({ targets: lane, alpha: 1, duration: 300 })
-    const note = this.label(this.rungX + 540, this.rung20Y - 30, 'best price first → 20.00', { size: 11, col: C.blue, bold: true, align: 'right' }).setAlpha(0)
+    const note = this.label(this.rungX + 540, this.rung20Y - 30, 'best price first → 20.00', { size: 12, col: C.blue, bold: true, align: 'right' }).setAlpha(0)
     this.tweens.add({ targets: note, alpha: 1, duration: 300 })
 
     // 2. light the true winner, then annihilate
@@ -169,18 +173,16 @@ export default class WhoFillsScene extends ModuleScene {
       this.tiles.forEach((c, id) => {
         if (id === this.winnerId) return
         this.tweens.add({ targets: c, alpha: 0.5, duration: 300 })
-        this.label(c.x, c.y + 40, 'still resting', { size: 10, col: C.muted, align: 'center' })
+        this.label(c.x, c.y + 42, 'still resting', { size: 12, col: C.muted, align: 'center' })
       })
       // 4. mark the learner's pick if wrong
       if (!correct) {
         const pickTile = this.tiles.get(picked)
-        if (pickTile) this.label(pickTile.x, pickTile.y - 42, 'your pick', { size: 11, col: C.red, align: 'center', bold: true })
+        if (pickTile) this.label(pickTile.x, pickTile.y - 44, 'your pick', { size: 12, col: C.red, align: 'center', bold: true })
       }
       const verdict = this.children.getByName('verdict') as Phaser.GameObjects.Text
       verdict.setText(`PRINT 100 @ ${fmtPrice(20.0)}  →  ${this.winnerId} fills first`)
       verdict.setColor(hex(C.green))
-
-      this.reportResult(picked, correct)
     })
   }
 

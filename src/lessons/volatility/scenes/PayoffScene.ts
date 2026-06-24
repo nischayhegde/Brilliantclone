@@ -115,6 +115,7 @@ export default class PayoffScene extends ModuleScene {
   private ghostG?: Phaser.GameObjects.Graphics
   private dot?: Phaser.GameObjects.Arc
   private dotLabel?: Phaser.GameObjects.Text
+  private dotChip?: Phaser.GameObjects.Graphics
   private dotPrice = 100
   private readoutText?: Phaser.GameObjects.Text
   private maskG?: Phaser.GameObjects.Container
@@ -151,16 +152,24 @@ export default class PayoffScene extends ModuleScene {
     this.callPremiumS = this.p.callPremiumStrangle ?? 1.75
     this.dotPrice = this.p.dotStart ?? 100
 
+    // Slider modules need a clean strip below the axis for the live readout + dials.
+    // Reserve it by shortening the plot so axis labels/title never collide with the
+    // controls (the old fixed PAD let the x-axis ticks, axis title, readout and slider
+    // tracks all stack into the same ~40px band).
+    const hasSliders = !!(this.p.sliders && this.p.sliders.length) && !this.p.quiz && !this.p.challenge
+    const bottomPad = hasSliders ? 172 : PAD.bottom
+
     this.plot = {
       l: PAD.left,
       r: this.W - PAD.right,
       t: PAD.top,
-      b: this.H - PAD.bottom,
+      b: this.H - bottomPad,
       w: this.W - PAD.left - PAD.right,
-      h: this.H - PAD.top - PAD.bottom,
+      h: this.H - PAD.top - bottomPad,
     }
 
-    if (this.p.title) this.label(this.plot.l, 14, this.p.title, { size: 15, bold: true, col: C.ink })
+    if (this.p.title)
+      this.label(this.plot.l, 15, this.p.title, { size: this.fs(15, 14, 18), bold: true, col: C.ink })
 
     this.computeRange()
     this.drawAxes()
@@ -253,30 +262,33 @@ export default class PayoffScene extends ModuleScene {
     // left axis
     g.lineStyle(1, C.hairline)
     g.lineBetween(this.plot.l, this.plot.t, this.plot.l, this.plot.b)
-    // x ticks (prices)
-    const xticks = this.niceTicks(this.xMin, this.xMax, 5)
-    for (const px of xticks) {
+    const tickSize = this.fs(12, 12, 15)
+    // x ticks (prices). On phone-width canvases keep every other tick so the numbers
+    // don't crowd into each other once FIT-scaled down.
+    const xticks = this.niceTicks(this.xMin, this.xMax, this.compact ? 4 : 5)
+    xticks.forEach((px, i) => {
       const x = this.xFor(px)
       g.lineStyle(1, C.gray100)
       g.lineBetween(x, this.plot.t, x, this.plot.b)
-      this.label(x, this.plot.b + 12, fmt(px), { size: 11, col: C.muted, align: 'center' })
-    }
+      if (this.compact && i % 2 === 1) return
+      this.label(x, this.plot.b + 14, fmt(px), { size: tickSize, col: C.muted, align: 'center' })
+    })
     // y ticks (P&L)
     const yticks = this.niceTicks(this.yMin, this.yMax, 4)
     for (const py of yticks) {
       const y = this.yFor(py)
-      this.label(this.plot.l - 8, y, fmtSigned(py), { size: 11, col: C.muted, align: 'right' })
+      this.label(this.plot.l - 8, y, fmtSigned(py), { size: tickSize, col: C.muted, align: 'right' })
     }
     // axis titles
-    this.label(this.plot.l + this.plot.w / 2, this.plot.b + 28, 'stock price at expiry', {
-      size: 11,
+    this.label(this.plot.l + this.plot.w / 2, this.plot.b + 30, 'stock price at expiry', {
+      size: tickSize,
       col: C.muted,
       align: 'center',
     })
     this.add
       .text(this.plot.l - 38, this.plot.t + this.plot.h / 2, 'P&L', {
         fontFamily: FONT,
-        fontSize: '11px',
+        fontSize: `${tickSize}px`,
         color: hex(C.muted),
       })
       .setOrigin(0.5)
@@ -371,37 +383,42 @@ export default class PayoffScene extends ModuleScene {
     const be = breakevens(legs)
     const total = totalPremium(legs)
 
-    for (const [price, name] of [
-      [be.lower, 'BE ' + fmt(be.lower)],
-      [be.upper, 'BE ' + fmt(be.upper)],
+    // Lower BE label rides a touch higher than the upper one so the two never collide
+    // when the breakevens are dragged/tuned close together; both carry a chip so they
+    // stay readable over the green/red fills.
+    const beSize = this.fs(12, 12, 15)
+    for (const [price, name, dy] of [
+      [be.lower, 'BE ' + fmt(be.lower), 8],
+      [be.upper, 'BE ' + fmt(be.upper), 26],
     ] as const) {
       const x = this.xFor(price)
       this.dashLineV(this.beG, x, this.plot.t, this.plot.b, C.blue, 1, 8, 6)
-      const lbl = this.label(x, this.plot.t - 2, name, { size: 11, col: C.blue, bold: true, align: 'center' })
+      const lbl = this.label(x, this.plot.t + dy, name, { size: beSize, col: C.blueDark, bold: true, align: 'center', bg: true })
       this.beLabels.push(lbl)
-      if (animate) {
+      if (animate && !this.reduceMotion) {
         lbl.alpha = 0
-        this.tweens.add({ targets: lbl, alpha: 1, duration: 300 })
+        this.tweens.add({ targets: lbl, alpha: 1, duration: 300, ease: 'Cubic.out' })
       }
     }
-    // max-loss readout near the vertex / flat band
+    // max-loss readout near the vertex / flat band (chip so it reads over the shading)
     const short = isShort(legs)
     const depthY = this.yFor(short ? total : -total)
     const midX = this.structure === 'straddle' ? this.xFor(this.K) : this.xFor((this.Kp + this.Kc) / 2)
     const tag = short
       ? `max profit ${fmtSigned(total)}`
       : `max loss ${fmtSigned(-total)}`
-    const t = this.label(midX, depthY + (short ? -14 : 16), tag, {
-      size: 11,
-      col: short ? C.green : C.red,
+    const t = this.label(midX, depthY + (short ? -16 : 18), tag, {
+      size: beSize,
+      col: short ? C.greenText : C.red,
       bold: true,
       align: 'center',
+      bg: true,
     })
     this.beLabels.push(t)
     if (short) {
       // the loss ramps fall off the bottom of the window — flag the large/undefined risk
       const risk = this.label(this.plot.r - 6, this.plot.b - 12, 'loss grows ↓ (unbounded up / large down)', {
-        size: 11, col: C.red, bold: true, align: 'right',
+        size: beSize, col: C.red, bold: true, align: 'right', bg: true,
       })
       this.beLabels.push(risk)
     }
@@ -430,8 +447,8 @@ export default class PayoffScene extends ModuleScene {
     this.strokePath(this.curveG, this.curvePoints(strad), C.green, 3)
     this.strokePath(this.curveG, this.curvePoints(stran), C.blue, 2.5)
     // legend chips
-    this.label(this.plot.l + 8, this.plot.t + 10, 'straddle (cost 7)', { size: 11, col: C.green, bold: true })
-    this.label(this.plot.l + 8, this.plot.t + 28, 'strangle (cost 3)', { size: 11, col: C.blue, bold: true })
+    this.label(this.plot.l + 8, this.plot.t + 12, 'straddle (cost 7)', { size: 13, col: C.green, bold: true, bg: true })
+    this.label(this.plot.l + 8, this.plot.t + 32, 'strangle (cost 3)', { size: 13, col: C.blue, bold: true, bg: true })
     // strikes
     for (const k of [95, 100, 105]) this.dashLineV(this.curveG, this.xFor(k), this.plot.t, this.plot.b, C.blue, 0.4)
   }
@@ -446,58 +463,84 @@ export default class PayoffScene extends ModuleScene {
     const legB: Leg = legs[1]
     const ptsA = this.curvePoints([legA])
     const ptsB = this.curvePoints([legB])
+    const lblSize = this.fs(13, 12, 16)
+
+    const labA = isStraddle ? `long ${legA.type} (−${fmt(legA.premium)})` : `OTM put (kink ${fmt(legA.K)})`
+    const labB = isStraddle ? `long ${legB.type} (−${fmt(legB.premium)})` : `OTM call (kink ${fmt(legB.K)})`
+    const total = totalPremium(legs)
+    const ledger = isStraddle
+      ? `cost = ${fmt(legA.premium)} + ${fmt(legB.premium)} = ${fmt(total)}  (×100 = $${total * 100})`
+      : `cost = ${fmt(this.putPremiumS)} + ${fmt(this.callPremiumS)} = ${fmt(total)}  (×100 = $${total * 100})`
+
+    // Reduced motion (or any headless/hidden render): show the finished, meaningful
+    // chart immediately — never gate the combined V behind a timed reveal that could
+    // leave the canvas half-drawn.
+    if (this.reduceMotion) {
+      this.strokePath(this.add.graphics(), ptsA, C.green, 2, 0.18)
+      this.strokePath(this.add.graphics(), ptsB, C.green, 2, 0.18)
+      this.redraw()
+      if (this.p.ghostStraddle) this.drawGhost()
+      this.label(this.plot.l + 8, this.plot.t + 12, labA, { size: lblSize, col: C.green, bold: true, bg: true })
+      this.label(this.plot.l + 8, this.plot.t + 32, labB, { size: lblSize, col: C.green, bold: true, bg: true })
+      this.label(this.plot.l + 8, this.plot.b - 14, ledger, { size: lblSize, col: C.blueDark, bold: true, bg: true })
+      this.maybeShowBreakevens(false)
+      return
+    }
 
     const gA = this.add.graphics()
     const gB = this.add.graphics()
     this.strokePath(gA, ptsA, C.green, 2, 0.55)
     gA.alpha = 0
-    this.tweens.add({ targets: gA, alpha: 1, duration: 700 })
-
-    const labA = isStraddle ? `long ${legA.type} (−${fmt(legA.premium)})` : `OTM put (kink ${fmt(legA.K)})`
-    const labB = isStraddle ? `long ${legB.type} (−${fmt(legB.premium)})` : `OTM call (kink ${fmt(legB.K)})`
-    this.fadeIn(this.label(this.plot.l + 8, this.plot.t + 10, labA, { size: 11, col: C.green }))
+    this.tweens.add({ targets: gA, alpha: 1, duration: 700, ease: 'Cubic.out' })
+    this.fadeIn(this.label(this.plot.l + 8, this.plot.t + 12, labA, { size: lblSize, col: C.green, bold: true, bg: true }))
 
     this.time.delayedCall(900, () => {
       this.strokePath(gB, ptsB, C.green, 2, 0.55)
       gB.alpha = 0
-      this.tweens.add({ targets: gB, alpha: 1, duration: 700 })
-      this.fadeIn(this.label(this.plot.l + 8, this.plot.t + 28, labB, { size: 11, col: C.green }))
+      this.tweens.add({ targets: gB, alpha: 1, duration: 700, ease: 'Cubic.out' })
+      this.fadeIn(this.label(this.plot.l + 8, this.plot.t + 32, labB, { size: lblSize, col: C.green, bold: true, bg: true }))
     })
 
-    // sum into the combined curve
+    // sum into the combined curve (exponential ease-out — decisive, no bounce)
     this.time.delayedCall(1900, () => {
       this.redraw()
       this.curveG.alpha = 0
-      this.tweens.add({ targets: this.curveG, alpha: 1, duration: 900, ease: 'Back.out' })
-      this.tweens.add({ targets: [gA, gB], alpha: 0.18, duration: 600 })
+      this.tweens.add({ targets: this.curveG, alpha: 1, duration: 700, ease: 'Quint.out' })
+      this.tweens.add({ targets: [gA, gB], alpha: 0.18, duration: 600, ease: 'Cubic.out' })
       if (this.p.ghostStraddle) this.drawGhost()
-      // cost ledger
-      const total = totalPremium(legs)
-      const ledger = isStraddle
-        ? `cost = ${fmt(legA.premium)} + ${fmt(legB.premium)} = ${fmt(total)}  (×100 = $${total * 100})`
-        : `cost = ${fmt(this.putPremiumS)} + ${fmt(this.callPremiumS)} = ${fmt(total)}  (×100 = $${total * 100})`
-      this.fadeIn(this.label(this.plot.l + 8, this.plot.b - 14, ledger, { size: 12, col: C.blue, bold: true }), 300)
+      this.fadeIn(this.label(this.plot.l + 8, this.plot.b - 14, ledger, { size: lblSize, col: C.blueDark, bold: true, bg: true }), 300)
     })
 
     this.time.delayedCall(3000, () => this.maybeShowBreakevens(true))
   }
 
   // --- draggable dot --------------------------------------------------------
+  private dotHalo?: Phaser.GameObjects.Arc
   private addDraggableDot(): void {
     const legs = this.legs()
     this.dotPrice = Phaser.Math.Clamp(this.dotPrice, this.xMin, this.xMax)
     const pnl = combinedPnL(legs, this.dotPrice)
-    this.dot = this.add.circle(this.xFor(this.dotPrice), this.yFor(pnl), 9, C.blue).setStrokeStyle(3, C.white)
-    this.dot.setInteractive({ useHandCursor: true, draggable: true })
+    const dx0 = this.xFor(this.dotPrice)
+    const dy0 = this.yFor(pnl)
+    // Amber halo behind the dot = the brand "act on me" cue; gently breathes (and is a
+    // no-op under reduced motion). The dot fill stays semantic (green profit / red loss).
+    this.dotHalo = this.add.circle(dx0, dy0, 16, C.amber, 0.18)
+    this.loop({ targets: this.dotHalo, scale: 1.35, alpha: 0.32, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' })
+    this.dot = this.add.circle(dx0, dy0, 10, C.blue).setStrokeStyle(3, C.white)
+    // Larger invisible hit area so the dot is comfortably draggable on touch screens.
+    this.dot.setInteractive(new Phaser.Geom.Circle(0, 0, 22), Phaser.Geom.Circle.Contains)
+    this.dot.input!.cursor = 'grab'
     this.input.setDraggable(this.dot)
     this.dot.on('drag', (_p: Phaser.Input.Pointer, dx: number) => {
       const t = Phaser.Math.Clamp((dx - this.plot.l) / this.plot.w, 0, 1)
       this.dotPrice = this.xMin + t * (this.xMax - this.xMin)
       this.updateDot()
     })
-    this.dotLabel = this.label(0, 0, '', { size: 12, col: C.ink, bold: true, align: 'center' })
-    const hint = this.label(this.plot.r, this.plot.t - 2, 'drag the dot →', { size: 11, col: C.muted, align: 'right' })
-    this.tweens.add({ targets: hint, alpha: 0.4, duration: 900, yoyo: true, repeat: -1 })
+    // persistent chip behind the moving readout (redrawn each updateDot) + the text
+    this.dotChip = this.add.graphics()
+    this.dotLabel = this.label(0, 0, '', { size: this.fs(13, 12, 16), col: C.ink, bold: true, align: 'center' })
+    const hint = this.label(this.plot.r, this.plot.t - 2, 'drag the dot →', { size: this.fs(12, 12, 15), col: C.amberInk, bold: true, align: 'right', bg: true })
+    this.loop({ targets: hint, alpha: 0.45, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' })
     this.updateDot()
   }
 
@@ -509,20 +552,51 @@ export default class PayoffScene extends ModuleScene {
     const x = this.xFor(this.dotPrice)
     const y = this.yFor(pnl)
     this.dot.setPosition(x, y)
+    this.dotHalo?.setPosition(x, y)
     const profit = pnl > 0.001
     this.dot.setFillStyle(profit ? C.green : pnl < -0.001 ? C.red : C.blue)
-    this.dotLabel.setPosition(x, y - 18)
-    this.dotLabel.setColor(hex(profit ? C.green : pnl < -0.001 ? C.red : C.muted))
+    // keep the readout inside the plot horizontally so it never clips at the edges
+    const labY = y - 20
+    const clampedX = Phaser.Math.Clamp(x, this.plot.l + 60, this.plot.r - 60)
+    this.dotLabel.setPosition(clampedX, labY)
+    this.dotLabel.setColor(hex(profit ? C.greenText : pnl < -0.001 ? C.red : C.muted))
     this.dotLabel.setText(`S=${fmt(this.dotPrice)}  P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`)
+    // redraw the chip to track the moving label
+    if (this.dotChip) {
+      const padX = 6
+      const padY = 3
+      this.dotChip.clear()
+      this.dotChip.fillStyle(C.white, 0.88)
+      this.dotChip.fillRoundedRect(
+        this.dotLabel.x - this.dotLabel.width / 2 - padX,
+        this.dotLabel.y - this.dotLabel.height / 2 - padY,
+        this.dotLabel.width + padX * 2,
+        this.dotLabel.height + padY * 2,
+        5,
+      )
+      this.children.moveBelow(this.dotChip, this.dotLabel)
+    }
   }
 
   // --- in-canvas sliders ----------------------------------------------------
+  /**
+   * Lay the live readout + dials in the reserved strip BELOW the axis (plot.b was
+   * shortened in build() when sliders exist). Three clean rows, each spaced so they
+   * never collide with the x-axis tick labels / axis title above them:
+   *   readout  →  slider value labels  →  slider tracks.
+   */
   private buildSliders(cfgs: SliderCfg[]): void {
-    const baseY = this.H - 70
-    const colW = Math.min(220, (this.plot.w - 20) / Math.min(cfgs.length, 3))
+    const n = Math.min(cfgs.length, 3)
+    // live readout line, just under the axis title (plot.b + 28)
+    const readoutY = this.plot.b + 48
+    this.readoutText = this.label(this.plot.l, readoutY, '', { size: this.fs(13, 12, 16), col: C.blueDark, bold: true })
+
+    const labelY = readoutY + 26
+    const trackY = labelY + 22
+    const colW = Math.min(230, (this.plot.w - 16) / n)
     cfgs.slice(0, 3).forEach((cfg, i) => {
       const x = this.plot.l + i * colW
-      const valueText = this.label(x, baseY - 16, '', { size: 12, col: C.ink, bold: true })
+      const valueText = this.label(x, labelY, '', { size: this.fs(13, 12, 16), col: C.ink, bold: true })
       const startVal = this.currentSliderValue(cfg.key)
       const update = (v: number) => {
         this.applySlider(cfg.key, v)
@@ -531,11 +605,10 @@ export default class PayoffScene extends ModuleScene {
         this.maybeShowBreakevens(false)
         this.refreshReadout()
       }
-      this.slider(x, baseY + 8, colW - 24, cfg.min, cfg.max, startVal, update, { step: cfg.step })
+      // amber dials — the live "act on me" affordance, echoing the site's accent.
+      this.slider(x, trackY, colW - 28, cfg.min, cfg.max, startVal, update, { step: cfg.step, col: C.amber })
       valueText.setText(`${cfg.label}: ${fmt(startVal)}`)
     })
-    // live readout line
-    this.readoutText = this.label(this.plot.l, this.H - 96, '', { size: 12, col: C.blue, bold: true })
     this.refreshReadout()
   }
 
@@ -659,15 +732,17 @@ export default class PayoffScene extends ModuleScene {
     const beS = breakevens(strad)
     const beT = breakevens(stran)
     const y0 = this.yFor(0)
-    for (const [px, lab, col] of [
-      [beS.upper, 'straddle BE 107', C.green],
-      [beS.lower, 'straddle BE 93', C.green],
-      [beT.upper, 'strangle BE 108', C.blue],
-      [beT.lower, 'strangle BE 92', C.blue],
+    // Stagger the four BE labels across two rows by colour so they never overlap, all
+    // chipped to stay readable over the curves.
+    for (const [px, lab, col, dy] of [
+      [beS.lower, 'straddle BE 93', C.green, 8],
+      [beS.upper, 'straddle BE 107', C.green, 8],
+      [beT.lower, 'strangle BE 92', C.blue, 26],
+      [beT.upper, 'strangle BE 108', C.blue, 26],
     ] as const) {
       const x = this.xFor(px)
       this.dashLineV(this.beG, x, this.plot.t, this.plot.b, col, 1, 8, 6)
-      this.beLabels.push(this.label(x, this.plot.t - 2, lab, { size: 10, col, bold: true, align: 'center' }))
+      this.beLabels.push(this.label(x, this.plot.t + dy, lab, { size: 12, col, bold: true, align: 'center', bg: true }))
     }
     // measuring arrows from 100 to each nearest upper breakeven
     const x100 = this.xFor(100)
@@ -682,7 +757,7 @@ export default class PayoffScene extends ModuleScene {
     g.fillStyle(col, 1)
     g.fillTriangle(x2 - 7, y - 4, x2 - 7, y + 4, x2, y)
     g.fillTriangle(x1 + 7, y - 4, x1 + 7, y + 4, x1, y)
-    this.label((x1 + x2) / 2, y - 9, label, { size: 10, col, bold: true, align: 'center' })
+    this.label((x1 + x2) / 2, y - 10, label, { size: 12, col, bold: true, align: 'center', bg: true })
   }
 
   // ===================== CHALLENGE: M5 — drag the breakevens =================
@@ -704,20 +779,22 @@ export default class PayoffScene extends ModuleScene {
     this.beGuessLo = Math.max(this.xMin + 2, this.K - 12)
     this.beGuessHi = Math.min(this.xMax - 2, this.K + 12)
 
-    this.makeBEHandle(() => this.beGuessLo, (v) => (this.beGuessLo = v))
-    this.makeBEHandle(() => this.beGuessHi, (v) => (this.beGuessHi = v))
+    // Offset the two handle labels onto different rows (lower marker higher, upper marker
+    // lower) so their chipped readouts never collide when dragged near each other.
+    this.makeBEHandle(() => this.beGuessLo, (v) => (this.beGuessLo = v), this.plot.t + 8)
+    this.makeBEHandle(() => this.beGuessHi, (v) => (this.beGuessHi = v), this.plot.t + 26)
 
-    this.label(this.plot.l, this.plot.t - 4, 'drag the two markers to where P&L = 0', {
-      size: 11, col: C.muted,
-    })
+    // No in-canvas hint here: the title ("Drag both markers…") sits at the top and the
+    // footer already shows the prompt + how-to, so a third copy only collided with them.
     this.setCanSubmit(true)
   }
 
-  private makeBEHandle(get: () => number, set: (v: number) => void): void {
+  private makeBEHandle(get: () => number, set: (v: number) => void, labelY: number): void {
     const y0 = this.yFor(0)
     const lineG = this.add.graphics()
     const knob = this.add.circle(0, y0, 10, C.blue).setStrokeStyle(3, C.white)
-    const lbl = this.label(0, this.plot.t - 18, '', { size: 12, col: C.blue, bold: true, align: 'center' })
+    const chip = this.add.graphics()
+    const lbl = this.label(0, labelY, '', { size: 13, col: C.blue, bold: true, align: 'center' })
     // Wide invisible vertical hit strip so the whole marker is grabbable.
     const hit = this.add.rectangle(0, this.plot.t + this.plot.h / 2, 26, this.plot.h, 0x000000, 0)
       .setInteractive({ useHandCursor: true })
@@ -730,8 +807,15 @@ export default class PayoffScene extends ModuleScene {
       for (let yy = this.plot.t; yy < this.plot.b; yy += 11) lineG.lineBetween(x, yy, x, Math.min(yy + 6, this.plot.b))
       knob.setPosition(x, y0)
       knob.setAlpha(this.graded ? 0.5 : 1)
-      lbl.setPosition(x, this.plot.t - 18)
+      lbl.setPosition(x, labelY)
       lbl.setText(`${fmt(price)}`)
+      lbl.setAlpha(this.graded ? 0.5 : 1)
+      const padX = 5
+      const padY = 3
+      chip.clear()
+      chip.fillStyle(C.white, this.graded ? 0.5 : 0.88)
+      chip.fillRoundedRect(lbl.x - lbl.width / 2 - padX, lbl.y - lbl.height / 2 - padY, lbl.width + padX * 2, lbl.height + padY * 2, 5)
+      this.children.moveBelow(chip, lbl)
       hit.x = x
     }
     redraw()
@@ -784,7 +868,7 @@ export default class PayoffScene extends ModuleScene {
     const flash = this.add.circle(midX, this.yFor(-total), 10, C.red).setAlpha(0)
     this.tweens.add({ targets: flash, alpha: 1, scale: 1.6, duration: 240, yoyo: true, repeat: 2 })
     this.label(midX, this.yFor(-total) + 30, `vertex: max loss ${fmtSigned(-total)} at K=${fmt(this.K)}`, {
-      size: 11, col: C.red, bold: true, align: 'center',
+      size: 12, col: C.red, bold: true, align: 'center', bg: true,
     })
 
     const title = correct
@@ -806,16 +890,17 @@ export default class PayoffScene extends ModuleScene {
   private setupCompareChallenge(): void {
     const move = this.p.expectedMove ?? 6
     const S = 100 + move
-    // mark the expected landing price (label at the TOP of the plot to clear the axis)
+    // mark the expected landing price in amber — the scenario in focus (label at the
+    // TOP of the plot to clear the axis)
     const x = this.xFor(S)
     const g = this.add.graphics()
-    this.dashLineV(g, x, this.plot.t, this.plot.b, C.ink, 0.8, 7, 5)
+    this.dashLineV(g, x, this.plot.t, this.plot.b, C.amber, 1, 7, 5)
     this.label(x, this.plot.t + 8, `expected → S = ${fmt(S)}`, {
-      size: 11, col: C.ink, bold: true, align: 'center',
+      size: this.fs(12, 12, 15), col: C.amberInk, bold: true, align: 'center', bg: true,
     })
 
     // pick buttons along the bottom strip (clear of the x-axis title at plot.b+28)
-    const by = this.H - 26
+    const by = this.H - 28
     this.makePickButton('straddle', 'Straddle (cost 7)', this.plot.l + 30, by, 210, C.green, () => {
       this.pick = 'straddle'; this.refreshPickButtons()
     })
@@ -848,7 +933,7 @@ export default class PayoffScene extends ModuleScene {
       const pnl = Phaser.Math.Clamp(combinedPnL(legs, S), this.yMin, this.yMax)
       const dot = this.add.circle(this.xFor(S), this.yFor(pnl), 7, col).setStrokeStyle(2, C.white)
       dot.setScale(0)
-      this.tweens.add({ targets: dot, scale: 1, duration: 300, ease: 'Back.out' })
+      this.tweens.add({ targets: dot, scale: 1, duration: 300, ease: 'Quint.out' })
     }
 
     const title = correct
@@ -872,14 +957,14 @@ export default class PayoffScene extends ModuleScene {
    * the IV-crush trap here.
    */
   private setupPickVolChallenge(): void {
-    // mark the expected pin at 100 (label at top of plot, clear of the axis)
+    // mark the expected pin at 100 in amber — the scenario in focus
     const xg = this.add.graphics()
-    this.dashLineV(xg, this.xFor(100), this.plot.t, this.plot.b, C.ink, 0.8, 7, 5)
+    this.dashLineV(xg, this.xFor(100), this.plot.t, this.plot.b, C.amber, 1, 7, 5)
     this.label(this.xFor(100), this.plot.t + 8, 'expected pin → S = 100', {
-      size: 11, col: C.ink, bold: true, align: 'center',
+      size: this.fs(12, 12, 15), col: C.amberInk, bold: true, align: 'center', bg: true,
     })
 
-    const by = this.H - 26
+    const by = this.H - 28
     this.makePickButton('long', 'LONG VOL (buy)', this.plot.l + 30, by, 210, C.green, () => {
       this.volPick = 'long'; this.refreshPickButtons()
     })
@@ -908,9 +993,9 @@ export default class PayoffScene extends ModuleScene {
     const dotY = this.yFor(Phaser.Math.Clamp(pnl, this.yMin, this.yMax))
     const dot = this.add.circle(this.xFor(S), dotY, 8, dotCol).setStrokeStyle(3, C.white)
     dot.setScale(0)
-    this.tweens.add({ targets: dot, scale: 1, duration: 320, ease: 'Back.out' })
-    this.label(this.xFor(S), dotY - 18, `pin S=100 · P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
-      { size: 11, col: dotCol, bold: true, align: 'center' })
+    this.tweens.add({ targets: dot, scale: 1, duration: 320, ease: 'Quint.out' })
+    this.label(this.xFor(S), dotY - 20, `pin S=100 · P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
+      { size: 12, col: dotCol, bold: true, align: 'center', bg: true })
 
     const correct = volPick === 'short'
     const title = correct
@@ -926,9 +1011,9 @@ export default class PayoffScene extends ModuleScene {
   private makePickButton(key: string, label: string, x: number, y: number, w: number, col: number, on: () => void): void {
     const bg = this.add.graphics()
     const txt = this.add.text(x + w / 2, y, label, {
-      fontFamily: FONT, fontSize: '13px', fontStyle: 'bold',
+      fontFamily: FONT, fontSize: `${this.fs(13, 13, 16)}px`, fontStyle: 'bold',
     }).setOrigin(0.5)
-    const hit = this.add.rectangle(x + w / 2, y, w, 34, 0x000000, 0).setInteractive({ useHandCursor: true })
+    const hit = this.add.rectangle(x + w / 2, y, w, 40, 0x000000, 0).setInteractive({ useHandCursor: true })
     hit.on('pointerup', () => { if (!this.graded) on() })
     this.pickBtns.push({ key, bg, txt, x, y, w })
     // colour stashed on the object for refresh

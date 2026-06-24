@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtPrice, fmtShares, type Level } from './book'
 
 interface MarketOrderParams {
@@ -41,6 +41,7 @@ export default class MarketOrderScene extends ModuleScene {
 
   private mode: 'market' | 'limit' = 'market'
   private fired = false
+  private limitFired = false
   private askBars: Array<{ lvl: Level; bar: Phaser.GameObjects.Graphics; y: number; consumed: boolean }> = []
   private tapeY = 70
   private tapeX = 470
@@ -93,7 +94,7 @@ export default class MarketOrderScene extends ModuleScene {
     const g = this.add.graphics()
     g.fillStyle(C.blueSoft, 1)
     g.fillRoundedRect(left - 4, this.midY - 12, this.maxBarW + 8, 24, 6)
-    this.label(this.cx, this.midY, 'spread', { size: 11, col: C.blue, align: 'center', bold: true })
+    this.label(this.cx, this.midY, 'spread', { size: 12, col: C.blue, align: 'center', bold: true })
 
     this.bids.forEach((lvl, i) => {
       const y = this.midY + this.gap / 2 + i * this.rowH + this.rowH / 2
@@ -118,7 +119,7 @@ export default class MarketOrderScene extends ModuleScene {
     this.label(this.cx, y - 26, 'Fire the same order as:', { size: 12, col: C.muted, align: 'center' })
     const mk = (label: string, cb: () => void) => {
       const g = this.add.graphics()
-      const t = this.add.text(0, 0, label, { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', fontStyle: 'bold', color: hex(C.white) }).setOrigin(0.5)
+      const t = this.add.text(0, 0, label, { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold', color: hex(C.white) }).setOrigin(0.5)
       const c = this.add.container(0, 0, [g, t]).setSize(110, 32)
       c.setInteractive(new Phaser.Geom.Rectangle(-55, -16, 110, 32), Phaser.Geom.Rectangle.Contains)
       c.input!.cursor = 'pointer'
@@ -153,9 +154,9 @@ export default class MarketOrderScene extends ModuleScene {
     const py = 250
     this.panel(px, py, 270, 130, { fill: C.white, stroke: C.hairline, radius: 10 })
     this.label(px + 14, py + 22, 'LIMIT → control PRICE', { size: 13, col: C.blue, bold: true })
-    this.label(px + 14, py + 44, '(rests; maybe no fill)', { size: 11, col: C.muted })
-    this.label(px + 14, py + 76, 'MARKET → control FILL', { size: 13, col: C.red, bold: true })
-    this.label(px + 14, py + 98, '(price is whatever is there)', { size: 11, col: C.muted })
+    this.label(px + 14, py + 46, '(rests; maybe no fill)', { size: 12, col: C.muted })
+    this.label(px + 14, py + 78, 'MARKET → control FILL', { size: 13, col: C.red, bold: true })
+    this.label(px + 14, py + 100, '(price is whatever is there)', { size: 12, col: C.muted })
   }
 
   private fire(): void {
@@ -168,11 +169,13 @@ export default class MarketOrderScene extends ModuleScene {
   }
 
   private fireLimit(): void {
-    // dock onto a bid rung and wait
-    const bestBidY = this.midY + this.gap / 2 + this.rowH / 2
-    const left = this.cx - this.maxBarW / 2
-    const tag = this.label(left + this.maxBarW + 70, bestBidY, 'PENDING — provides liquidity', { size: 11, col: C.blue, bold: true }).setAlpha(0)
-    this.tweens.add({ targets: tag, alpha: 1, duration: 300 })
+    // dock onto a bid rung and wait. Guard so repeated clicks don't stack tags/prints.
+    if (this.limitFired) return
+    this.limitFired = true
+    // single chip-backed tag, centered below the ladder (clear of the rung size labels
+    // and the tape on the right). Guarded above so it is only ever created once.
+    const bidsBottomY = this.midY + this.gap / 2 + this.bids.length * this.rowH + 14
+    this.label(this.cx, bidsBottomY, 'LIMIT PENDING — provides liquidity', { size: 12, col: C.blue, bold: true, align: 'center', bg: true })
     this.addPrint(`LIMIT rests · ${this.orderSize} @ ${fmtPrice(this.bids[0].price)}`, C.blue)
   }
 
@@ -216,13 +219,13 @@ export default class MarketOrderScene extends ModuleScene {
 
     this.addPrint(`PRINT ${fmtShares(this.orderSize)} @ ${fmtPrice(entry.lvl.price)}`, C.green)
 
-    // TAKES LIQUIDITY tag + new best ask note
+    // TAKES LIQUIDITY tag on the consumed touch row (chip-backed so it reads over the
+    // collapsing bar); new best ask note just above it. Single texts, created once.
     const nextAsk = this.askBars[this.askBars.length - 2]?.lvl.price
-    const tag = this.label(this.cx, this.midY + 6, 'TAKES LIQUIDITY', { size: 12, col: C.red, align: 'center', bold: true }).setAlpha(0)
-    this.tweens.add({ targets: tag, alpha: 1, duration: 250 })
+    this.label(this.cx, entry.y, 'TAKES LIQUIDITY', { size: 12, col: C.red, align: 'center', bold: true, bg: true })
     if (nextAsk !== undefined) {
       this.time.delayedCall(500, () =>
-        this.label(this.cx, this.midY + 28, `new best ask: ${fmtPrice(nextAsk)}`, { size: 11, col: C.muted, align: 'center' }),
+        this.label(this.cx, entry.y - this.rowH, `new best ask: ${fmtPrice(nextAsk)}`, { size: 12, col: C.muted, align: 'center', bg: true }),
       )
     }
   }

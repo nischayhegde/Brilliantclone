@@ -25,24 +25,26 @@ export default function CongratsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-paper">
       <TopNav />
       <main className="mx-auto flex max-w-3xl flex-col items-center px-4 py-16 text-center">
-        <TrophyIcon className="text-brand-green" />
-        <h1 className="mt-4 text-3xl font-extrabold">Congratulations!</h1>
-        <p className="mt-2 max-w-md text-muted">
-          You finished <strong>{lesson.title}</strong> — {lesson.subtitle}.
+        <span className="flex h-20 w-20 items-center justify-center rounded-2xl bg-brand-amber-soft text-brand-amber">
+          <TrophyIcon className="h-11 w-11" />
+        </span>
+        <h1 className="mt-5 font-display text-4xl font-bold leading-tight">Lesson complete.</h1>
+        <p className="mt-2 max-w-md text-ink-soft">
+          You finished <strong className="font-bold text-ink">{lesson.title}</strong> — {lesson.subtitle}.
         </p>
 
         <div className="mt-8 grid w-full max-w-md grid-cols-2 gap-4">
           <Card className="text-center">
-            <p className="text-3xl font-extrabold">
+            <p className="font-display text-3xl font-bold">
               {s.completedCount}/{s.total}
             </p>
             <p className="text-xs font-semibold text-muted">modules complete</p>
           </Card>
           <Card className="text-center">
-            <p className="text-3xl font-extrabold">{bestStreak}</p>
+            <p className="font-display text-3xl font-bold">{bestStreak}</p>
             <p className="text-xs font-semibold text-muted">best streak</p>
           </Card>
         </div>

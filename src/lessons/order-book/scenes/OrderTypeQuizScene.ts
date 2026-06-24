@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtPrice, fmtShares, walkBuy, type Level } from './book'
 
 interface OrderTypeQuizParams {
@@ -74,13 +74,13 @@ export default class OrderTypeQuizScene extends ModuleScene {
 
     this.drawLadder()
 
-    // scenario card
-    this.panel(440, 76, 290, 130, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
-    this.label(456, 96, 'Your constraint', { size: 13, col: C.blue, bold: true })
-    this.label(456, 120, `• Need ${fmtShares(this.orderSize)} shares`, { size: 12, col: C.ink })
-    this.label(456, 142, `• Hard ceiling: ${fmtPrice(this.ceiling)}`, { size: 12, col: C.ink })
-    this.label(456, 164, '• You can wait (not urgent)', { size: 12, col: C.ink })
-    this.label(456, 186, 'Goal: best price, never overpay', { size: 11, col: C.muted })
+    // scenario card (right of the ladder + ceiling label)
+    this.panel(458, 74, 286, 138, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
+    this.label(474, 96, 'Your constraint', { size: 13, col: C.blue, bold: true })
+    this.label(474, 122, `• Need ${fmtShares(this.orderSize)} shares`, { size: 12, col: C.ink })
+    this.label(474, 144, `• Hard ceiling: ${fmtPrice(this.ceiling)}`, { size: 12, col: C.ink })
+    this.label(474, 166, '• You can wait (not urgent)', { size: 12, col: C.ink })
+    this.label(474, 192, 'Goal: best price, never overpay', { size: 12, col: C.muted })
 
     // order-type toggle
     this.buildToggle()
@@ -141,7 +141,7 @@ export default class OrderTypeQuizScene extends ModuleScene {
     // ceiling marker
     const yC = this.yForPrice(this.ceiling)
     this.dashedLine(left - 16, yC, left + this.maxBarW + 70, C.blue, 6, 5, 1.5)
-    this.label(left + this.maxBarW + 74, yC, `ceiling ${fmtPrice(this.ceiling)}`, { size: 10, col: C.blue, bold: true })
+    this.label(left + this.maxBarW + 74, yC, `ceiling ${fmtPrice(this.ceiling)}`, { size: 12, col: C.blue, bold: true, bg: true })
   }
 
   private buildToggle(): void {
@@ -153,7 +153,7 @@ export default class OrderTypeQuizScene extends ModuleScene {
     const y = 300
     for (const [key, label, w] of labels) {
       const bg = this.add.graphics()
-      const txt = this.add.text(x + w / 2, y, label, { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', fontStyle: 'bold' }).setOrigin(0.5)
+      const txt = this.add.text(x + w / 2, y, label, { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold' }).setOrigin(0.5)
       const hit = this.add.rectangle(x + w / 2, y, w, 30, 0x000000, 0).setInteractive({ useHandCursor: true })
       hit.on('pointerup', () => {
         if (this.locked) return
@@ -183,11 +183,13 @@ export default class OrderTypeQuizScene extends ModuleScene {
     const left = this.cx - this.maxBarW / 2
     this.limitLineG = this.add.graphics()
     this.limitKnob = this.add.circle(left + this.maxBarW + 50, 0, 7, C.blue).setStrokeStyle(2, C.white)
-    this.limitLabel = this.add.text(left, 0, '', { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', color: hex(C.blue), fontStyle: 'bold' }).setOrigin(0, 1)
+    // chip behind the (moving) limit label so it reads over the red ask bars
+    const labelChip = this.add.graphics()
+    this.limitLabel = this.add.text(left, 0, '', { fontFamily: FONT, fontSize: '13px', color: hex(C.blue), fontStyle: 'bold' }).setOrigin(0, 1)
     const hit = this.add
       .rectangle(left + this.maxBarW / 2, 0, this.maxBarW + 120, 24, 0x000000, 0)
       .setInteractive({ useHandCursor: true })
-    this.limitGroup = this.add.container(0, 0, [this.limitLineG, this.limitKnob, this.limitLabel, hit])
+    this.limitGroup = this.add.container(0, 0, [this.limitLineG, labelChip, this.limitLabel, this.limitKnob, hit])
 
     const redraw = () => {
       const y = this.yForPrice(this.limitPrice)
@@ -197,6 +199,11 @@ export default class OrderTypeQuizScene extends ModuleScene {
       this.limitKnob.y = y
       this.limitLabel.setPosition(left, y - 6)
       this.limitLabel.setText(`LIMIT ${fmtShares(this.orderSize)} @ ${fmtPrice(this.limitPrice)}`)
+      // chip sized to the label (origin 0,1 → bottom-left anchored)
+      const t = this.limitLabel
+      labelChip.clear()
+      labelChip.fillStyle(C.white, 0.85)
+      labelChip.fillRoundedRect(t.x - 5, t.y - t.height - 3, t.width + 10, t.height + 6, 5)
       hit.y = y
     }
     redraw()
@@ -239,6 +246,12 @@ export default class OrderTypeQuizScene extends ModuleScene {
   private simulateMarket(): void {
     const r = walkBuy(this.asks, this.orderSize)
     const ordered = this.asks.slice().sort((a, b) => a.price - b.price)
+
+    const title = `Market overpaid · avg ${fmtPrice(r.avgFill)}`
+    const detail = `The touch holds only ${fmtShares(ordered[0].size)} of the ${fmtShares(this.orderSize)} you need, so a market order walks up to ${fmtPrice(ordered[1]?.price ?? r.avgFill)} — a ${fmtPrice(r.avgFill)} blend that blows past your ${fmtPrice(this.ceiling)} ceiling. Market buys take whatever is resting; on a thin book with no urgency, that is the wrong tool.`
+    // Guarantee the verdict reaches the footer even if the reveal is interrupted.
+    this.time.delayedCall(this.dur(r.fills.length * 400 + 350), () => this.report(false, title, detail))
+
     // consume rungs the market order touches
     r.fills.forEach((f, i) => {
       this.time.delayedCall(i * 400, () => {
@@ -251,10 +264,6 @@ export default class OrderTypeQuizScene extends ModuleScene {
       const breakdown = r.fills.map((f) => `${fmtShares(f.shares)} @ ${fmtPrice(f.price)}`).join(', then ')
       this.label(140, 368, `MARKET filled ${breakdown}`, { size: 12, col: C.ink })
       this.label(140, 392, `blended avg ${fmtPrice(r.avgFill)} — above your ${fmtPrice(this.ceiling)} ceiling`, { size: 12, col: C.red, bold: true })
-
-      const title = `Market overpaid · avg ${fmtPrice(r.avgFill)}`
-      const detail = `The touch holds only ${fmtShares(ordered[0].size)} of the ${fmtShares(this.orderSize)} you need, so a market order walks up to ${fmtPrice(ordered[1]?.price ?? r.avgFill)} — a ${fmtPrice(r.avgFill)} blend that blows past your ${fmtPrice(this.ceiling)} ceiling. Market buys take whatever is resting; on a thin book with no urgency, that is the wrong tool.`
-      this.report(false, title, detail)
     })
   }
 
@@ -263,6 +272,26 @@ export default class OrderTypeQuizScene extends ModuleScene {
     const bestAsk = this.asks[0].price
     const willFill = this.limitPrice >= bestAsk // marketable or matchable as the touch comes to it
     const overCeiling = this.limitPrice > this.ceiling + 1e-9
+
+    let correct: boolean
+    let title: string
+    let detail: string
+    if (overCeiling) {
+      correct = false
+      title = `Limit ${fmtPrice(this.limitPrice)} overpays`
+      detail = `Right tool, wrong price: a limit at ${fmtPrice(this.limitPrice)} is above your ${fmtPrice(this.ceiling)} ceiling, so it could fill at a price you swore not to pay. Set the limit at or below ${fmtPrice(this.ceiling)} to guarantee you never overpay.`
+    } else if (!willFill) {
+      correct = false
+      title = `Limit ${fmtPrice(this.limitPrice)} won't fill`
+      detail = `A limit at ${fmtPrice(this.limitPrice)} sits below the best ask (${fmtPrice(bestAsk)}), so no seller meets it — it just rests, unfilled. You protected your price but set it so low you'll never get your shares. Aim between the best ask and your ${fmtPrice(this.ceiling)} ceiling.`
+    } else {
+      correct = true
+      title = `Limit ${fmtPrice(this.limitPrice)} — never overpay`
+      detail = `Exactly right. A limit at ${fmtPrice(this.limitPrice)} (≤ your ${fmtPrice(this.ceiling)} ceiling) rests and fills only at ${fmtPrice(this.limitPrice)} or better — you control the price. The book is thin and you can wait, so trading immediacy for price is the correct call. Market controls fill; limit controls price.`
+    }
+    const panelCol = correct ? C.green : C.red
+    // Guarantee the verdict reaches the footer even if the reveal is interrupted.
+    this.time.delayedCall(this.dur(650), () => this.report(correct, title, detail))
 
     // a blue limit tile resting on the ladder
     const yL = this.yForPrice(this.limitPrice)
@@ -273,30 +302,9 @@ export default class OrderTypeQuizScene extends ModuleScene {
     this.tweens.add({ targets: tile, alpha: 1, duration: 300 })
 
     this.time.delayedCall(450, () => {
-      let correct: boolean
-      let title: string
-      let detail: string
-      const panelCol = !overCeiling && willFill ? C.green : C.red
-
-      if (overCeiling) {
-        correct = false
-        title = `Limit ${fmtPrice(this.limitPrice)} overpays`
-        detail = `Right tool, wrong price: a limit at ${fmtPrice(this.limitPrice)} is above your ${fmtPrice(this.ceiling)} ceiling, so it could fill at a price you swore not to pay. Set the limit at or below ${fmtPrice(this.ceiling)} to guarantee you never overpay.`
-      } else if (!willFill) {
-        correct = false
-        title = `Limit ${fmtPrice(this.limitPrice)} won't fill`
-        detail = `A limit at ${fmtPrice(this.limitPrice)} sits below the best ask (${fmtPrice(bestAsk)}), so no seller meets it — it just rests, unfilled. You protected your price but set it so low you'll never get your shares. Aim between the best ask and your ${fmtPrice(this.ceiling)} ceiling.`
-      } else {
-        correct = true
-        title = `Limit ${fmtPrice(this.limitPrice)} — never overpay`
-        detail = `Exactly right. A limit at ${fmtPrice(this.limitPrice)} (≤ your ${fmtPrice(this.ceiling)} ceiling) rests and fills only at ${fmtPrice(this.limitPrice)} or better — you control the price. The book is thin and you can wait, so trading immediacy for price is the correct call. Market controls fill; limit controls price.`
-      }
-
       this.panel(120, 350, 520, 60, { fill: panelCol === C.green ? C.greenSoft : C.redSoft, stroke: panelCol, radius: 10 })
       this.label(140, 368, `LIMIT ${fmtShares(this.orderSize)} @ ${fmtPrice(this.limitPrice)} · ${willFill ? 'status PENDING → fills at-or-below limit' : 'status PENDING → never reached'}`, { size: 12, col: C.ink })
       this.label(140, 392, correct ? 'You control your price — never overpay' : 'Reconsider your limit price', { size: 12, col: panelCol, bold: true })
-
-      this.report(correct, title, detail)
     })
   }
 }

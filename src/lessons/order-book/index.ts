@@ -16,7 +16,7 @@ import OrderTypeQuizScene from './scenes/OrderTypeQuizScene'
 import CapstoneScene from './scenes/CapstoneScene'
 
 /**
- * LESSON 2 — "The Order Book: Bids, Asks & the Spread" (planning/Lesson2Spec.md).
+ * LESSON 1 — "The Order Book: Bids, Asks & the Spread" (spec: planning/Lesson2Spec.md).
  *
  * 15 modules: vocabulary → structure → order types → matching → cost → liquidity →
  * noise → judgment → a live capstone. Every order-book ladder is a DETERMINISTIC
@@ -410,10 +410,10 @@ const modules: ModuleSpec[] = [
 const pkg: LessonPackage = {
   lesson: {
     id: 'order-book',
-    index: 2,
+    index: 1,
     title: 'The Order Book',
     subtitle: 'Bids, Asks & the Spread',
-    level: 2,
+    level: 1,
     blurb:
       'Open the matching engine: how bids and asks meet, what the spread really costs you, and why liquidity moves price.',
     modules,

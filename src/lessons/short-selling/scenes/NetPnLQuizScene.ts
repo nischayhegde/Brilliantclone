@@ -55,6 +55,7 @@ export default class NetPnLQuizScene extends ModuleScene {
   private coverLine!: Phaser.GameObjects.Graphics
   private coverKnob!: Phaser.GameObjects.Arc
   private coverLabel!: Phaser.GameObjects.Text
+  private coverChip!: Phaser.GameObjects.Graphics
   private barG!: Phaser.GameObjects.Graphics
   private barCap!: Phaser.GameObjects.Text
   private ledger!: Phaser.GameObjects.Text
@@ -71,14 +72,8 @@ export default class NetPnLQuizScene extends ModuleScene {
     this.coverMin = p.coverMin ?? Math.max(1, this.sell - 25)
     this.coverMax = p.coverMax ?? this.sell + 15
 
-    this.label(this.W / 2, 22, 'Set your buy-to-cover and holding time', {
-      size: 16,
-      bold: true,
-      col: C.ink,
-      align: 'center',
-    })
-    this.label(this.W / 2, 42, 'illustrative simulation · P&L math exact', {
-      size: 11,
+    this.label(this.W / 2, 16, 'Illustrative simulation · P&L math exact', {
+      size: 12,
       col: C.muted,
       align: 'center',
     })
@@ -133,21 +128,23 @@ export default class NetPnLQuizScene extends ModuleScene {
       const y = this.yForPrice(price)
       g.lineStyle(1, C.gray100)
       g.lineBetween(this.axisX - 6, y, this.axisX + 60, y)
-      this.label(this.axisX - 12, y, `$${price.toFixed(0)}`, { size: 11, col: C.muted, align: 'right' })
+      this.label(this.axisX - 12, y, `$${price.toFixed(0)}`, { size: 12, col: C.muted, align: 'right' })
     }
     // SELL line (fixed) — the price you shorted at.
     const ys = this.yForPrice(this.sell)
     const sellG = this.add.graphics()
     sellG.lineStyle(2, C.red, 0.9)
     sellG.lineBetween(this.axisX, ys, this.axisX + 150, ys)
-    this.label(this.axisX + 6, ys - 12, `SELL $${this.sell.toFixed(0)} (entry)`, { size: 11, bold: true, col: C.red })
+    this.label(this.axisX + 6, ys - 12, `SELL $${this.sell.toFixed(0)} (entry)`, { size: 12, bold: true, col: C.red, bg: true })
   }
 
   private drawCoverControl(): void {
     const y = this.yForPrice(this.cover)
     this.coverLine = this.add.graphics()
+    this.coverChip = this.add.graphics()
     this.coverKnob = this.add.circle(this.axisX + 150, y, 7, C.green).setStrokeStyle(2, C.white)
-    this.coverLabel = this.label(this.axisX + 6, y + 12, '', { size: 12, bold: true, col: C.green })
+    this.coverLabel = this.label(this.axisX + 6, y + 14, '', { size: 12, bold: true, col: C.green })
+    this.children.moveBelow(this.coverChip, this.coverLabel)
 
     // Grab strip spanning the cover line for dragging.
     const strip = this.add
@@ -188,8 +185,20 @@ export default class NetPnLQuizScene extends ModuleScene {
       this.coverLine.lineBetween(x, y, Math.min(x + 6, this.axisX + 150), y)
     }
     this.coverKnob.y = y
-    this.coverLabel.setPosition(this.axisX + 6, y + 12)
+    this.coverLabel.setPosition(this.axisX + 6, y + 14)
     this.coverLabel.setText(`COVER $${this.cover.toFixed(2)}`)
+    // chip behind the moving COVER label so it stays readable over the axis/SELL line
+    const padX = 5
+    const padY = 2
+    this.coverChip.clear()
+    this.coverChip.fillStyle(C.white, 0.9)
+    this.coverChip.fillRoundedRect(
+      this.coverLabel.x - padX,
+      this.coverLabel.y - this.coverLabel.height / 2 - padY,
+      this.coverLabel.width + padX * 2,
+      this.coverLabel.height + padY * 2,
+      4,
+    )
   }
 
   // --- stacked ledger bar ---
@@ -208,7 +217,7 @@ export default class NetPnLQuizScene extends ModuleScene {
     const frame = this.add.graphics()
     frame.lineStyle(1, C.hairline)
     frame.lineBetween(this.barX - 14, this.barBottom, this.barX + this.barW + 14, this.barBottom)
-    this.label(this.barX - 18, this.barBottom + 2, '$0', { size: 11, col: C.muted, align: 'right' })
+    this.label(this.barX - 18, this.barBottom + 2, '$0', { size: 12, col: C.muted, align: 'right' })
     this.barG = this.add.graphics()
     this.barCap = this.label(this.barX + this.barW / 2, this.barBottom, '', {
       size: 15,
@@ -259,8 +268,11 @@ export default class NetPnLQuizScene extends ModuleScene {
     }
 
     const netCol = net >= 0 ? C.green : C.red
-    const netH = this.hForValue(Math.abs(net))
-    const capY = net >= 0 ? baseY - netH - 14 : baseY + Math.min(netH, this.barBottom - this.barTop) + 6
+    // Pin the NET label clear ABOVE the whole column (over white), not floating inside
+    // the red cost band, so it always reads. Loss-below-zero keeps its label under $0.
+    const topH = gross >= 0 ? this.hForValue(gross) : this.hForValue(Math.min(this.barMax, -gross + borrow + dividend))
+    const lossH = this.hForValue(Math.abs(net))
+    const capY = net >= 0 ? baseY - topH - 16 : baseY + Math.min(lossH, this.barBottom - this.barTop) + 8
     this.barCap.setY(capY)
     this.barCap.setText(`NET ${net >= 0 ? '+' : '−'}$${Math.abs(net).toFixed(0)}`)
     this.barCap.setColor(hex(color(netCol)))

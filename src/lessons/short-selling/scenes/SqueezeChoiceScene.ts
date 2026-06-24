@@ -53,14 +53,8 @@ export default class SqueezeChoiceScene extends ModuleScene {
     this.catalyst = p.catalyst ?? true
     this.stepAsideIsRight = p.stepAsideIsRight ?? true
 
-    this.label(this.W / 2, 22, "You're short here — read the squeeze fuel", {
-      size: 16,
-      bold: true,
-      col: C.ink,
-      align: 'center',
-    })
-    this.label(this.W / 2, 42, 'illustrative simulation · squeeze mechanics exact', {
-      size: 11,
+    this.label(this.W / 2, 16, 'Illustrative simulation · squeeze mechanics exact', {
+      size: 12,
       col: C.muted,
       align: 'center',
     })
@@ -116,7 +110,7 @@ export default class SqueezeChoiceScene extends ModuleScene {
     vg.strokePath()
     // center value + subtitle
     this.label(cx, cy - 2, value, { size: 19, bold: true, col, align: 'center' })
-    this.label(cx, cy + r + 14, sub, { size: 10, col: color(col === C.red ? C.red : C.muted), align: 'center' })
+    this.label(cx, cy + r + 16, sub, { size: 12, col: color(col === C.red ? C.red : C.muted), align: 'center' })
   }
 
   private drawChoiceButton(key: 'short' | 'aside', text: string, cx: number, cy: number, activeFill: number): void {
@@ -150,14 +144,16 @@ export default class SqueezeChoiceScene extends ModuleScene {
   }
 
   protected onSubmit(): void {
-    if (this.locked || this.choice === null) return
+    if (this.locked) return
     this.locked = true
     this.setCanSubmit(false)
 
-    const correct = this.stepAsideIsRight ? this.choice === 'aside' : this.choice === 'short'
+    const rightKey: 'short' | 'aside' = this.stepAsideIsRight ? 'aside' : 'short'
+    // A missed tap (small touch target on a FIT-scaled canvas) must never trap the
+    // learner: grade as not-correct but still reveal and explain the disciplined read.
+    const correct = this.choice !== null && this.choice === rightKey
 
     // Flash the right answer's button to teach it.
-    const rightKey: 'short' | 'aside' = this.stepAsideIsRight ? 'aside' : 'short'
     const rightBtn = this.buttons.find((b) => b.key === rightKey)
     if (rightBtn) {
       this.tweens.add({ targets: [rightBtn.bg, rightBtn.txt], alpha: 0.4, yoyo: true, repeat: 2, duration: 200 })
@@ -165,7 +161,12 @@ export default class SqueezeChoiceScene extends ModuleScene {
 
     let title: string
     let detail: string
-    if (this.stepAsideIsRight) {
+    if (this.choice === null) {
+      title = this.stepAsideIsRight ? 'The disciplined call: STEP ASIDE' : 'The disciplined call: a measured SHORT'
+      detail = this.stepAsideIsRight
+        ? `Short interest ${this.shortPct.toFixed(0)}% means more shares are sold short than exist in the free float, and days-to-cover ${this.daysToCover.toFixed(1)} means a long exit line. Add a bullish catalyst and forced covering must chase a near-empty float — any up-move snowballs. When more shares are short than exist to buy back, the smart short steps aside. This is GME — it ran toward ~$483.`
+        : `Short interest ${this.shortPct.toFixed(0)}% and days-to-cover ${this.daysToCover.toFixed(1)} are modest, so there's little forced-covering fuel. With a stop above, a deteriorating name like this fits a disciplined short. Squeeze risk is highest when short interest exceeds the float.`
+    } else if (this.stepAsideIsRight) {
       if (this.choice === 'aside') {
         title = 'Good discipline — step aside'
         detail =

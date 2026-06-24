@@ -49,14 +49,8 @@ export default class BorrowFeeScene extends ModuleScene {
     this.marketValue = this.shares * this.sell
     this.extraMargin = this.marketValue * 0.5
 
-    this.label(this.W / 2, 24, 'Borrow fee & the margin account', {
-      size: 16,
-      bold: true,
-      col: C.ink,
-      align: 'center',
-    })
-    this.label(this.W / 2, 44, 'illustrative simulation · fee math exact', {
-      size: 11,
+    this.label(this.W / 2, 16, 'Illustrative simulation · fee math exact', {
+      size: 12,
       col: C.muted,
       align: 'center',
     })
@@ -97,7 +91,7 @@ export default class BorrowFeeScene extends ModuleScene {
       align: 'center',
     })
     this.label(gx + gw / 2, gy + gh - proceedsH - marginH / 2, `+50% extra margin  $${this.extraMargin.toLocaleString()}`, {
-      size: 11,
+      size: 12,
       bold: true,
       col: C.white,
       align: 'center',
@@ -105,7 +99,7 @@ export default class BorrowFeeScene extends ModuleScene {
 
     // brace spanning both → total collateral
     this.label(gx + gw + 12, gy + gh / 2, `Collateral the broker holds\n≈150% of proceeds = $${total.toLocaleString()}`, {
-      size: 11,
+      size: 12,
       col: C.muted,
     })
   }
@@ -122,8 +116,8 @@ export default class BorrowFeeScene extends ModuleScene {
       this.rate = v
       this.refresh()
     }, { col: C.blue })
-    this.label(60, 306, 'Easy ~0.3%', { size: 10, col: C.muted })
-    this.label(340, 306, 'Hard ~30%', { size: 10, col: C.muted, align: 'right' })
+    this.label(60, 308, 'Easy ~0.3%', { size: 12, col: C.muted })
+    this.label(340, 308, 'Hard ~30%', { size: 12, col: C.muted, align: 'right' })
 
     // Holding-days slider
     this.label(60, 330, 'Holding days', { size: 12, bold: true, col: C.ink })
@@ -169,7 +163,7 @@ export default class BorrowFeeScene extends ModuleScene {
 
     this.label(x + 14, y + 104, 'NET (gross − costs)', { size: 12, bold: true, col: C.ink })
     this.netText = this.label(x + 226, y + 128, '', { size: 18, bold: true, col: C.green, align: 'right' })
-    this.label(x + 14, y + 128, `gross $${this.gross}`, { size: 11, col: C.muted })
+    this.label(x + 14, y + 130, `gross $${this.gross}`, { size: 12, col: C.muted })
   }
 
   // --- Exact fee math ---

@@ -1,4 +1,4 @@
-# Brilliant — Reading the Charts
+# Trilliant — Reading the Charts
 
 A Brilliant.org-style learning app for stock/options trading.
 **Fully built:** Google auth, a 5-lesson dashboard, per-lesson progress/resume, streak,

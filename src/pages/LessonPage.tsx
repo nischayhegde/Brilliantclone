@@ -12,7 +12,7 @@ export default function LessonPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-white">
+      <div className="flex min-h-screen items-center justify-center bg-paper">
         <Spinner className="h-8 w-8" />
       </div>
     )
@@ -48,8 +48,8 @@ export default function LessonPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
-      <div className="border-b border-hairline px-4 py-4">
+    <div className="flex min-h-screen flex-col bg-paper">
+      <div className="border-b border-hairline bg-paper/85 px-4 py-4 backdrop-blur">
         <div className="mx-auto max-w-3xl">
           <ProgressBar
             total={total}
@@ -62,7 +62,7 @@ export default function LessonPage() {
           />
         </div>
       </div>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 items-center justify-center px-4 py-8">
+      <main className="mx-auto flex w-full max-w-5xl flex-1 items-center justify-center px-2 py-5 sm:px-4 sm:py-8">
         <ModuleRenderer key={`${lessonId}:${id}`} module={module} scene={scene} onComplete={handleComplete} />
       </main>
     </div>

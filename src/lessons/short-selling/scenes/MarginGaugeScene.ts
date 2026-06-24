@@ -16,7 +16,8 @@ interface MarginGaugeParams {
  * M7 TEACH/INTERACTIVE — "Margin Calls & Forced Buy-In".
  * A rising (adverse) price path advances; equity erodes toward a maintenance line. On
  * breach a MARGIN CALL flashes; at the call the learner picks Add cash / Cover / Do
- * nothing (→ forced buy-in). A scripted lender RECALL toast also forces a cover.
+ * nothing (→ forced buy-in). A scripted lender RECALL heads-up also fires (foreshadowing
+ * that borrowed shares can be called back even before margin breaks).
  * Mechanics exact: equity = startEquity + proceeds − price·shares; maint = maintFrac·price·shares.
  */
 export default class MarginGaugeScene extends ModuleScene {
@@ -50,6 +51,8 @@ export default class MarginGaugeScene extends ModuleScene {
   private pnlText!: Phaser.GameObjects.Text
   private equityText!: Phaser.GameObjects.Text
   private maintText!: Phaser.GameObjects.Text
+  private toastText!: Phaser.GameObjects.Text
+  private toastChip!: Phaser.GameObjects.Graphics
 
   protected build(): void {
     const p = this.params as MarginGaugeParams
@@ -61,8 +64,13 @@ export default class MarginGaugeScene extends ModuleScene {
     this.proceeds = this.entry * this.shares
     this.price = this.entry
 
-    this.label(this.W / 2, 22, 'Margin calls & forced buy-in', { size: 16, bold: true, col: C.ink, align: 'center' })
-    this.label(this.W / 2, 40, 'illustrative simulation · mechanics exact', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.W / 2, 14, 'Illustrative simulation · mechanics exact', { size: 12, col: C.muted, align: 'center' })
+
+    // Single persistent toast (recall / cover / buy-in messages reuse it — never stacks).
+    this.toastChip = this.add.graphics().setAlpha(0)
+    this.toastText = this.label(this.W / 2, 64, '', { size: 12, bold: true, col: C.blue, align: 'center' })
+    this.toastText.setAlpha(0)
+    this.children.moveBelow(this.toastChip, this.toastText)
 
     // Equity gauge frame + maintenance line
     this.label(this.gaugeX + this.gaugeW / 2, this.gaugeY - 14, 'Equity', { size: 12, bold: true, col: C.muted, align: 'center' })
@@ -158,36 +166,43 @@ export default class MarginGaugeScene extends ModuleScene {
   }
 
   private run(): void {
-    if (this.running) return
+    if (this.running || this.resolved) return
     this.running = true
-    this.priceG.lineStyle(2, C.red, 0.9)
-    let prevX = this.xForDay(0)
-    let prevY = this.yForPrice(this.entry)
-    const tick = () => {
-      if (this.day >= this.days || this.resolved) return
-      this.day++
-      this.price = this.pathPrice(this.day)
-      const x = this.xForDay(this.day)
-      const y = this.yForPrice(this.price)
-      this.priceG.lineBetween(prevX, prevY, x, y)
-      prevX = x
-      prevY = y
-      this.drawEquity()
-      this.refreshReadouts()
+    this.stepPath()
+  }
 
-      // recall scripted at day 10 (forces a cover regardless of margin)
-      if (this.day === 10 && !this.resolved) {
-        this.toast('Lender RECALL — cover now', C.blue)
-      }
-      // margin call when equity < maintenance
-      if (!this.called && this.equity() < this.maintenance()) {
-        this.called = true
-        this.showMarginCall()
-        return // pause for the learner's choice
-      }
-      this.time.delayedCall(180, tick)
+  // One day of the adverse path. Re-arms itself via a timer and is RESUMABLE: after a
+  // margin call pauses it, "Add cash" simply calls stepPath() again (endpoints are
+  // recomputed from the day index, so there is no abandoned-closure / line-reset bug).
+  private stepPath(): void {
+    if (this.day >= this.days || this.resolved) {
+      this.running = false
+      return
     }
-    tick()
+    this.day++
+    this.price = this.pathPrice(this.day)
+    this.priceG.lineStyle(2, C.red, 0.9)
+    this.priceG.lineBetween(
+      this.xForDay(this.day - 1),
+      this.yForPrice(this.pathPrice(this.day - 1)),
+      this.xForDay(this.day),
+      this.yForPrice(this.price),
+    )
+    this.drawEquity()
+    this.refreshReadouts()
+
+    // Scripted lender-recall heads-up (informational — the interactive moment is the
+    // margin call below; the recall just foreshadows that borrowed shares aren't yours).
+    if (this.day === 10 && !this.resolved) {
+      this.toast('Lender RECALL risk — borrowed shares can be called back anytime', C.blue)
+    }
+    // margin call when equity < maintenance
+    if (!this.called && this.equity() < this.maintenance()) {
+      this.called = true
+      this.showMarginCall()
+      return // pause for the learner's choice (running stays true)
+    }
+    this.time.delayedCall(180, () => this.stepPath())
   }
 
   private showMarginCall(): void {
@@ -208,7 +223,8 @@ export default class MarginGaugeScene extends ModuleScene {
       this.drawEquity()
       this.refreshReadouts()
       this.toast('Added cash — position survives (capital committed)', C.green)
-      this.time.delayedCall(220, () => this.run())
+      // Resume the SAME run (running is still true). Calling run() here would no-op.
+      this.time.delayedCall(220, () => this.stepPath())
     } else if (opt === 'cover') {
       this.resolved = true
       const loss = (this.entry - this.price) * this.shares
@@ -250,7 +266,9 @@ export default class MarginGaugeScene extends ModuleScene {
     const x = this.xForDay(this.day)
     const y = this.yForPrice(this.price)
     this.add.circle(x, y, 6, c).setStrokeStyle(2, C.white)
-    this.fadeIn(this.label(x, y - 16, text, { size: 11, bold: true, col: c, align: 'center' }))
+    // keep the marker tag inside the plot horizontally; chip so it reads over the path
+    const lx = Math.min(this.plot.r - 40, Math.max(this.plot.l + 40, x))
+    this.fadeIn(this.label(lx, y - 18, text, { size: 12, bold: true, col: c, align: 'center', bg: true }))
   }
 
   private bannerBox(text: string, c: number): Phaser.GameObjects.Container {
@@ -264,8 +282,24 @@ export default class MarginGaugeScene extends ModuleScene {
   }
 
   private toast(text: string, c: number): void {
-    const t = this.label(this.W / 2, 70, text, { size: 12, bold: true, col: c, align: 'center' })
-    this.fadeIn(t)
-    this.tweens.add({ targets: t, alpha: 0, delay: 2200, duration: 600 })
+    // Reuse the single persistent toast text + chip so repeated calls never stack.
+    this.tweens.killTweensOf(this.toastText)
+    this.tweens.killTweensOf(this.toastChip)
+    this.toastText.setText(text)
+    this.toastText.setColor(hex(c))
+    const padX = 7
+    const padY = 3
+    this.toastChip.clear()
+    this.toastChip.fillStyle(C.white, 0.92)
+    this.toastChip.fillRoundedRect(
+      this.toastText.x - this.toastText.width / 2 - padX,
+      this.toastText.y - this.toastText.height / 2 - padY,
+      this.toastText.width + padX * 2,
+      this.toastText.height + padY * 2,
+      5,
+    )
+    this.toastText.setAlpha(1)
+    this.toastChip.setAlpha(1)
+    this.tweens.add({ targets: [this.toastText, this.toastChip], alpha: 0, delay: 2200, duration: 600 })
   }
 }

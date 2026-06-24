@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtPrice, fmtShares, type Level } from './book'
 
 interface LimitOrderParams {
@@ -45,6 +45,8 @@ export default class LimitOrderScene extends ModuleScene {
   private aheadText!: Phaser.GameObjects.Text
   private priceText!: Phaser.GameObjects.Text
   private bidYs: Array<{ price: number; size: number; y: number }> = []
+  /** The single resting-order segment; redocking moves it instead of stacking new ones. */
+  private restSeg?: Phaser.GameObjects.Graphics
 
   protected build(): void {
     const p = this.params as LimitOrderParams
@@ -86,7 +88,7 @@ export default class LimitOrderScene extends ModuleScene {
     const g = this.add.graphics()
     g.fillStyle(C.blueSoft, 1)
     g.fillRoundedRect(left - 4, this.midY - 12, this.maxBarW + 8, 24, 6)
-    this.label(this.cx, this.midY, 'spread', { size: 11, col: C.blue, align: 'center', bold: true })
+    this.label(this.cx, this.midY, 'spread', { size: 12, col: C.blue, align: 'center', bold: true })
 
     this.bids.forEach((lvl, i) => {
       const y = this.midY + this.gap / 2 + i * this.rowH + this.rowH / 2
@@ -117,7 +119,7 @@ export default class LimitOrderScene extends ModuleScene {
     g.fillStyle(C.blue, 1)
     g.fillRoundedRect(-w / 2, -h / 2, w, h, 7)
     const t = this.add
-      .text(0, 0, `LIMIT BUY ${this.orderSize}`, { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', color: hex(C.white), fontStyle: 'bold' })
+      .text(0, 0, `LIMIT BUY ${this.orderSize}`, { fontFamily: FONT, fontSize: '12px', color: hex(C.white), fontStyle: 'bold' })
       .setOrigin(0.5)
     this.tile = this.add.container(this.tileHome.x, this.tileHome.y, [g, t]).setSize(w, h)
     this.tile.setInteractive(new Phaser.Geom.Rectangle(-w / 2, -h / 2, w, h), Phaser.Geom.Rectangle.Contains)
@@ -158,14 +160,16 @@ export default class LimitOrderScene extends ModuleScene {
   private snapToRung(target: { price: number; size: number; y: number }): void {
     const left = this.cx - this.maxBarW / 2
     const baseW = this.barW(target.size)
-    // extend the rung visually by the order (blue segment behind the docked tile)
+    // extend the rung visually by the order (blue segment behind the docked tile).
+    // Reuse ONE segment graphic so re-docking on another rung doesn't pile segments.
     const extW = (this.orderSize / this.maxSize) * (this.maxBarW - 40)
-    const seg = this.add.graphics()
+    const seg = this.restSeg ?? (this.restSeg = this.add.graphics())
+    seg.clear()
     seg.fillStyle(C.blue, 0.85)
     seg.fillRoundedRect(left + baseW, target.y - this.rowH / 2 + 4, Math.max(8, extW), this.rowH - 8, 4)
-    this.tweens.add({ targets: this.tile, x: left + baseW + Math.max(8, extW) / 2 + 30, y: target.y, duration: 260, ease: 'Back.out' })
-    // PROVIDES LIQUIDITY tag pulse
-    const tag = this.label(left + this.maxBarW + 70, target.y, 'PROVIDES LIQUIDITY', { size: 10, col: C.blue, bold: true }).setAlpha(0)
+    this.tweens.add({ targets: this.tile, x: left + baseW + Math.max(8, extW) / 2 + 30, y: target.y, duration: 280, ease: 'Quint.out' })
+    // PROVIDES LIQUIDITY tag pulse (created+destroyed per dock)
+    const tag = this.label(left + this.maxBarW + 16, target.y - 22, 'PROVIDES LIQUIDITY', { size: 12, col: C.blue, bold: true }).setAlpha(0)
     this.tweens.add({ targets: tag, alpha: 1, duration: 200, yoyo: true, hold: 700, onComplete: () => tag.destroy() })
   }
 

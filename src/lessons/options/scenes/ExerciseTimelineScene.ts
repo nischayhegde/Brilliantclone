@@ -46,11 +46,11 @@ export default class ExerciseTimelineScene extends ModuleScene {
   private trackL = 80
   private trackR = 620
   private amY = 130
-  private euY = 210
+  private euY = 252
 
   private buildTimeline(): void {
-    this.label(40, 26, 'AMERICAN vs EUROPEAN — exercise window', { size: 14, col: C.ink, bold: true })
-    this.label(40, 46, '(time-value figures illustrative; trade-off logic exact)', { size: 11, col: C.muted })
+    this.label(40, 24, 'AMERICAN vs EUROPEAN — exercise window', { size: 16, col: C.ink, bold: true })
+    this.label(40, 46, '(time-value figures illustrative; trade-off logic exact)', { size: 13, col: C.muted })
 
     // American band (green, full length) — grows in via a numeric proxy
     const am = this.add.graphics()
@@ -63,20 +63,25 @@ export default class ExerciseTimelineScene extends ModuleScene {
       am.lineStyle(1.5, C.green)
       am.strokeRoundedRect(this.trackL, this.amY - 12, proxy.w, 24, 6)
     }
-    this.tweens.add({ targets: proxy, w: full, duration: 800, onUpdate: drawBand })
-    this.label(this.trackL, this.amY - 30, 'AMERICAN — exercise ANYTIME', { size: 12, col: C.green, bold: true })
+    if (this.reduceMotion) {
+      proxy.w = full
+      drawBand()
+    } else {
+      this.tweens.add({ targets: proxy, w: full, duration: 800, ease: 'Cubic.out', onUpdate: drawBand })
+    }
+    this.label(this.trackL, this.amY - 30, 'AMERICAN — exercise ANYTIME', { size: 13, col: C.green, bold: true })
 
     // European track (grey with single green node at expiry)
     const eu = this.add.graphics()
     eu.lineStyle(2, C.gray200)
     eu.lineBetween(this.trackL, this.euY, this.trackR, this.euY)
     this.add.circle(this.trackR, this.euY, 7, C.green).setStrokeStyle(2, C.white)
-    this.label(this.trackL, this.euY - 22, 'EUROPEAN — exercise ONLY at expiry', { size: 12, col: C.muted, bold: true })
-    this.label(this.trackR, this.euY + 18, 'expiry', { size: 10, col: C.green, align: 'right' })
+    this.label(this.trackL, this.euY - 22, 'EUROPEAN — exercise ONLY at expiry', { size: 13, col: C.muted, bold: true })
+    this.label(this.trackR, this.euY + 18, 'expiry', { size: 12, col: C.green, align: 'right' })
 
     // dividend flag near 0.7 of life
     const divX = this.trackL + 0.7 * (this.trackR - this.trackL)
-    this.label(divX, this.amY + 26, '⚑ dividend', { size: 10, col: C.blue, align: 'center' })
+    this.label(divX, this.amY + 26, '⚑ dividend', { size: 12, col: C.blue, align: 'center' })
 
     // draggable "exercise now" marker on the American track
     this.shatter = this.add.graphics()
@@ -94,7 +99,7 @@ export default class ExerciseTimelineScene extends ModuleScene {
       this.refreshTimeline()
     })
     place(this.tFrac)
-    this.label(this.trackL, this.amY + 50, '↔ drag "exercise now" along the American life', { size: 10, col: C.muted })
+    this.label(this.trackL, this.amY + 54, '↔ drag "exercise now" along the American life', { size: 13, col: C.muted })
 
     // CALL/PUT toggle for special cases
     this.toggle(120, 300, ['CALL', 'PUT'], 0, (i) => {
@@ -148,18 +153,21 @@ export default class ExerciseTimelineScene extends ModuleScene {
   private doors: Array<{ key: string; c: Phaser.GameObjects.Container; body: Phaser.GameObjects.Text }> = []
   private pick: string | null = null
   private doorPicked = false
+  // Door geometry (shared by build / select / open so the row stays inside 760 wide).
+  private readonly DW = 146
+  private readonly DH = 150
   private buildDoors(): void {
     const intr = this.p.intrinsicNow // 6
     const tv = this.p.timeValueNow // 2
     const total = intr + tv
 
-    this.label(40, 26, `You hold an ITM CALL worth ${total.toFixed(2)} — a week left`, {
-      size: 14,
+    this.label(40, 24, `You hold an ITM CALL worth ${total.toFixed(2)} — a week left`, {
+      size: 16,
       col: C.ink,
       bold: true,
     })
     this.label(40, 46, `intrinsic ${intr.toFixed(2)} + time value ${tv.toFixed(2)} (illustrative)`, {
-      size: 11,
+      size: 13,
       col: C.muted,
     })
 
@@ -174,8 +182,8 @@ export default class ExerciseTimelineScene extends ModuleScene {
     g.fillRect(bx, by - total * scale, 50, tv * scale)
     g.lineStyle(1, C.blue, 0.5)
     g.strokeRect(bx, by - total * scale, 50, total * scale)
-    this.label(bx + 60, by - intr * scale / 2, `intrinsic ${intr.toFixed(2)}`, { size: 11, col: C.blue, bold: true })
-    this.label(bx + 60, by - intr * scale - (tv * scale) / 2, `time value ${tv.toFixed(2)}`, { size: 11, col: C.blue })
+    this.label(bx + 58, by - intr * scale / 2, `intrinsic ${intr.toFixed(2)}`, { size: 13, col: C.blue, bold: true })
+    this.label(bx + 58, by - intr * scale - (tv * scale) / 2, `time value ${tv.toFixed(2)}`, { size: 13, col: C.blue })
 
     // three doors on the right
     const defs: Array<{ key: string; title: string }> = [
@@ -183,11 +191,11 @@ export default class ExerciseTimelineScene extends ModuleScene {
       { key: 'sell', title: 'Sell-to-close' },
       { key: 'expire', title: 'Let it expire' },
     ]
-    const dw = 150
-    const dh = 150
-    const gap = 24
-    const x0 = 280
-    const y = 120
+    const dw = this.DW
+    const dh = this.DH
+    const gap = 16
+    const x0 = 270
+    const y = 116
     defs.forEach((d, i) => {
       const x = x0 + i * (dw + gap)
       const panel = this.panel(0, 0, dw, dh, { fill: C.gray100, stroke: C.muted, radius: 12 })
@@ -198,9 +206,9 @@ export default class ExerciseTimelineScene extends ModuleScene {
         .text(dw / 2, dh / 2, '🚪', { fontFamily: FONT, fontSize: '40px' })
         .setOrigin(0.5)
       const body = this.add
-        .text(dw / 2, dh / 2 + 18, '', {
+        .text(dw / 2, dh / 2 + 20, '', {
           fontFamily: FONT,
-          fontSize: '12px',
+          fontSize: '13px',
           color: hex(C.ink),
           fontStyle: 'bold',
           align: 'center',
@@ -225,17 +233,19 @@ export default class ExerciseTimelineScene extends ModuleScene {
     })
 
     if (this.p.challenge) {
-      this.label(280, 290, 'Tap a door to choose, then Submit to open them →', { size: 11, col: C.muted })
-      this.setCanSubmit(false) // require a pick before Submit is enabled
+      this.label(270, 286, 'Tap a door to choose, then Submit to open them →', { size: 13, col: C.muted })
+      // Submit is always available so the learner can never get stuck: if they open
+      // the doors without choosing, onSubmit still grades + explains (see below).
+      this.setCanSubmit(true)
     } else {
-      this.label(280, 290, 'Submit your choice to open the doors →', { size: 11, col: C.muted })
+      this.label(270, 286, 'Submit your choice to open the doors →', { size: 13, col: C.muted })
     }
   }
 
   private refreshDoorSelection(): void {
     this.setCanSubmit(this.doorPicked)
-    const dw = 150
-    const dh = 150
+    const dw = this.DW
+    const dh = this.DH
     for (const d of this.doors) {
       const selected = d.key === this.pick
       const panel = d.c.list[0] as Phaser.GameObjects.Graphics
@@ -260,6 +270,20 @@ export default class ExerciseTimelineScene extends ModuleScene {
     const intr = this.p.intrinsicNow
     const tv = this.p.timeValueNow
     const total = intr + tv
+
+    // No door chosen: still resolve with a clear, gradeable verdict so the learner
+    // is never blocked from continuing.
+    if (this.pick === null) {
+      this.report(
+        false,
+        `Sell-to-close keeps the most (${total.toFixed(2)})`,
+        `No door was chosen. Selling-to-close hands the contract to a buyer who pays for intrinsic AND the remaining time value, so you keep the full ${total.toFixed(
+          2,
+        )} — exercising keeps only the ${intr.toFixed(2)} intrinsic, and letting it expire keeps nothing.`,
+      )
+      return
+    }
+
     const correct = this.pick === 'sell'
     const kept = this.pick === 'sell' ? total : this.pick === 'exercise' ? intr : 0
     const keptNote = correct
@@ -303,9 +327,9 @@ export default class ExerciseTimelineScene extends ModuleScene {
       panel.clear()
       const soft = col === C.green ? C.greenSoft : col === C.red ? C.redSoft : C.blueSoft
       panel.fillStyle(soft, 1)
-      panel.fillRoundedRect(0, 0, 150, 150, 12)
+      panel.fillRoundedRect(0, 0, this.DW, this.DH, 12)
       panel.lineStyle(2, col)
-      panel.strokeRoundedRect(0, 0, 150, 150, 12)
+      panel.strokeRoundedRect(0, 0, this.DW, this.DH, 12)
       d.body.setText(txt).setColor(hex(col))
       this.tweens.add({ targets: d.body, alpha: 1, duration: 360, delay: 200 })
     }
@@ -315,12 +339,12 @@ export default class ExerciseTimelineScene extends ModuleScene {
 
     // assignment envelope flying to the (hypothetical) writer
     this.time.delayedCall(600, () => {
-      const env = this.label(this.W / 2, 320, '✉ ASSIGNMENT → if you were SHORT, you would be assigned (forced to deliver shares)', {
-        size: 11,
-        col: C.blue,
-        bold: true,
-        align: 'center',
-      })
+      const env = this.label(
+        this.W / 2,
+        330,
+        '✉ ASSIGNMENT → if you were SHORT, you would be assigned (forced to deliver shares)',
+        { size: 13, col: C.blue, bold: true, align: 'center', bg: true },
+      )
       env.setAlpha(0)
       this.tweens.add({ targets: env, alpha: 1, duration: 400 })
     })

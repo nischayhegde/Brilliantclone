@@ -86,14 +86,14 @@ export default class WalkBookScene extends ModuleScene {
       const y = this.yFor(lvl.price)
       g.lineStyle(1, C.gray100, 1)
       g.lineBetween(this.plotL, y, this.plotR, y)
-      this.label(this.plotL - 8, y, fmtPrice(lvl.price), { size: 11, col: C.muted, align: 'right' })
+      this.label(this.plotL - 8, y, fmtPrice(lvl.price), { size: 12, col: C.muted, align: 'right' })
     }
-    this.label((this.plotL + this.plotR) / 2, this.plotB + 18, 'cumulative shares →', { size: 11, col: C.muted, align: 'center' })
+    this.label((this.plotL + this.plotR) / 2, this.plotB + 18, 'cumulative shares →', { size: 12, col: C.muted, align: 'center' })
 
     // grey touch line
     const touchY = this.yFor(this.asks[0].price)
     this.dashedLine(this.plotL, touchY, this.plotR, C.muted, 6, 5, 1.5)
-    this.label(this.plotR + 4, touchY, 'touch', { size: 10, col: C.muted })
+    this.label(this.plotR + 4, touchY, 'touch', { size: 12, col: C.muted, bg: true })
 
     // outline of each ask level as a staircase (full available depth)
     const stair = this.add.graphics()
@@ -144,12 +144,12 @@ export default class WalkBookScene extends ModuleScene {
 
   private buildPanel(): void {
     const px = 470
-    const py = 60
-    this.panel(px, py, 275, 250, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
+    const py = 56
+    this.panel(px, py, 278, 286, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
     this.label(px + 16, py + 22, 'Live fill', { size: 14, col: C.blue, bold: true })
     const mk = (key: string, y: number, lbl: string) => {
       this.label(px + 16, py + y, lbl, { size: 12, col: C.muted })
-      this.readouts[key] = this.label(px + 259, py + y, '—', { size: 13, col: C.ink, bold: true, align: 'right' })
+      this.readouts[key] = this.label(px + 262, py + y, '—', { size: 13, col: C.ink, bold: true, align: 'right' })
     }
     mk('order', 54, 'Order size')
     mk('avg', 84, 'Avg fill')
@@ -157,9 +157,9 @@ export default class WalkBookScene extends ModuleScene {
     mk('slipps', 144, 'Slippage / share')
     mk('sliptot', 174, 'Slippage total')
     // per-level breakdown area
-    this.label(px + 16, py + 206, 'Per level:', { size: 12, col: C.muted })
+    this.label(px + 16, py + 204, 'Per level:', { size: 12, col: C.muted })
     for (let i = 0; i < 3; i++) {
-      this.levelLabels[i] = this.label(px + 16, py + 224 + i * 16, '', { size: 11, col: C.ink })
+      this.levelLabels[i] = this.label(px + 16, py + 222 + i * 17, '', { size: 12, col: C.ink })
     }
   }
 

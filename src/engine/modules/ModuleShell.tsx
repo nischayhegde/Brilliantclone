@@ -12,13 +12,15 @@ interface ModuleShellProps {
 /** Shared chrome around every module body: eyebrow, title, intro, canvas, caption, footer. */
 export default function ModuleShell({ kicker, title, intro, caption, canvas, footer }: ModuleShellProps) {
   return (
-    <div className="flex w-full max-w-2xl flex-col gap-4">
-      <header className="text-center">
+    <div className="flex w-full max-w-4xl flex-col gap-4">
+      <header className="flex flex-col items-center text-center">
         {kicker && (
-          <p className="text-sm font-bold uppercase tracking-wide text-brand-blue">{kicker}</p>
+          <span className="inline-block rounded-full bg-brand-amber-soft px-3 py-1 text-xs font-bold text-brand-amber-dark">
+            {kicker}
+          </span>
         )}
-        <h1 className="mt-1 text-2xl font-extrabold leading-tight">{title}</h1>
-        {intro && <p className="mx-auto mt-2 max-w-xl text-sm text-muted">{intro}</p>}
+        <h1 className="mt-2 font-display text-3xl font-bold leading-tight">{title}</h1>
+        {intro && <p className="mx-auto mt-2 max-w-xl text-sm text-ink-soft">{intro}</p>}
       </header>
 
       {canvas}

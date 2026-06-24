@@ -85,7 +85,7 @@ export default class CapstoneScene extends ModuleScene {
     this.baselineAvg = walkBuy(this.asks, this.target).avgFill
 
     this.label(this.W / 2, 24, 'BUY 1,000 shares at minimum cost. Rest limits to capture the spread; clip the rest at market.', {
-      size: 12,
+      size: 13,
       col: C.muted,
       align: 'center',
     })
@@ -162,20 +162,26 @@ export default class CapstoneScene extends ModuleScene {
     this.drawLadderLabels(ordered, gapY, bidY)
   }
 
-  private ladderLabels: Phaser.GameObjects.Text[] = []
+  private ladderLabels: Phaser.GameObjects.GameObject[] = []
   private drawLadderLabels(ordered: Level[], gapY: number, bidY: number): void {
+    // Labels are redrawn each churn tick, so destroy the previous set (text + chips)
+    // before adding a new one — never let them stack.
     this.ladderLabels.forEach((t) => t.destroy())
     this.ladderLabels = []
     const left = this.cx - this.maxBarW / 2
+    const push = (t: Phaser.GameObjects.Text, chip = false) => {
+      if (chip) this.ladderLabels.push(this.chipBehind(t))
+      this.ladderLabels.push(t)
+    }
     ordered.forEach((lvl, i) => {
       const y = this.askTop + i * this.rowH + this.rowH / 2
-      this.ladderLabels.push(this.label(left + 6, y, fmtPrice(lvl.price), { size: 11, col: C.red, bold: true }))
-      this.ladderLabels.push(this.label(left + this.maxBarW + 8, y, fmtShares(lvl.size), { size: 10, col: C.ink }))
+      push(this.label(left + 6, y, fmtPrice(lvl.price), { size: 13, col: C.red, bold: true }), true)
+      push(this.label(left + this.maxBarW + 8, y, fmtShares(lvl.size), { size: 12, col: C.ink }))
     })
-    this.ladderLabels.push(this.label(this.cx, gapY, 'spread', { size: 10, col: C.blue, align: 'center', bold: true }))
-    this.ladderLabels.push(this.label(left + 6, bidY, `${fmtPrice(this.bid)}`, { size: 11, col: C.green, bold: true }))
+    push(this.label(this.cx, gapY, 'spread', { size: 12, col: C.blue, align: 'center', bold: true }))
+    push(this.label(left + 6, bidY, `${fmtPrice(this.bid)}`, { size: 13, col: C.green, bold: true }), true)
     if (this.restingLimit > 0) {
-      this.ladderLabels.push(this.label(left + this.maxBarW + 8, bidY, `${fmtShares(this.restingLimit)} resting`, { size: 10, col: C.blue, bold: true }))
+      push(this.label(left + this.maxBarW + 8, bidY, `${fmtShares(this.restingLimit)} resting`, { size: 12, col: C.blue, bold: true }))
     }
   }
 
@@ -185,7 +191,7 @@ export default class CapstoneScene extends ModuleScene {
   }
 
   private addTape(text: string, col: number): void {
-    const t = this.label(this.tapeX + 14, 0, text, { size: 11, col, bold: true })
+    const t = this.label(this.tapeX + 14, 0, text, { size: 13, col, bold: true })
     this.tapeLines.unshift(t)
     if (this.tapeLines.length > 7) {
       this.tapeLines.pop()?.destroy()
@@ -194,28 +200,31 @@ export default class CapstoneScene extends ModuleScene {
   }
 
   private buildScorecard(): void {
-    const px = 590
-    const py = 70
-    this.panel(px, py, 155, 200, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
-    this.label(px + 12, py + 18, 'Scorecard', { size: 13, col: C.blue, bold: true })
+    const px = 588
+    const py = 66
+    this.panel(px, py, 164, 232, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
+    this.label(px + 12, py + 16, 'Scorecard', { size: 13, col: C.blue, bold: true })
+    // One stat per row: label left, value right-aligned. Short labels keep both at
+    // ≥12px inside the narrow panel with no collision.
     const mk = (key: string, y: number, lbl: string) => {
-      this.label(px + 12, py + y, lbl, { size: 10, col: C.muted })
-      this.sc[key] = this.label(px + 143, py + y, '—', { size: 12, col: C.ink, bold: true, align: 'right' })
+      this.label(px + 12, py + y, lbl, { size: 12, col: C.muted })
+      this.sc[key] = this.label(px + 152, py + y, '—', { size: 13, col: C.ink, bold: true, align: 'right' })
     }
-    mk('filled', 42, 'Filled / target')
-    mk('avg', 74, 'Avg fill')
-    mk('cost', 106, 'Cost vs mid')
-    mk('base', 138, 'All-mkt baseline')
-    this.sc.base.setText('? (masked)')
+    mk('filled', 46, 'Filled')
+    mk('avg', 80, 'Avg fill')
+    mk('cost', 114, 'Cost vs mid')
+    mk('base', 148, 'Baseline')
+    this.sc.base.setText('? masked')
     this.sc.base.setColor(hex(C.blue))
-    mk('pct', 170, '% filled')
+    mk('pct', 182, '% filled')
     this.updateScorecard()
   }
 
   private buildControls(): void {
     this.button(this.cx, 320, `MARKET clip ${this.marketClip}`, () => this.marketClipBuy(), { w: 200, h: 38, fill: C.red })
     this.button(this.cx, 366, `REST LIMIT ${this.limitClip} @ bid`, () => this.restLimit(), { w: 200, h: 38, fill: C.blue })
-    this.restText = this.label(this.cx, 402, '', { size: 11, col: C.muted, align: 'center' })
+    this.restText = this.label(this.cx, 404, '', { size: 12, col: C.muted, align: 'center' })
+    this.restText.setWordWrapWidth(340)
     this.button(560, 320, 'Reset', () => this.resetRun(), { w: 110, h: 32, fill: C.muted })
     this.checkBtn = this.button(560, 372, 'Finish & grade', () => this.startCheck(), { w: 150, h: 38, fill: C.green })
     this.setFinishEnabled(false)
@@ -345,13 +354,29 @@ export default class CapstoneScene extends ModuleScene {
 
   private recapReel(): void {
     const shots = ['Spread = ask − bid', 'Limit rests · Market crosses', 'Size walks the book → slippage']
-    const y = 400
-    shots.forEach((s, i) => {
-      const chip = this.label(this.W / 2, y, s, { size: 13, col: C.blue, align: 'center', bold: true }).setDepth(22).setAlpha(0)
-      this.time.delayedCall(i * 700, () => {
-        chip.setAlpha(0)
-        this.tweens.add({ targets: chip, alpha: 1, duration: 300, yoyo: true, hold: 350, onComplete: () => { if (i < shots.length - 1) chip.destroy() } })
+    // ONE persistent chip-backed text cycled through the recap lines — never a fresh
+    // text per shot (which would pile overlapping labels at the same spot). The chip
+    // graphic is rebuilt each line (text width changes) and the old one destroyed.
+    const y = 410
+    const chip = this.label(this.W / 2, y, shots[0], { size: 14, col: C.blue, align: 'center', bold: true })
+      .setDepth(22)
+      .setAlpha(0)
+    let bg: Phaser.GameObjects.Graphics | undefined
+    const cycle = (i: number) => {
+      chip.setText(shots[i])
+      bg?.destroy()
+      bg = this.chipBehind(chip, C.blueSoft).setDepth(21).setAlpha(0)
+      this.tweens.add({
+        targets: [chip, bg],
+        alpha: 1,
+        duration: 300,
+        yoyo: true,
+        hold: 350,
+        onComplete: () => {
+          if (i < shots.length - 1) this.time.delayedCall(80, () => cycle(i + 1))
+        },
       })
-    })
+    }
+    cycle(0)
   }
 }

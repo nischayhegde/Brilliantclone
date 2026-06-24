@@ -25,6 +25,10 @@ export default function PhaserCanvas({ scene, params, bus, className }: PhaserCa
     const host = hostRef.current
     if (!host) return
 
+    // The on-screen width of the FIT-scaled canvas, so scenes can choose a compact
+    // layout (fewer labels, larger touch targets) on phones. Measured once at boot.
+    const displayW = Math.round(host.getBoundingClientRect().width || host.clientWidth || DESIGN.width)
+
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: host,
@@ -36,7 +40,7 @@ export default function PhaserCanvas({ scene, params, bus, className }: PhaserCa
       render: { antialias: true, roundPixels: false },
       callbacks: {
         postBoot: (g) => {
-          g.scene.add('module', scene, true, { params: params ?? {}, bus })
+          g.scene.add('module', scene, true, { params: { ...(params ?? {}), _displayW: displayW }, bus })
         },
       },
     })

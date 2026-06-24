@@ -1,7 +1,7 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
 import { C, hex } from '../../../engine/palette'
-import { fmtMoney, fmtPrice } from './book'
+import { fmtMoney, fmtPrice, fmtShares } from './book'
 
 interface Anchor {
   name: string
@@ -117,8 +117,8 @@ export default class SpreadCostScene extends ModuleScene {
     // half-spread tick at midpoint
     frame.lineStyle(1, C.muted, 1)
     frame.lineBetween(mx + mw / 2, my, mx + mw / 2, my + mh)
-    this.label(mx + mw / 2, my + mh + 12, '½ spread', { size: 10, col: C.muted, align: 'center' })
-    this.label(mx + mw, my + mh + 12, 'full spread', { size: 10, col: C.muted, align: 'right' })
+    this.label(mx + mw / 2, my + mh + 13, '½ spread', { size: 12, col: C.muted, align: 'center' })
+    this.label(mx + mw, my + mh + 13, 'full spread', { size: 12, col: C.muted, align: 'right' })
   }
 
   private drawMeter(fraction: number): void {
@@ -139,7 +139,7 @@ export default class SpreadCostScene extends ModuleScene {
       this.label(px + 16, py + y, lbl, { size: 12, col: C.muted })
       this.readouts[key] = this.label(px + 254, py + y, '—', { size: 13, col: C.ink, bold: true, align: 'right' })
     }
-    this.label(px + 16, py + 20, 'Per 1,000-share round-trip', { size: 12, col: C.blue, bold: true })
+    this.readouts.header = this.label(px + 16, py + 20, '', { size: 12, col: C.blue, bold: true })
     mk('spread', 48, 'Spread')
     mk('half', 74, '½-spread / side')
     mk('rt', 100, 'Round-trip / sh')
@@ -162,7 +162,7 @@ export default class SpreadCostScene extends ModuleScene {
     this.restyleAnchors()
 
     // share size slider
-    this.label(this.W / 2 + 180, 380, 'Shares', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.W / 2 + 180, 382, 'Shares', { size: 12, col: C.muted, align: 'center' })
     this.slider(450, 405, 280, 100, 5000, this.shares, (v) => {
       this.shares = Math.round(v / 100) * 100
       this.refresh()
@@ -198,6 +198,7 @@ export default class SpreadCostScene extends ModuleScene {
     this.readouts.rtTotal.setText(fmtMoney(rtTotal, 2))
     this.readouts.pct.setText(`${pct.toFixed(pct < 0.01 ? 4 : pct < 1 ? 3 : 1)}%`)
     this.readouts.pct.setColor(hex(pct >= 1 ? C.red : C.green))
+    this.readouts.header.setText(`Per ${fmtShares(this.shares)}-share round-trip`)
 
     this.drawMeter(1)
   }

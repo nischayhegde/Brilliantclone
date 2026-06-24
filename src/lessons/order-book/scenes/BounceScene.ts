@@ -74,17 +74,17 @@ export default class BounceScene extends ModuleScene {
       const y = this.yFor(pr)
       g.lineStyle(1, C.gray100, 1)
       g.lineBetween(this.plotL, y, this.plotR, y)
-      this.label(this.plotL - 8, y, fmtPrice(pr), { size: 11, col: pr === this.ask ? C.red : C.green, align: 'right', bold: true })
+      this.label(this.plotL - 8, y, fmtPrice(pr), { size: 12, col: pr === this.ask ? C.red : C.green, align: 'right', bold: true })
     }
-    this.label(this.plotR, this.yFor(this.ask) - 14, 'best ask (buys print here)', { size: 10, col: C.red, align: 'right' })
-    this.label(this.plotR, this.yFor(this.bid) + 14, 'best bid (sells print here)', { size: 10, col: C.green, align: 'right' })
+    this.label(this.plotR, this.yFor(this.ask) - 14, 'best ask (buys print here)', { size: 12, col: C.red, align: 'right', bg: true })
+    this.label(this.plotR, this.yFor(this.bid) + 14, 'best bid (sells print here)', { size: 12, col: C.green, align: 'right', bg: true })
   }
 
   private drawFrozenMid(): void {
     const mid = (this.bid + this.ask) / 2
     const y = this.yFor(mid)
     this.dashedLine(this.plotL, y, this.plotR, C.blue, 8, 6, 2)
-    this.label(this.plotL + 6, y - 12, `MID (frozen) ${this.fmtMid(mid)}`, { size: 11, col: C.blue, bold: true })
+    this.label(this.plotL + 6, y - 12, `MID (frozen) ${this.fmtMid(mid)}`, { size: 12, col: C.blue, bold: true, bg: true })
   }
 
   private fmtMid(m: number): string {
@@ -141,12 +141,12 @@ export default class BounceScene extends ModuleScene {
   private buildPanel(): void {
     const px = 590
     const py = 110
-    this.panel(px, py, 150, 150, { fill: C.gray100, stroke: C.hairline, radius: 10 })
-    this.label(px + 12, py + 18, 'Last print', { size: 11, col: C.muted })
-    this.lastPrintT = this.label(px + 12, py + 40, '—', { size: 16, col: C.ink, bold: true })
-    this.label(px + 12, py + 70, 'Current mid', { size: 11, col: C.muted })
-    this.label(px + 12, py + 90, `${this.fmtMid((this.bid + this.ask) / 2)} (unchanged)`, { size: 12, col: C.blue, bold: true })
-    this.tallyT = this.label(px + 12, py + 122, 'prints: 0 ask / 0 bid', { size: 11, col: C.ink })
+    this.panel(px, py, 158, 156, { fill: C.gray100, stroke: C.hairline, radius: 10 })
+    this.label(px + 12, py + 18, 'Last print', { size: 12, col: C.muted })
+    this.lastPrintT = this.label(px + 12, py + 42, '—', { size: 17, col: C.ink, bold: true })
+    this.label(px + 12, py + 74, 'Current mid', { size: 12, col: C.muted })
+    this.label(px + 12, py + 96, `${this.fmtMid((this.bid + this.ask) / 2)} (unchanged)`, { size: 12, col: C.blue, bold: true })
+    this.tallyT = this.label(px + 12, py + 128, 'prints: 0 ask / 0 bid', { size: 12, col: C.ink })
   }
 
   private updatePanel(): void {
@@ -172,7 +172,7 @@ export default class BounceScene extends ModuleScene {
     t.setText(this.churn ? 'Order churn: ON' : 'Order churn: OFF')
     const note = this.children.getByName('churnNote') as Phaser.GameObjects.Text | null
     if (!this.churn) {
-      if (!note) this.label(this.W / 2, 365, 'No churn → no bounce. The sawtooth was order flow, not value.', { size: 11, col: C.muted, align: 'center' }).setName('churnNote')
+      if (!note) this.label(this.W / 2, 368, 'No churn → no bounce. The sawtooth was order flow, not value.', { size: 12, col: C.muted, align: 'center' }).setName('churnNote')
     } else {
       note?.destroy()
     }
@@ -181,9 +181,9 @@ export default class BounceScene extends ModuleScene {
   private buildNbbo(): void {
     const g = this.add.graphics()
     g.fillStyle(C.blueSoft, 1)
-    g.fillRoundedRect(this.plotL, 56, 220, 26, 6)
+    g.fillRoundedRect(this.plotL, 54, 244, 28, 6)
     g.lineStyle(1, C.blue, 0.5)
-    g.strokeRoundedRect(this.plotL, 56, 220, 26, 6)
-    this.label(this.plotL + 10, 69, 'NBBO — best quote across all venues', { size: 11, col: C.blue }).setAlpha(0.9)
+    g.strokeRoundedRect(this.plotL, 54, 244, 28, 6)
+    this.label(this.plotL + 10, 68, 'NBBO — best quote across all venues', { size: 12, col: C.blue }).setAlpha(0.9)
   }
 }

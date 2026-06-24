@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtPrice, fmtShares } from './book'
 
 interface RestingOrder {
@@ -94,16 +94,16 @@ export default class MatchingEngineScene extends ModuleScene {
   }
 
   private makeTile(o: RestingOrder, x: number, y: number): Phaser.GameObjects.Container {
-    const w = 104
-    const h = 52
+    const w = 112
+    const h = 60
     const g = this.add.graphics()
     g.fillStyle(C.greenSoft, 1)
     g.fillRoundedRect(-w / 2, -h / 2, w, h, 8)
     g.lineStyle(2, C.green, 1)
     g.strokeRoundedRect(-w / 2, -h / 2, w, h, 8)
-    const idT = this.add.text(0, -13, o.id, { fontFamily: '"Segoe UI", sans-serif', fontSize: '15px', color: hex(C.green), fontStyle: 'bold' }).setOrigin(0.5)
-    const szT = this.add.text(0, 4, `${fmtShares(o.size)} sh`, { fontFamily: '"Segoe UI", sans-serif', fontSize: '11px', color: hex(C.ink) }).setOrigin(0.5)
-    const tT = this.add.text(0, 18, o.arrival, { fontFamily: '"Segoe UI", sans-serif', fontSize: '10px', color: hex(C.blue) }).setOrigin(0.5)
+    const idT = this.add.text(0, -16, o.id, { fontFamily: FONT, fontSize: '16px', color: hex(C.green), fontStyle: 'bold' }).setOrigin(0.5)
+    const szT = this.add.text(0, 4, `${fmtShares(o.size)} sh`, { fontFamily: FONT, fontSize: '12px', color: hex(C.ink) }).setOrigin(0.5)
+    const tT = this.add.text(0, 20, o.arrival, { fontFamily: FONT, fontSize: '12px', color: hex(C.blue) }).setOrigin(0.5)
     return this.add.container(x, y, [g, idT, szT, tT]).setSize(w, h)
   }
 

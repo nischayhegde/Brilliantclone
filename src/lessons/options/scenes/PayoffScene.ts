@@ -62,6 +62,7 @@ export default class PayoffScene extends ModuleScene {
   private spotDot?: Phaser.GameObjects.Arc
   private spotGuide?: Phaser.GameObjects.Graphics
   private pnlLabel?: Phaser.GameObjects.Text
+  private pnlChip?: Phaser.GameObjects.Graphics
   private riskBadge?: Phaser.GameObjects.Container
   private revealed = false
 
@@ -83,6 +84,7 @@ export default class PayoffScene extends ModuleScene {
   private beGuessLine?: Phaser.GameObjects.Graphics
   private beGuessDot?: Phaser.GameObjects.Arc
   private beGuessLabel?: Phaser.GameObjects.Text
+  private beGuessChip?: Phaser.GameObjects.Graphics
 
   protected build(): void {
     const raw = this.params as PayoffParams
@@ -144,7 +146,13 @@ export default class PayoffScene extends ModuleScene {
     const g = this.add.graphics()
     g.lineStyle(1.5, C.ink, 0.5)
     for (let yy = this.plot.t; yy < this.plot.b; yy += 10) g.lineBetween(xS, yy, xS, Math.min(yy + 6, this.plot.b))
-    this.label(xS, this.plot.t - 6, `S=${expiryS} at expiry`, { size: 11, col: C.ink, bold: true, align: 'center' })
+    this.label(xS, this.plot.t - 6, `S=${expiryS} at expiry`, {
+      size: 13,
+      col: C.ink,
+      bold: true,
+      align: 'center',
+      bg: true,
+    })
 
     const defs: Array<{ key: 'exercise' | 'expire'; label: string }> = [
       { key: 'exercise', label: 'EXERCISE' },
@@ -199,7 +207,13 @@ export default class PayoffScene extends ModuleScene {
       .setStrokeStyle(3, C.white)
       .setInteractive({ useHandCursor: true, draggable: true })
     this.input.setDraggable(this.beGuessDot)
-    this.beGuessLabel = this.label(0, this.plot.t + 22, '', { size: 12, col: C.blue, bold: true, align: 'center' })
+    this.beGuessChip = this.add.graphics()
+    this.beGuessLabel = this.label(0, this.plot.t + 40, '', {
+      size: 13,
+      col: C.blue,
+      bold: true,
+      align: 'center',
+    })
     this.beGuessDot.on('drag', (_p: Phaser.Input.Pointer, dx: number) => {
       if (this.submitted) return
       const t = Phaser.Math.Clamp((dx - this.plot.l) / this.plot.w, 0, 1)
@@ -207,15 +221,15 @@ export default class PayoffScene extends ModuleScene {
       this.redrawBeGuess()
     })
     this.redrawBeGuess()
-    this.label((this.plot.l + this.plot.r) / 2, this.H - 26, '↔ drag the marker to where the line crosses $0', {
-      size: 11,
+    this.label((this.plot.l + this.plot.r) / 2, this.H - 22, '↔ drag the marker to where the line crosses $0', {
+      size: 13,
       col: C.muted,
       align: 'center',
     })
   }
 
   private redrawBeGuess(): void {
-    if (!this.beGuessLine || !this.beGuessDot || !this.beGuessLabel) return
+    if (!this.beGuessLine || !this.beGuessDot || !this.beGuessLabel || !this.beGuessChip) return
     const x = this.xFor(this.beGuess)
     const y0 = this.yFor(0)
     this.beGuessLine.clear()
@@ -223,7 +237,26 @@ export default class PayoffScene extends ModuleScene {
     for (let yy = this.plot.t; yy < this.plot.b; yy += 12)
       this.beGuessLine.lineBetween(x, yy, x, Math.min(yy + 7, this.plot.b))
     this.beGuessDot.setPosition(x, y0)
-    this.beGuessLabel.setX(x).setText(`your BE ${this.fmt(this.beGuess)}`)
+    // keep the label clear of the left/right walls so its chip never clips
+    const lx = Phaser.Math.Clamp(x, this.plot.l + 44, this.plot.r - 44)
+    this.beGuessLabel.setX(lx).setText(`your BE ${this.fmt(this.beGuess)}`)
+    this.drawMovingChip(this.beGuessChip, this.beGuessLabel)
+  }
+
+  /** Redraw a white chip sized to a (centre-origin) moving text. */
+  protected drawMovingChip(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text): void {
+    const padX = 6
+    const padY = 3
+    g.clear()
+    g.fillStyle(C.white, 0.85)
+    g.fillRoundedRect(
+      t.x - t.originX * t.width - padX,
+      t.y - t.originY * t.height - padY,
+      t.width + padX * 2,
+      t.height + padY * 2,
+      5,
+    )
+    this.children.moveBelow(g, t)
   }
 
   // --- scales ---------------------------------------------------------------
@@ -258,7 +291,7 @@ export default class PayoffScene extends ModuleScene {
     const label = `${this.p.side.toUpperCase()} ${this.p.type.toUpperCase()}  ·  K=${this.p.K}  ·  premium ${this.fmt(
       this.p.premium,
     )} (illustrative)`
-    if (!this.titleText) this.titleText = this.label(this.plot.l, 20, label, { size: 13, col: C.ink, bold: true })
+    if (!this.titleText) this.titleText = this.label(this.plot.l, 18, label, { size: 15, col: C.ink, bold: true })
     else this.titleText.setText(label)
   }
 
@@ -274,11 +307,11 @@ export default class PayoffScene extends ModuleScene {
     g.lineBetween(this.plot.l, this.plot.b, this.plot.r, this.plot.b)
     this.label(this.plot.l - 6, y0, '0', { size: 11, col: C.muted, align: 'right' })
 
-    // y label
+    // y label (rotated — uses raw text since label() can't set angle)
     this.add
-      .text(16, this.plot.t + this.plot.h / 2, 'P&L / share', {
+      .text(14, this.plot.t + this.plot.h / 2, 'P&L / share', {
         fontFamily: FONT,
-        fontSize: '11px',
+        fontSize: '12px',
         color: hex(C.muted),
       })
       .setOrigin(0.5)
@@ -304,6 +337,7 @@ export default class PayoffScene extends ModuleScene {
 
   private strikeLayer!: Phaser.GameObjects.Graphics
   private strikeLabel?: Phaser.GameObjects.Text
+  private strikeChip!: Phaser.GameObjects.Graphics
   /** Redrawable strike marker (so the capstone's K slider can move it live). */
   protected drawStrike(): void {
     const xk = this.xFor(this.p.K)
@@ -311,16 +345,20 @@ export default class PayoffScene extends ModuleScene {
     this.strikeLayer.lineStyle(1.5, C.blue)
     for (let yy = this.plot.t; yy < this.plot.b; yy += 12)
       this.strikeLayer.lineBetween(xk, yy, xk, Math.min(yy + 7, this.plot.b))
-    if (!this.strikeLabel) {
-      this.strikeLabel = this.label(xk, this.plot.t - 6, `K=${this.p.K}`, {
-        size: 11,
+    let lbl = this.strikeLabel
+    if (!lbl) {
+      this.strikeChip = this.add.graphics()
+      lbl = this.label(xk, this.plot.t - 6, `K=${this.p.K}`, {
+        size: 13,
         col: C.blue,
         bold: true,
         align: 'center',
       })
+      this.strikeLabel = lbl
     } else {
-      this.strikeLabel.setText(`K=${this.p.K}`).setX(xk)
+      lbl.setText(`K=${this.p.K}`).setX(xk)
     }
+    this.drawMovingChip(this.strikeChip, lbl)
   }
 
   // --- core curve + shading -------------------------------------------------
@@ -371,16 +409,30 @@ export default class PayoffScene extends ModuleScene {
     this.drawRiskBadge()
   }
 
+  private tailLabel?: Phaser.GameObjects.Text
+  private tailChip?: Phaser.GameObjects.Graphics
   private drawTails(): void {
-    // short call: loss → ∞ as S rises; long call: gain → ∞
+    // short call: loss → ∞ as S rises; long call: gain → ∞. ONE persistent label,
+    // re-targeted on every redraw so leg toggles never stack overlapping text.
     const unlimitedLoss = this.p.side === 'short' && this.p.type === 'call'
     const unlimitedGain = this.p.side === 'long' && this.p.type === 'call'
+    let lbl = this.tailLabel
+    if (!lbl) {
+      this.tailChip = this.add.graphics()
+      lbl = this.label(0, 0, '', { size: 13, bold: true, align: 'right' })
+      this.tailLabel = lbl
+    }
+    const x = this.xFor(this.p.sMax) - 10
     if (unlimitedLoss) {
-      const x = this.xFor(this.p.sMax) - 10
-      this.label(x, this.plot.b - 6, '⚠ loss → ∞', { size: 11, col: C.red, bold: true, align: 'right' })
+      lbl.setVisible(true).setText('⚠ loss → ∞').setColor(hex(C.red)).setPosition(x, this.plot.b - 12)
     } else if (unlimitedGain) {
-      const x = this.xFor(this.p.sMax) - 10
-      this.label(x, this.plot.t + 10, '↑ gain unlimited', { size: 11, col: C.green, bold: true, align: 'right' })
+      lbl.setVisible(true).setText('↑ gain unlimited').setColor(hex(C.green)).setPosition(x, this.plot.t + 12)
+    } else {
+      lbl.setVisible(false)
+    }
+    if (this.tailChip) {
+      this.tailChip.clear()
+      if (lbl.visible) this.drawMovingChip(this.tailChip, lbl)
     }
   }
 
@@ -396,12 +448,13 @@ export default class PayoffScene extends ModuleScene {
     for (let yy = this.plot.t; yy < this.plot.b; yy += 12) g.lineBetween(x, yy, x, Math.min(yy + 7, this.plot.b))
     const dot = this.add.circle(x, y0, 5, C.blue).setStrokeStyle(2, C.white)
     const t = this.label(x, this.plot.t + 22, `BE ${this.fmt(be)}`, {
-      size: 11,
+      size: 13,
       col: C.blue,
       bold: true,
       align: 'center',
     })
-    this.beMarker = this.add.container(0, 0, [g, dot, t])
+    const chip = this.chipBehind(t)
+    this.beMarker = this.add.container(0, 0, [g, chip, dot, t])
     this.fadeIn(this.beMarker as unknown as Phaser.GameObjects.GameObject & { alpha: number; y: number })
   }
 
@@ -413,17 +466,17 @@ export default class PayoffScene extends ModuleScene {
     const lossTxt = ml === Infinity ? 'UNLIMITED' : `$${ml.toLocaleString()}`
     const gainTxt = mg === Infinity ? 'unlimited' : `$${mg.toLocaleString()}`
     const danger = ml === Infinity
-    const w = 232
+    const w = 250
     const h = 34
     const x = this.plot.r - w
-    const y = this.plot.t - 2
+    const y = this.plot.t - 4
     const panel = this.panel(x, y, w, h, {
       fill: danger ? C.redSoft : C.blueSoft,
       stroke: danger ? C.red : C.blue,
       radius: 8,
     })
     const t = this.label(x + 10, y + h / 2, `Max loss ${lossTxt}  ·  Max gain ${gainTxt}`, {
-      size: 11,
+      size: 12,
       col: danger ? C.red : C.blue,
       bold: true,
     })
@@ -432,6 +485,9 @@ export default class PayoffScene extends ModuleScene {
 
   // --- animation: curve sweep + mirror flip ---------------------------------
   private animateCurveIn(): void {
+    // The curve is already drawn underneath; the reveal only adds polish, so under
+    // reduced motion we skip it entirely (content stays visible).
+    if (this.reduceMotion) return
     // simple reveal: wipe a rectangle from left to right over the curve
     const mask = this.add.graphics()
     mask.fillStyle(C.white, 1)
@@ -439,24 +495,31 @@ export default class PayoffScene extends ModuleScene {
     this.tweens.add({
       targets: mask,
       x: this.plot.w + 8,
-      duration: 700,
-      ease: 'Cubic.inOut',
+      duration: 640,
+      ease: 'Expo.out',
       onComplete: () => mask.destroy(),
     })
   }
 
   private runMirrorDemo(): void {
-    // draw the long first, then reflect to the short (if params say short) — or vice versa
     const finalSide = this.p.side
+    // Reduced motion: skip the long→short flip choreography, show the final curve.
+    if (this.reduceMotion) {
+      this.computeY()
+      this.redraw()
+      return
+    }
+    // draw the long first, then reflect to the short (if params say short) — or vice versa
     this.p.side = finalSide === 'short' ? 'long' : 'short'
     this.computeY()
     this.redraw()
     this.animateCurveIn()
     this.time.delayedCall(1300, () => {
       this.label((this.plot.l + this.plot.r) / 2, this.plot.t + 38, 'flip across the x-axis →', {
-        size: 12,
+        size: 13,
         col: C.muted,
         align: 'center',
+        bg: true,
       })
     })
     this.time.delayedCall(1900, () => {
@@ -552,14 +615,15 @@ export default class PayoffScene extends ModuleScene {
       .setData('S', S0)
       .setInteractive({ useHandCursor: true, draggable: true })
     this.input.setDraggable(this.spotDot)
-    this.pnlLabel = this.label(this.plot.l + 8, this.plot.b - 14, '', { size: 12, col: C.ink, bold: true })
+    this.label(this.plot.l + 8, this.plot.t + 14, '↔ drag the dot: spot at expiry', { size: 12, col: C.muted, bg: true })
+    this.pnlChip = this.add.graphics()
+    this.pnlLabel = this.label(this.plot.l + 8, this.plot.b - 13, '', { size: 13, col: C.ink, bold: true })
     this.spotDot.on('drag', (_p: Phaser.Input.Pointer, dx: number) => {
       const t = Phaser.Math.Clamp((dx - this.plot.l) / this.plot.w, 0, 1)
       const S = this.p.sMin + t * (this.p.sMax - this.p.sMin)
       this.updateSpot(S)
     })
     this.updateSpot(S0)
-    this.label(this.plot.l + 8, this.plot.b - 30, '↔ drag the dot: spot at expiry', { size: 10, col: C.muted })
   }
 
   protected updateSpot(S: number): void {
@@ -583,6 +647,7 @@ export default class PayoffScene extends ModuleScene {
       )}/contract`,
     )
     this.pnlLabel.setColor(hex(v >= 0 ? C.green : C.red))
+    if (this.pnlChip) this.drawMovingChip(this.pnlChip, this.pnlLabel)
   }
 
   // --- quiz mode ------------------------------------------------------------
@@ -596,7 +661,7 @@ export default class PayoffScene extends ModuleScene {
       .setOrigin(0.5)
       .setAlpha(0.55)
     q.setData('isQ', true)
-    this.tweens.add({ targets: q, alpha: 0.85, yoyo: true, repeat: -1, duration: 700 })
+    this.loop({ targets: q, alpha: 0.85, yoyo: true, repeat: -1, duration: 700 })
   }
 
   protected onReveal(): void {
@@ -616,7 +681,7 @@ export default class PayoffScene extends ModuleScene {
       const y = this.yFor(v)
       const col = d.good ? C.green : C.red
       const dot = this.add.circle(x, y, 5, col).setStrokeStyle(2, C.white).setScale(0)
-      const t = this.label(x, y + (v >= 0 ? -16 : 16), d.label, { size: 10, col, bold: true, align: 'center' })
+      const t = this.label(x, y + (v >= 0 ? -18 : 18), d.label, { size: 13, col, bold: true, align: 'center', bg: true })
       t.setAlpha(0)
       this.time.delayedCall(160 * i, () => {
         this.tweens.add({ targets: dot, scale: 1, duration: 260, ease: 'Back.out' })
@@ -659,11 +724,12 @@ export default class PayoffScene extends ModuleScene {
     const yExpire = this.yFor(expireV)
     this.add.circle(x, yExpire, 6, correct ? C.green : C.red).setStrokeStyle(2, C.white)
     this.fadeIn(
-      this.label(x, yExpire + 16, `let expire ${fmtMoney(expC)}`, {
-        size: 11,
+      this.label(x, yExpire + 18, `let expire ${fmtMoney(expC)}`, {
+        size: 13,
         col: C.green,
         bold: true,
         align: 'center',
+        bg: true,
       }),
     )
 

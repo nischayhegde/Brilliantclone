@@ -29,7 +29,17 @@ export class SceneBus {
 
   emit(e: SceneEvent): void {
     // Copy so a handler that unsubscribes mid-dispatch can't mutate the live set.
-    for (const h of [...this.handlers]) h(e)
+    // Isolate each handler: one subscriber throwing (e.g. a torn-down Phaser scene
+    // that is still briefly subscribed) must NOT abort dispatch to the others, nor
+    // propagate back into the emitter (the renderer relies on emit() never throwing
+    // so a challenge submit always reaches its "awaiting → done" flow).
+    for (const h of [...this.handlers]) {
+      try {
+        h(e)
+      } catch (err) {
+        console.error('[SceneBus] handler error (ignored):', err)
+      }
+    }
   }
 
   on(h: Handler): () => void {

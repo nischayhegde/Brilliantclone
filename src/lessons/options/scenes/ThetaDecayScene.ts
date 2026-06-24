@@ -28,6 +28,8 @@ export default class ThetaDecayScene extends ModuleScene {
   private bar!: Phaser.GameObjects.Graphics
   private guide!: Phaser.GameObjects.Graphics
   private readouts!: Phaser.GameObjects.Text
+  private floorLabel?: Phaser.GameObjects.Text
+  private floorChip?: Phaser.GameObjects.Graphics
 
   protected build(): void {
     const raw = this.params as ThetaParams
@@ -42,31 +44,49 @@ export default class ThetaDecayScene extends ModuleScene {
     this.dte = this.p.days
     this.recomputeIntrinsic()
 
-    this.label(40, 26, 'THETA — TIME VALUE DECAYS TO ZERO', { size: 14, col: C.ink, bold: true })
-    this.label(40, 46, '(decay curve illustrative; intrinsic-at-expiry exact)', { size: 11, col: C.muted })
+    this.label(40, 24, 'THETA — TIME VALUE DECAYS TO ZERO', { size: 16, col: C.ink, bold: true })
+    this.label(40, 46, '(decay curve illustrative; intrinsic-at-expiry exact)', { size: 13, col: C.muted })
 
     this.drawFrame()
     this.bar = this.add.graphics()
     this.guide = this.add.graphics()
-    this.readouts = this.label(PLOT.l, 380, '', { size: 13, col: C.ink, bold: true })
+    this.readouts = this.label(PLOT.l, 392, '', { size: 13, col: C.ink, bold: true })
 
     // moneyness toggle
-    this.label(60, 410, 'Moneyness', { size: 11, col: C.muted })
-    this.toggle(60, 432, ['OTM', 'ATM', 'ITM'], 2, (i) => {
+    this.label(60, 414, 'Moneyness', { size: 13, col: C.muted })
+    this.toggle(60, 434, ['OTM', 'ATM', 'ITM'], 2, (i) => {
       this.money = (['OTM', 'ATM', 'ITM'] as const)[i]
       this.recomputeIntrinsic()
       this.refresh()
     })
-    // time slider (60d -> 0d). slider min..max maps left..right = far..near
-    this.label(380, 410, 'Days to expiry', { size: 12, col: C.muted })
-    this.slider(380, 430, 280, 0, this.p.days, this.dte, (v) => {
-      this.dte = v
+    // Time slider. The plot reads left = now (many days), right = expiry (0 days), and
+    // the indicator bar sits at xForDte(dte). To keep the thumb and the bar moving the
+    // SAME direction, the slider tracks "elapsed" (left = start, right = expiry) and we
+    // derive dte = days − elapsed. (Earlier the thumb and bar moved opposite ways.)
+    this.label(380, 414, 'Days to expiry', { size: 13, col: C.muted })
+    this.slider(380, 434, 280, 0, this.p.days, this.p.days - this.dte, (v) => {
+      this.dte = this.p.days - v
       this.refresh()
     })
 
     this.drawDecayCurve()
     this.refresh()
     this.emitReady()
+  }
+
+  /** Redraw a white chip sized to a text into a reused graphics object. */
+  private chipFor(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text): void {
+    const padX = 6
+    const padY = 3
+    g.fillStyle(C.white, 0.85)
+    g.fillRoundedRect(
+      t.x - t.originX * t.width - padX,
+      t.y - t.originY * t.height - padY,
+      t.width + padX * 2,
+      t.height + padY * 2,
+      5,
+    )
+    this.children.moveBelow(g, t)
   }
 
   private recomputeIntrinsic(): void {
@@ -117,12 +137,18 @@ export default class ThetaDecayScene extends ModuleScene {
     const f = this.add.graphics()
     f.lineStyle(1.5, C.blue, 0.4)
     for (let x = PLOT.l; x < PLOT.r; x += 12) f.lineBetween(x, yFloor, Math.min(x + 7, PLOT.r), yFloor)
-    this.label(PLOT.r - 4, yFloor - 10, `intrinsic floor ${this.intr.toFixed(2)}`, {
-      size: 11,
-      col: C.blue,
-      bold: true,
-      align: 'right',
-    })
+    // ONE persistent floor label (re-targeted) so the moneyness toggle never stacks it.
+    let lbl = this.floorLabel
+    if (!lbl) {
+      this.floorChip = this.add.graphics()
+      lbl = this.label(PLOT.r - 4, 0, '', { size: 13, col: C.blue, bold: true, align: 'right' })
+      this.floorLabel = lbl
+    }
+    lbl.setText(`intrinsic floor ${this.intr.toFixed(2)}`).setY(yFloor - 11)
+    if (this.floorChip) {
+      this.floorChip.clear()
+      this.chipFor(this.floorChip, lbl)
+    }
     g.setData('decay', true)
     f.setData('floor', true)
   }

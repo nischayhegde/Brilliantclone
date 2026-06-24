@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtPrice } from './book'
 
 interface QuoteCardsParams {
@@ -40,8 +40,10 @@ export default class QuoteCardsScene extends ModuleScene {
   private askHandle!: Phaser.GameObjects.Container
   private caliper!: Phaser.GameObjects.Graphics
   private spreadLabel!: Phaser.GameObjects.Text
+  private spreadChip!: Phaser.GameObjects.Graphics
   private midDot!: Phaser.GameObjects.Arc
   private midLabel!: Phaser.GameObjects.Text
+  private midChip!: Phaser.GameObjects.Graphics
   private statusLabel!: Phaser.GameObjects.Text
   private warnPanel!: Phaser.GameObjects.Container
   private hatch!: Phaser.GameObjects.Graphics
@@ -64,9 +66,13 @@ export default class QuoteCardsScene extends ModuleScene {
 
     this.hatch = this.add.graphics()
     this.caliper = this.add.graphics()
+    // chips behind the live spread/mid readouts so they stay legible over the axis
+    // ticks and the dragging handles (redrawn each update).
+    this.spreadChip = this.add.graphics()
     this.spreadLabel = this.label(this.axisX + 130, 0, '', { size: 14, col: C.blue, bold: true })
     this.midDot = this.add.circle(this.axisX, 0, 7, C.blue).setStrokeStyle(2, C.white)
-    this.midLabel = this.label(this.axisX - 16, 0, '', { size: 12, col: C.blue, bold: true, align: 'right' })
+    this.midChip = this.add.graphics()
+    this.midLabel = this.label(14, 0, '', { size: 13, col: C.blue, bold: true })
 
     this.bidHandle = this.makeHandle('bid')
     this.askHandle = this.makeHandle('ask')
@@ -117,7 +123,7 @@ export default class QuoteCardsScene extends ModuleScene {
     g.fillStyle(col, 1)
     g.fillTriangle(-10, -7, -10, 7, 0, 0) // pointer toward axis
     const t = this.add
-      .text(10, 0, '', { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(col), fontStyle: 'bold' })
+      .text(10, 0, '', { fontFamily: FONT, fontSize: '13px', color: hex(col), fontStyle: 'bold' })
       .setOrigin(0, 0.5)
     t.setName('lbl')
     const c = this.add.container(this.axisX + 4, 0, [g, t]).setSize(w, h)
@@ -136,20 +142,20 @@ export default class QuoteCardsScene extends ModuleScene {
   }
 
   private makeWarnPanel(): Phaser.GameObjects.Container {
-    const w = 250
-    const h = 60
+    const w = 296
+    const h = 62
     const g = this.add.graphics()
     g.fillStyle(C.redSoft, 1)
     g.fillRoundedRect(-w / 2, -h / 2, w, h, 10)
     g.lineStyle(2, C.red, 1)
     g.strokeRoundedRect(-w / 2, -h / 2, w, h, 10)
     const t1 = this.add
-      .text(0, -14, 'Crossed book — impossible', { fontFamily: '"Segoe UI", sans-serif', fontSize: '14px', color: hex(C.red), fontStyle: 'bold' })
+      .text(0, -14, 'Crossed book — impossible', { fontFamily: FONT, fontSize: '14px', color: hex(C.red), fontStyle: 'bold' })
       .setOrigin(0.5)
     const t2 = this.add
-      .text(0, 10, 'A buyer paying ≥ the ask would just trade.', {
-        fontFamily: '"Segoe UI", sans-serif',
-        fontSize: '11px',
+      .text(0, 11, 'A buyer paying ≥ the ask would just trade.', {
+        fontFamily: FONT,
+        fontSize: '12px',
         color: hex(C.red),
         align: 'center',
       })
@@ -182,9 +188,11 @@ export default class QuoteCardsScene extends ModuleScene {
     this.caliper.lineBetween(calX, yAsk, calX, yBid)
     this.caliper.lineBetween(calX - 8, yAsk, calX + 8, yAsk)
     this.caliper.lineBetween(calX - 8, yBid, calX + 8, yBid)
-    this.spreadLabel.setPosition(calX + 16, (yAsk + yBid) / 2)
+    // spread readout to the RIGHT of the handle boxes (they extend to axisX+154)
+    this.spreadLabel.setPosition(calX + 60, (yAsk + yBid) / 2)
     this.spreadLabel.setColor(hex(crossed ? C.red : C.blue))
     this.spreadLabel.setText(crossed ? `SPREAD = ${fmtPrice(spread)} ✗` : `SPREAD = ${fmtPrice(spread)}`)
+    this.drawChip(this.spreadChip, this.spreadLabel)
 
     // hatch fill when crossed
     this.hatch.clear()
@@ -195,13 +203,15 @@ export default class QuoteCardsScene extends ModuleScene {
       for (let x = this.axisX + 4; x < calX; x += 8) this.hatch.lineBetween(x, bot, x + 16, top)
     }
 
-    // mid
+    // mid value-only readout in the LEFT gutter, clear of the tick labels
     const yMid = this.yFor(mid)
     this.midDot.setPosition(this.axisX, yMid)
-    this.midLabel.setPosition(this.axisX - 16, yMid)
+    this.midLabel.setPosition(14, yMid)
     this.midDot.setVisible(!crossed)
     this.midLabel.setVisible(!crossed)
     this.midLabel.setText(`MID ${this.fmtMid(mid)}`)
+    this.midChip.setVisible(!crossed)
+    this.drawChip(this.midChip, this.midLabel)
 
     this.warnPanel.setVisible(crossed)
 
@@ -221,6 +231,17 @@ export default class QuoteCardsScene extends ModuleScene {
 
   private fmtMid(m: number): string {
     return Math.abs(m * 100 - Math.round(m * 100)) > 1e-6 ? m.toFixed(3) : m.toFixed(2)
+  }
+
+  /** Redraw a white chip sized to a (re-positioned/re-texted) label, kept below it. */
+  private drawChip(g: Phaser.GameObjects.Graphics, t: Phaser.GameObjects.Text): void {
+    const padX = 6
+    const padY = 3
+    const bx = t.x - t.originX * t.width - padX
+    const by = t.y - t.originY * t.height - padY
+    g.clear()
+    g.fillStyle(C.white, 0.85)
+    g.fillRoundedRect(bx, by, t.width + padX * 2, t.height + padY * 2, 5)
   }
 
   protected onSubmit(): void {
@@ -259,6 +280,11 @@ export default class QuoteCardsScene extends ModuleScene {
       title = `Valid, but ${fmtPrice(spread)} — not the target`
       detail = `bid ${fmtPrice(this.bid)} < ask ${fmtPrice(this.ask)} is a valid book, but ask − bid = ${fmtPrice(spread)}, which is too ${dir}. The target was ${fmtPrice(this.target)} — measure the gap, not just the validity.`
     }
-    this.report(correct, title, detail)
+    // Defer the verdict by a tick so it lands AFTER the renderer flips to its
+    // "awaiting" phase: the footer emits `submit`, we'd otherwise report() back
+    // synchronously inside that same emit and the phase would be overwritten,
+    // stranding the learner on "Revealing…" until the safety-net timeout. The
+    // short beat also lets the result-coloured caliper flash read first.
+    this.time.delayedCall(this.dur(420), () => this.report(correct, title, detail))
   }
 }

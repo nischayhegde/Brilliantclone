@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtMoney, fmtPrice, fmtShares, type Level } from './book'
 
 interface LadderParams {
@@ -115,11 +115,11 @@ export default class LadderScene extends ModuleScene {
     this.tweens.addCounter({ from: 0, to: targetW, duration: 360, delay, ease: 'Cubic.out', onUpdate: (tw) => drawBar(tw.getValue() ?? 0) })
 
     const priceT = this.add
-      .text(left + 8, y, fmtPrice(lvl.price), { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(col), fontStyle: 'bold' })
+      .text(left + 8, y, fmtPrice(lvl.price), { fontFamily: FONT, fontSize: '13px', color: hex(col), fontStyle: 'bold' })
       .setOrigin(0, 0.5)
       .setAlpha(0)
     const sizeT = this.add
-      .text(left + this.maxBarW + 10, y, fmtShares(lvl.size), { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(C.ink) })
+      .text(left + this.maxBarW + 10, y, fmtShares(lvl.size), { fontFamily: FONT, fontSize: '13px', color: hex(C.ink) })
       .setOrigin(0, 0.5)
       .setAlpha(0)
     this.tweens.add({ targets: [priceT, sizeT], alpha: 1, duration: 260, delay: delay + 120 })
@@ -156,7 +156,8 @@ export default class LadderScene extends ModuleScene {
       g.strokeRoundedRect(this.cx - w / 2, bestAskY - this.rowH / 2 - 2, w, bestBidY - bestAskY + this.rowH + 4, 9)
     }
     drawRect(0)
-    const lbl = this.label(this.cx + w / 2 - 6, bestAskY - this.rowH / 2 - 12, 'TOP OF BOOK', { size: 11, col: C.blue, bold: true, align: 'right' }).setAlpha(0)
+    // label hugs the bracket's top-right but clears the rung size labels (~x=524)
+    const lbl = this.label(this.cx + w / 2 + 6, bestAskY - this.rowH / 2 - 2, 'TOP OF BOOK', { size: 12, col: C.blue, bold: true, align: 'left' }).setAlpha(0)
     this.time.delayedCall(1400, () => {
       this.tweens.add({ targets: lbl, alpha: 1, duration: 300 })
       this.tweens.addCounter({ from: 0, to: 1, duration: 500, yoyo: true, repeat: 2, onUpdate: (tw) => drawRect(0.3 + (tw.getValue() ?? 0) * 0.7) })
@@ -164,9 +165,9 @@ export default class LadderScene extends ModuleScene {
   }
 
   private buildToggle(): void {
-    const x = 600
-    const y = 110
-    this.label(x, y - 28, 'Show:', { size: 12, col: C.muted, align: 'center' })
+    const x = 620
+    const y = 372
+    this.label(x, y - 28, 'Show:', { size: 13, col: C.muted, align: 'center' })
     let perLevel!: Phaser.GameObjects.Container
     let cumul!: Phaser.GameObjects.Container
     const restyle = () => {
@@ -183,7 +184,7 @@ export default class LadderScene extends ModuleScene {
     }
     const mk = (label: string, cb: () => void) => {
       const g = this.add.graphics()
-      const t = this.add.text(0, 0, label, { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', fontStyle: 'bold', color: hex(C.muted) }).setOrigin(0.5)
+      const t = this.add.text(0, 0, label, { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold', color: hex(C.muted) }).setOrigin(0.5)
       const c = this.add.container(0, 0, [g, t]).setSize(132, 32)
       c.setInteractive(new Phaser.Geom.Rectangle(-66, -16, 132, 32), Phaser.Geom.Rectangle.Contains)
       c.input!.cursor = 'pointer'
@@ -212,8 +213,8 @@ export default class LadderScene extends ModuleScene {
   private makeTooltip(): Phaser.GameObjects.Container {
     const g = this.add.graphics()
     g.fillStyle(C.ink, 0.95)
-    g.fillRoundedRect(0, -22, 196, 44, 8)
-    const t = this.add.text(8, 0, '', { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', color: hex(C.white) }).setOrigin(0, 0.5)
+    g.fillRoundedRect(0, -20, 200, 40, 8)
+    const t = this.add.text(10, 0, '', { fontFamily: FONT, fontSize: '12px', color: hex(C.white) }).setOrigin(0, 0.5)
     t.setName('t')
     return this.add.container(0, 0, [g, t]).setDepth(50)
   }
@@ -223,7 +224,10 @@ export default class LadderScene extends ModuleScene {
     ;(this.tooltip.getByName('t') as Phaser.GameObjects.Text).setText(
       `${fmtPrice(lvl.price)} × ${fmtShares(lvl.size)} = ${fmtMoney(notional)} resting`,
     )
-    this.tooltip.setPosition(this.cx + this.maxBarW / 2 + 60, y)
+    // box sits to the RIGHT of the size labels (which end near cx+maxBarW/2+90),
+    // aligned to the hovered rung; clamped so it never clips the right edge.
+    const x = Math.min(this.cx + this.maxBarW / 2 + 96, this.W - 208)
+    this.tooltip.setPosition(x, Phaser.Math.Clamp(y, this.askTop, this.H - 24))
     this.tooltip.setVisible(true)
   }
 }

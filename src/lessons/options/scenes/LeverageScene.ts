@@ -26,6 +26,8 @@ export default class LeverageScene extends ModuleScene {
   private callBar!: Phaser.GameObjects.Graphics
   private stockTxt!: Phaser.GameObjects.Text
   private callTxt!: Phaser.GameObjects.Text
+  private headline!: Phaser.GameObjects.Text
+  private headlineChip!: Phaser.GameObjects.Graphics
   private baseY = 300
 
   protected build(): void {
@@ -38,30 +40,35 @@ export default class LeverageScene extends ModuleScene {
     }
 
     const shares = this.p.budget / this.p.S0
-    this.label(40, 24, `LEVERAGE — same $${this.p.budget} budget`, { size: 14, col: C.ink, bold: true })
-    this.label(40, 44, `$${this.p.budget} buys ${shares} shares @ $${this.p.S0}  OR  one $${this.p.premium.toFixed(
+    this.label(40, 24, `LEVERAGE — same $${this.p.budget} budget`, { size: 16, col: C.ink, bold: true })
+    this.label(40, 46, `$${this.p.budget} buys ${shares} shares @ $${this.p.S0}  OR  one $${this.p.premium.toFixed(
       2,
-    )} call (controls 100 shares). (premium illustrative; returns exact)`, { size: 11, col: C.muted })
+    )} call (controls 100 shares).`, { size: 13, col: C.muted })
+    this.label(40, 64, '(premium illustrative; returns exact)', { size: 13, col: C.muted })
 
     // two columns
     const sx = 230
     const cx = 520
-    this.label(sx, 90, 'STOCK', { size: 16, col: C.green, bold: true, align: 'center' })
-    this.label(cx, 90, 'CALL', { size: 16, col: C.blue, bold: true, align: 'center' })
+    this.label(sx, 96, 'STOCK', { size: 16, col: C.green, bold: true, align: 'center' })
+    this.label(cx, 96, 'CALL', { size: 16, col: C.blue, bold: true, align: 'center' })
     // zero line
     const g = this.add.graphics()
     g.lineStyle(1.5, C.gray200)
     g.lineBetween(120, this.baseY, 640, this.baseY)
-    this.label(110, this.baseY, '0%', { size: 11, col: C.muted, align: 'right' })
+    this.label(110, this.baseY, '0%', { size: 13, col: C.muted, align: 'right' })
 
     this.stockBar = this.add.graphics()
     this.callBar = this.add.graphics()
-    this.stockTxt = this.label(sx, this.baseY + 110, '', { size: 12, col: C.ink, bold: true, align: 'center' })
-    this.callTxt = this.label(cx, this.baseY + 110, '', { size: 12, col: C.ink, bold: true, align: 'center' })
+    this.stockTxt = this.label(sx, this.baseY + 78, '', { size: 13, col: C.ink, bold: true, align: 'center' })
+    this.callTxt = this.label(cx, this.baseY + 78, '', { size: 13, col: C.ink, bold: true, align: 'center' })
+
+    // headline at top (persistent — re-targeted on each drag, never re-added)
+    this.headlineChip = this.add.graphics()
+    this.headline = this.label(380, this.baseY - 165, '', { size: 13, col: C.ink, bold: true, align: 'center' })
 
     // % move dial (slider)
-    this.label(190, 400, 'Move in the underlying', { size: 12, col: C.muted })
-    this.slider(190, 422, 360, -30, 30, this.movePct, (v) => {
+    this.label(120, 412, 'Move in the underlying', { size: 13, col: C.muted })
+    this.slider(160, 436, 440, -30, 30, this.movePct, (v) => {
       this.movePct = v
       this.refresh()
     }, { step: 1 })
@@ -102,17 +109,25 @@ export default class LeverageScene extends ModuleScene {
       .setText(`1 contract\n${pct(callRet)}  (${usd(callPnl)})${wipeout ? '  ⚠ wipeout' : ''}`)
       .setColor(hex(callRet >= 0 ? C.green : C.red))
 
-    // headline at top
-    this.headline?.destroy()
-    this.headline = this.label(
-      380,
-      this.baseY - 165,
+    // headline at top (update the ONE persistent text + its chip — never re-add)
+    this.headline.setText(
       `stock S → ${sNew.toFixed(0)}   ·   call value at expiry = max(${sNew.toFixed(0)}−${this.p.K},0) = ${Math.max(
         sNew - this.p.K,
         0,
       ).toFixed(2)}`,
-      { size: 12, col: C.ink, bold: true, align: 'center' },
     )
+    const t = this.headline
+    const padX = 6
+    const padY = 3
+    this.headlineChip.clear()
+    this.headlineChip.fillStyle(C.white, 0.85)
+    this.headlineChip.fillRoundedRect(
+      t.x - t.originX * t.width - padX,
+      t.y - t.originY * t.height - padY,
+      t.width + padX * 2,
+      t.height + padY * 2,
+      5,
+    )
+    this.children.moveBelow(this.headlineChip, t)
   }
-  private headline?: Phaser.GameObjects.Text
 }

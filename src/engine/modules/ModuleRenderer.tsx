@@ -64,7 +64,7 @@ function ResultBanner({ correct, title }: { correct: boolean; title: string }) {
       role="status"
       aria-live="polite"
       className={`flex items-center gap-2 rounded-2xl px-4 py-3 font-bold ${
-        correct ? 'bg-brand-green-soft text-brand-green' : 'bg-red-50 text-brand-red'
+        correct ? 'bg-brand-green-soft text-brand-green-text' : 'bg-brand-red-soft text-brand-red'
       }`}
     >
       {correct ? <CheckIcon /> : <CrossIcon />}
@@ -83,27 +83,75 @@ function ChallengeFooter({
   onComplete: () => void
 }) {
   const challenge = module.challenge!
-  const [phase, setPhase] = useState<'setup' | 'submitting' | 'done'>('setup')
-  const [canSubmit, setCanSubmit] = useState(true)
+  const [phase, setPhase] = useState<'setup' | 'awaiting' | 'done'>('setup')
   const [result, setResult] = useState<{ correct: boolean; title: string; detail: string } | null>(
     null,
   )
+  const timer = useRef<ReturnType<typeof setTimeout>>()
+  const doneRef = useRef<HTMLDivElement>(null)
 
+  // Submit is ALWAYS reachable. A challenge must never trap the learner behind a
+  // disabled button — every submit leads to a verdict + explanation + Continue,
+  // whether they were right or wrong. Scenes may still emit `canSubmit` as a hint,
+  // but it no longer gates the button (some scenes never re-enable it).
   useEffect(() => {
-    return bus.on((e) => {
-      if (e.type === 'canSubmit') setCanSubmit(e.value)
-      else if (e.type === 'result') {
+    const off = bus.on((e) => {
+      if (e.type === 'result') {
+        if (timer.current) clearTimeout(timer.current)
         setResult({ correct: e.correct, title: e.title, detail: e.detail })
         setPhase('done')
       }
     })
+    return () => {
+      off()
+      if (timer.current) clearTimeout(timer.current)
+    }
   }, [bus])
 
-  if (phase === 'done' && result) {
+  // When the verdict resolves, the verdict + Continue render below a tall chart and
+  // can land off-screen. Pull them into view so the learner always sees that they
+  // pass (whether right or wrong) and can advance.
+  useEffect(() => {
+    if (phase === 'done') doneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [phase])
+
+  const submit = () => {
+    // Move to "awaiting" and arm the safety net BEFORE emitting, so even if the scene's
+    // submit handler throws, the learner still reaches a Continue button (challenges must
+    // always be passable). The bus already isolates handler errors, but this is belt-and-braces.
+    setPhase('awaiting')
+    // Safety net: the learner must ALWAYS reach a Continue button, even if a scene
+    // finishes its animation without reporting a result.
+    timer.current = setTimeout(() => setPhase('done'), 5000)
+    try {
+      bus.emit({ type: 'submit' })
+    } catch {
+      if (timer.current) clearTimeout(timer.current)
+      setPhase('done')
+    }
+  }
+
+  // Resolved: show an unambiguous green/red verdict + the scene's outcome, and a
+  // Continue button that is always present.
+  if (phase === 'done') {
     return (
-      <div className="flex w-full flex-col items-center gap-3">
-        <ResultBanner correct={result.correct} title={result.title} />
-        <p className="max-w-xl text-center text-sm text-muted">{result.detail}</p>
+      <div ref={doneRef} className="flex w-full scroll-mt-6 flex-col items-center gap-3">
+        {result ? (
+          <>
+            <ResultBanner correct={result.correct} title={result.correct ? 'Correct' : 'Not quite'} />
+            {result.title && <p className="max-w-xl text-center font-bold text-ink">{result.title}</p>}
+            <p className="max-w-xl text-center text-sm text-muted">{result.detail}</p>
+          </>
+        ) : (
+          <p className="max-w-xl text-center text-sm text-muted">
+            See how it resolved on the chart above, then continue.
+          </p>
+        )}
+        {result && !result.correct && (
+          <p className="max-w-xl text-center text-xs font-semibold text-muted">
+            No worries — review the explanation, then continue.
+          </p>
+        )}
         <Button onClick={onComplete}>Continue</Button>
       </div>
     )
@@ -115,14 +163,8 @@ function ChallengeFooter({
       {challenge.instructions && (
         <p className="max-w-xl text-center text-sm text-muted">{challenge.instructions}</p>
       )}
-      <Button
-        disabled={!canSubmit || phase === 'submitting'}
-        onClick={() => {
-          bus.emit({ type: 'submit' })
-          setPhase('submitting')
-        }}
-      >
-        {phase === 'submitting' ? 'Revealing…' : (challenge.submitLabel ?? 'Submit')}
+      <Button disabled={phase === 'awaiting'} onClick={submit}>
+        {phase === 'awaiting' ? 'Revealing…' : (challenge.submitLabel ?? 'Submit')}
       </Button>
     </div>
   )
@@ -140,6 +182,7 @@ function QuizFooter({
   const quiz = module.quiz!
   const [selected, setSelected] = useState<string | null>(null)
   const [revealed, setRevealed] = useState(false)
+  const doneRef = useRef<HTMLDivElement>(null)
 
   const isRight = selected === quiz.correctId
 
@@ -148,6 +191,10 @@ function QuizFooter({
     bus.emit({ type: 'reveal' })
     setRevealed(true)
   }
+
+  useEffect(() => {
+    if (revealed) doneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [revealed])
 
   if (!revealed) {
     return (
@@ -159,10 +206,10 @@ function QuizFooter({
               key={o.id}
               aria-pressed={selected === o.id}
               onClick={() => setSelected(o.id)}
-              className={`min-w-28 rounded-2xl border-2 px-5 py-3 text-sm font-bold transition ${
+              className={`min-w-28 rounded-xl border-2 px-5 py-3 text-sm font-bold transition duration-150 ${
                 selected === o.id
-                  ? 'border-brand-blue bg-brand-blue-soft text-brand-blue'
-                  : 'border-hairline bg-white text-ink hover:border-brand-blue/40'
+                  ? 'border-ink bg-ink text-white'
+                  : 'border-hairline bg-paper text-ink hover:border-ink/40 hover:bg-surface'
               }`}
             >
               {o.label}
@@ -177,11 +224,16 @@ function QuizFooter({
   }
 
   return (
-    <div className="flex w-full flex-col items-center gap-3">
+    <div ref={doneRef} className="flex w-full scroll-mt-6 flex-col items-center gap-3">
       <ResultBanner correct={isRight} title={isRight ? 'Correct!' : 'Not quite.'} />
       <p className="max-w-xl text-center text-sm text-muted">
         {isRight ? quiz.explainRight : quiz.explainWrong}
       </p>
+      {!isRight && (
+        <p className="max-w-xl text-center text-xs font-semibold text-muted">
+          No worries — review the explanation, then continue.
+        </p>
+      )}
       <Button onClick={onComplete}>{module.type === 'capstone' ? 'Finish' : 'Continue'}</Button>
     </div>
   )

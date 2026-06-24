@@ -33,6 +33,7 @@ export default class PositionBuilderScene extends ModuleScene {
   private overlay!: Phaser.GameObjects.Graphics
   private titleTxt!: Phaser.GameObjects.Text
   private riskTxt!: Phaser.GameObjects.Text
+  private riskChip!: Phaser.GameObjects.Graphics
 
   protected build(): void {
     const raw = this.params as BuilderParams
@@ -56,19 +57,20 @@ export default class PositionBuilderScene extends ModuleScene {
     this.yMin = -span
     this.yMax = span
 
-    this.label(this.plot.l, 22, 'BUILD A POSITION — who carries unlimited risk?', {
-      size: 14,
+    this.label(this.plot.l, 20, 'BUILD A POSITION — who carries unlimited risk?', {
+      size: 16,
       col: C.ink,
       bold: true,
     })
-    this.titleTxt = this.label(this.plot.l, this.plot.t - 16, '', { size: 12, col: C.ink, bold: true })
+    this.titleTxt = this.label(this.plot.l, this.plot.t - 16, '', { size: 13, col: C.ink, bold: true })
 
     this.drawAxes()
     this.curve = this.add.graphics()
     this.shade = this.add.graphics()
     this.overlay = this.add.graphics()
-    this.riskTxt = this.label((this.plot.l + this.plot.r) / 2, this.plot.t + 12, '', {
-      size: 12,
+    this.riskChip = this.add.graphics()
+    this.riskTxt = this.label((this.plot.l + this.plot.r) / 2, this.plot.t + 22, '', {
+      size: 13,
       col: C.muted,
       bold: true,
       align: 'center',
@@ -99,9 +101,9 @@ export default class PositionBuilderScene extends ModuleScene {
     g.lineBetween(this.plot.l, this.plot.b, this.plot.r, this.plot.b)
     this.label(this.plot.l - 6, y0, '0', { size: 11, col: C.muted, align: 'right' })
     this.add
-      .text(16, this.plot.t + this.plot.h / 2, 'P&L / share', {
+      .text(14, this.plot.t + this.plot.h / 2, 'P&L / share', {
         fontFamily: FONT,
-        fontSize: '11px',
+        fontSize: '12px',
         color: hex(C.muted),
       })
       .setOrigin(0.5)
@@ -125,7 +127,7 @@ export default class PositionBuilderScene extends ModuleScene {
     for (let yy = this.plot.t; yy < this.plot.b; yy += 12) {
       g.lineBetween(xk, yy, xk, Math.min(yy + 7, this.plot.b))
     }
-    this.label(xk, this.plot.t - 4, `K=${this.p.K}`, { size: 11, col: C.blue, bold: true, align: 'center' })
+    this.label(xk, this.plot.t - 6, `K=${this.p.K}`, { size: 13, col: C.blue, bold: true, align: 'center', bg: true })
   }
 
   private redraw(): void {
@@ -171,6 +173,20 @@ export default class PositionBuilderScene extends ModuleScene {
     const gainTxt = mg === Infinity ? 'unlimited' : `$${mg.toLocaleString()}`
     this.riskTxt.setText(`Max loss ${lossTxt} · Max gain ${gainTxt}`)
     this.riskTxt.setColor(hex(ml === Infinity ? C.red : C.muted))
+    // dynamic white chip behind the (centre-origin) risk readout
+    const t = this.riskTxt
+    const padX = 6
+    const padY = 3
+    this.riskChip.clear()
+    this.riskChip.fillStyle(C.white, 0.85)
+    this.riskChip.fillRoundedRect(
+      t.x - t.originX * t.width - padX,
+      t.y - t.originY * t.height - padY,
+      t.width + padX * 2,
+      t.height + padY * 2,
+      5,
+    )
+    this.children.moveBelow(this.riskChip, t)
   }
 
   // --- CALL/PUT + LONG/SHORT segmented toggles ------------------------------
@@ -236,7 +252,13 @@ export default class PositionBuilderScene extends ModuleScene {
       this.overlay.lineStyle(3, C.red)
       this.overlay.lineBetween(this.xFor(this.p.K), this.yFor(this.p.premium), xEdge, this.plot.t - 30)
       this.fadeIn(
-        this.label(xEdge - 6, this.plot.t - 24, '⚠ loss → ∞', { size: 12, col: C.red, bold: true, align: 'right' }),
+        this.label(xEdge - 6, this.plot.t - 24, '⚠ loss → ∞', {
+          size: 13,
+          col: C.red,
+          bold: true,
+          align: 'right',
+          bg: true,
+        }),
       )
     }
 

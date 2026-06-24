@@ -33,6 +33,7 @@ export default class IntroFlipScene extends ModuleScene {
   private readoutText!: Phaser.GameObjects.Text
   private pnlText!: Phaser.GameObjects.Text
   private capLabel!: Phaser.GameObjects.Text
+  private capChip!: Phaser.GameObjects.Graphics
 
   protected build(): void {
     const p = this.params as IntroFlipParams
@@ -92,7 +93,7 @@ export default class IntroFlipScene extends ModuleScene {
     // zero line in the middle
     const midY = this.meterY + this.meterH / 2
     this.dashedLine(this.meterX - 6, midY, this.meterX + this.meterW + 6, C.muted, 5, 4, 1)
-    this.label(this.meterX + this.meterW + 10, midY, '$0', { size: 11, col: C.muted })
+    this.label(this.meterX + this.meterW + 10, midY, '$0', { size: 12, col: C.muted })
     this.fill = this.add.graphics()
 
     // --- Price line (stylised, falling) drawn under the maxim ---
@@ -107,9 +108,13 @@ export default class IntroFlipScene extends ModuleScene {
     })
     this.fadeIn(cap, 1600)
 
+    // --- Readouts (sit above the control, clearly spaced) ---
+    this.readoutText = this.label(60, 240, '', { size: 13, col: C.ink })
+    this.pnlText = this.label(60, 264, '', { size: 16, bold: true, col: C.green })
+
     // --- Slider: future price ---
-    this.label(60, 290, 'Future price', { size: 13, col: C.ink, bold: true })
-    this.slider(60, 312, 300, this.min, this.max, this.future, (v) => {
+    this.label(60, 304, 'Future price', { size: 13, col: C.ink, bold: true })
+    this.slider(60, 326, 300, this.min, this.max, this.future, (v) => {
       this.future = v
       this.refresh()
     }, { step: 1, col: C.blue })
@@ -117,7 +122,7 @@ export default class IntroFlipScene extends ModuleScene {
     // --- Toggle: show a LONG instead ---
     this.button(
       150,
-      358,
+      370,
       'Show a LONG instead',
       () => {
         this.showLong = !this.showLong
@@ -126,17 +131,17 @@ export default class IntroFlipScene extends ModuleScene {
       { w: 200, h: 32, fill: C.blueSoft, textCol: C.blue },
     )
 
-    // --- Readouts ---
-    this.readoutText = this.label(60, 252, '', { size: 13, col: C.ink })
-    this.pnlText = this.label(60, 274, '', { size: 15, bold: true, col: C.green })
-
-    // Ceiling label sits at the top of the meter.
-    this.capLabel = this.label(this.meterX + this.meterW / 2, this.meterY + 8, '', {
-      size: 10,
+    // Ceiling label sits at the top of the meter (chip keeps it readable over the fill).
+    this.capLabel = this.label(this.meterX + this.meterW / 2, this.meterY + 16, '', {
+      size: 12,
+      bold: true,
       col: C.green,
       align: 'center',
     })
     this.capLabel.setAlpha(0)
+    this.capChip = this.add.graphics()
+    this.capChip.setAlpha(0)
+    this.children.moveBelow(this.capChip, this.capLabel)
 
     this.refresh()
     this.time.delayedCall(1800, () => this.emitReady())
@@ -198,8 +203,22 @@ export default class IntroFlipScene extends ModuleScene {
     if (!isLong && this.future <= this.min) {
       this.capLabel.setText('+100%\n(can\'t go below $0)')
       this.capLabel.setAlpha(1)
+      // chip behind the multi-line label so it stays readable over the meter fill
+      const padX = 6
+      const padY = 3
+      this.capChip.clear()
+      this.capChip.fillStyle(C.white, 0.9)
+      this.capChip.fillRoundedRect(
+        this.capLabel.x - this.capLabel.width / 2 - padX,
+        this.capLabel.y - this.capLabel.height / 2 - padY,
+        this.capLabel.width + padX * 2,
+        this.capLabel.height + padY * 2,
+        5,
+      )
+      this.capChip.setAlpha(1)
     } else {
       this.capLabel.setAlpha(0)
+      this.capChip.setAlpha(0)
     }
 
     // Readouts

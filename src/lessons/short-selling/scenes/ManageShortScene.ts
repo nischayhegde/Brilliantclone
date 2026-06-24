@@ -39,8 +39,13 @@ export default class ManageShortScene extends ModuleScene {
   private cumBorrow = 0
 
   private chartG!: Phaser.GameObjects.Graphics
-  private stopLine!: { line: Phaser.GameObjects.Graphics; knob: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text; price: number }
-  private targetLine!: { line: Phaser.GameObjects.Graphics; knob: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text; price: number }
+  private stopLine!: { line: Phaser.GameObjects.Graphics; knob: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text; chip: Phaser.GameObjects.Graphics; price: number }
+  private targetLine!: { line: Phaser.GameObjects.Graphics; knob: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text; chip: Phaser.GameObjects.Graphics; price: number }
+  private toastText!: Phaser.GameObjects.Text
+  private toastChip!: Phaser.GameObjects.Graphics
+  private entryG!: Phaser.GameObjects.Graphics
+  private entryChip!: Phaser.GameObjects.Graphics
+  private entryLabel!: Phaser.GameObjects.Text
 
   private dayText!: Phaser.GameObjects.Text
   private grossText!: Phaser.GameObjects.Text
@@ -56,8 +61,13 @@ export default class ManageShortScene extends ModuleScene {
     this.shares = p.shares ?? 100
     this.rate = p.rate ?? 0.3
 
-    this.label(this.W / 2, 20, 'Manage a live short', { size: 16, bold: true, col: C.ink, align: 'center' })
-    this.label(this.W / 2, 38, 'real price path · illustrative fee/margin overlays', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.W / 2, 16, 'Real price path · illustrative fee/margin overlays', { size: 12, col: C.muted, align: 'center' })
+
+    // Single persistent toast (recall / window-end messages reuse it — never stacks).
+    this.toastChip = this.add.graphics().setAlpha(0)
+    this.toastText = this.label(this.W / 2, 56, '', { size: 12, bold: true, col: C.blue, align: 'center' })
+    this.toastText.setAlpha(0)
+    this.children.moveBelow(this.toastChip, this.toastText)
 
     this.loadPath(this.candlesKey)
     this.buildOverlays()
@@ -97,23 +107,29 @@ export default class ManageShortScene extends ModuleScene {
     ax.lineBetween(this.plot.l, this.plot.b, this.plot.r, this.plot.b)
     this.chartG = this.add.graphics()
 
-    // entry line
-    const ey = this.yForPrice(this.entry)
-    this.dashedLine(this.plot.l, ey, this.plot.r, C.muted, 5, 4, 1)
-    this.label(this.plot.l + 4, ey - 10, `Entry (short) $${this.entry.toFixed(2)}`, { size: 11, bold: true, col: C.ink })
+    // entry line (redrawable so it re-seats when the path — and thus entry — changes)
+    this.entryG = this.add.graphics()
+    this.entryChip = this.add.graphics()
+    this.entryLabel = this.label(this.plot.l + 4, 0, '', { size: 12, bold: true, col: C.ink })
+    this.children.moveBelow(this.entryChip, this.entryLabel)
+    this.drawEntryLine()
 
-    // STOP line (buy-to-cover) above entry; TARGET below entry
-    this.stopLine = this.makeOrderLine(this.entry * 1.4, C.red, 'STOP (cover)')
-    this.targetLine = this.makeOrderLine(this.entry * 0.6, C.green, 'TARGET (cover)')
+    // STOP line (buy-to-cover) above entry; TARGET below entry. Clamp the initial
+    // placement INTO the visible price band so the dashed lines + labels start on-chart
+    // (a fixed entry×1.4 can otherwise land above pmax and render above the plot).
+    const { stop0, target0 } = this.defaultOrders()
+    this.stopLine = this.makeOrderLine(stop0, C.red, 'STOP (cover)')
+    this.targetLine = this.makeOrderLine(target0, C.green, 'TARGET (cover)')
 
     // readouts panel
-    this.panel(580, 70, 175, 170, { fill: C.gray100, stroke: C.hairline, radius: 10 })
-    this.dayText = this.label(592, 90, '', { size: 12, col: C.ink })
-    this.grossText = this.label(592, 116, '', { size: 12, bold: true, col: C.green })
-    this.borrowText = this.label(592, 142, '', { size: 12, col: C.red })
-    this.netText = this.label(592, 172, '', { size: 16, bold: true, col: C.green })
-    this.label(592, 196, 'net = gross − borrow', { size: 10, col: C.muted })
-    this.marginText = this.label(592, 220, '', { size: 11, col: C.muted })
+    this.panel(580, 70, 175, 184, { fill: C.gray100, stroke: C.hairline, radius: 10 })
+    this.dayText = this.label(592, 88, '', { size: 12, col: C.ink })
+    this.grossText = this.label(592, 112, '', { size: 12, bold: true, col: C.green })
+    this.borrowText = this.label(592, 136, '', { size: 12, col: C.red })
+    this.netText = this.label(592, 164, '', { size: 16, bold: true, col: C.green })
+    this.label(592, 186, 'net = gross − borrow', { size: 12, col: C.muted })
+    this.marginText = this.label(592, 212, '', { size: 12, col: C.muted })
+    this.marginText.setWordWrapWidth(160)
 
     // controls
     this.label(60, 330, `Shares: ${this.shares}`, { size: 12, bold: true, col: C.ink })
@@ -133,20 +149,24 @@ export default class ManageShortScene extends ModuleScene {
     tog.setInteractive({ useHandCursor: true })
     tog.on('pointerup', () => this.togglePath())
 
-    this.label(60, 360, 'Drag the dashed STOP (above) and TARGET (below) lines, choose a path, then Run.', {
-      size: 11,
+    this.label(60, 362, 'Drag the dashed STOP (above) and TARGET (below) lines, choose a path, then Run.', {
+      size: 12,
       col: C.muted,
     })
 
     this.refresh()
   }
 
-  private makeOrderLine(price: number, c: number, tag: string): { line: Phaser.GameObjects.Graphics; knob: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text; price: number } {
+  private makeOrderLine(price: number, c: number, tag: string): { line: Phaser.GameObjects.Graphics; knob: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text; chip: Phaser.GameObjects.Graphics; price: number } {
     const y = this.yForPrice(price)
     const line = this.dashedLine(this.plot.l, y, this.plot.r, c, 7, 5, 1.5)
+    const chip = this.add.graphics()
     const knob = this.add.circle(this.plot.r, y, 8, c).setStrokeStyle(2, C.white)
-    const label = this.label(this.plot.l + 4, y - 10, `${tag} $${price.toFixed(2)}`, { size: 11, bold: true, col: c })
-    const obj = { line, knob, label, price }
+    // Label rides on the RIGHT next to its knob so it never collides with the
+    // left-anchored "Entry (short)" label when the order sits close to entry.
+    const label = this.label(this.plot.r - 16, y - 11, `${tag} $${price.toFixed(2)}`, { size: 12, bold: true, col: c, align: 'right' })
+    this.children.moveBelow(chip, label)
+    const obj = { line, knob, label, chip, price }
     knob.setInteractive({ useHandCursor: true, draggable: true })
     this.input.setDraggable(knob)
     knob.on('drag', (_p: Phaser.Input.Pointer, _dx: number, dy: number) => {
@@ -157,17 +177,59 @@ export default class ManageShortScene extends ModuleScene {
       obj.price = np
       this.redrawOrderLine(obj, c, tag)
     })
+    this.redrawOrderLine(obj, c, tag)
     return obj
   }
 
-  private redrawOrderLine(obj: { line: Phaser.GameObjects.Graphics; knob: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text; price: number }, c: number, tag: string): void {
+  private redrawOrderLine(obj: { line: Phaser.GameObjects.Graphics; knob: Phaser.GameObjects.Arc; label: Phaser.GameObjects.Text; chip: Phaser.GameObjects.Graphics; price: number }, c: number, tag: string): void {
     const y = this.yForPrice(obj.price)
     obj.line.clear()
     obj.line.lineStyle(1.5, c)
     for (let x = this.plot.l; x < this.plot.r; x += 12) obj.line.lineBetween(x, y, Math.min(x + 7, this.plot.r), y)
     obj.knob.y = y
-    obj.label.setY(y - 10)
+    obj.label.setY(y - 11)
     obj.label.setText(`${tag} $${obj.price.toFixed(2)}`)
+    // chip behind the moving STOP/TARGET label so it reads over the candles + entry
+    // line. Label is right-aligned (origin x = 1), so its left edge = x − width.
+    const padX = 5
+    const padY = 2
+    obj.chip.clear()
+    obj.chip.fillStyle(C.white, 0.9)
+    obj.chip.fillRoundedRect(
+      obj.label.x - obj.label.width - padX,
+      obj.label.y - obj.label.height / 2 - padY,
+      obj.label.width + padX * 2,
+      obj.label.height + padY * 2,
+      4,
+    )
+  }
+
+  private drawEntryLine(): void {
+    const ey = this.yForPrice(this.entry)
+    this.entryG.clear()
+    this.entryG.lineStyle(1, C.muted)
+    for (let x = this.plot.l; x < this.plot.r; x += 9) this.entryG.lineBetween(x, ey, Math.min(x + 5, this.plot.r), ey)
+    this.entryLabel.setY(ey - 11)
+    this.entryLabel.setText(`Entry (short) $${this.entry.toFixed(2)}`)
+    const padX = 5
+    const padY = 2
+    this.entryChip.clear()
+    this.entryChip.fillStyle(C.white, 0.9)
+    this.entryChip.fillRoundedRect(
+      this.entryLabel.x - padX,
+      this.entryLabel.y - this.entryLabel.height / 2 - padY,
+      this.entryLabel.width + padX * 2,
+      this.entryLabel.height + padY * 2,
+      4,
+    )
+  }
+
+  /** Sensible STOP (above entry) / TARGET (below entry) defaults inside the price band. */
+  private defaultOrders(): { stop0: number; target0: number } {
+    return {
+      stop0: Math.min(this.entry * 1.4, this.entry + (this.pmax - this.entry) * 0.7),
+      target0: Math.max(this.entry * 0.6, this.entry - (this.entry - this.pmin) * 0.7),
+    }
   }
 
   private togglePath(): void {
@@ -180,6 +242,12 @@ export default class ManageShortScene extends ModuleScene {
     this.cumBorrow = 0
     this.closed = false
     this.chartG.clear()
+    this.drawEntryLine()
+    // Re-seat STOP/TARGET into the NEW path's price scale (entry/pmin/pmax changed), so
+    // they don't keep stale prices from the previous chart (e.g. a $97 stop on a $10 GME).
+    const { stop0, target0 } = this.defaultOrders()
+    this.stopLine.price = stop0
+    this.targetLine.price = target0
     this.redrawOrderLine(this.stopLine, C.red, 'STOP (cover)')
     this.redrawOrderLine(this.targetLine, C.green, 'TARGET (cover)')
     this.refresh()
@@ -251,7 +319,9 @@ export default class ManageShortScene extends ModuleScene {
     const x = this.xForDay(Math.min(this.day, this.candles.length - 1))
     const y = this.yForPrice(price)
     this.add.circle(x, y, 6, c).setStrokeStyle(2, C.white)
-    this.fadeIn(this.label(x, y - 16, tag, { size: 11, bold: true, col: c, align: 'center' }))
+    // keep the tag inside the plot horizontally; chip so it reads over the candles
+    const lx = Math.min(this.plot.r - 36, Math.max(this.plot.l + 36, x))
+    this.fadeIn(this.label(lx, y - 18, tag, { size: 12, bold: true, col: c, align: 'center', bg: true }))
     this.refresh(price)
   }
 
@@ -269,13 +339,29 @@ export default class ManageShortScene extends ModuleScene {
     const proceeds = this.entry * this.shares
     const equity = proceeds * 0.5 + proceeds - px * this.shares
     const maint = 0.3 * px * this.shares
-    this.marginText.setText(`Equity $${equity.toFixed(0)} vs maint $${maint.toFixed(0)}${equity < maint ? ' ⚠ CALL' : ''}`)
+    this.marginText.setText(`Equity $${equity.toFixed(0)} · maint $${maint.toFixed(0)}${equity < maint ? '\n⚠ MARGIN CALL' : ''}`)
     this.marginText.setColor(hex(color(equity < maint ? C.red : C.muted)))
   }
 
   private toast(text: string, c: number): void {
-    const t = this.label(this.W / 2, 56, text, { size: 12, bold: true, col: c, align: 'center' })
-    this.fadeIn(t)
-    this.tweens.add({ targets: t, alpha: 0, delay: 2200, duration: 600 })
+    // Reuse the single persistent toast text + chip so repeated calls never stack.
+    this.tweens.killTweensOf(this.toastText)
+    this.tweens.killTweensOf(this.toastChip)
+    this.toastText.setText(text)
+    this.toastText.setColor(hex(c))
+    const padX = 7
+    const padY = 3
+    this.toastChip.clear()
+    this.toastChip.fillStyle(C.white, 0.92)
+    this.toastChip.fillRoundedRect(
+      this.toastText.x - this.toastText.width / 2 - padX,
+      this.toastText.y - this.toastText.height / 2 - padY,
+      this.toastText.width + padX * 2,
+      this.toastText.height + padY * 2,
+      5,
+    )
+    this.toastText.setAlpha(1)
+    this.toastChip.setAlpha(1)
+    this.tweens.add({ targets: [this.toastText, this.toastChip], alpha: 0, delay: 2200, duration: 600 })
   }
 }

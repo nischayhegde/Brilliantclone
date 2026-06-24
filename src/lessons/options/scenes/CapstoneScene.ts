@@ -31,13 +31,19 @@ export default class CapstoneScene extends PayoffScene {
     ;(this.params as PayoffParams).legToggles = false
     super.build()
 
-    // readout panel (right side, below the risk badge)
-    this.readoutPanel = this.add.text(this.plot.r - 226, this.plot.t + 42, '', {
+    // readout panel (right side, below the risk badge) — in ONE fixed bg panel so its
+    // six lines stay legible over the curve/shading and never overlap the axis labels.
+    const rpW = 226
+    const rpH = 142
+    const rpX = this.plot.r - rpW
+    const rpY = this.plot.t + 40
+    this.panel(rpX, rpY, rpW, rpH, { fill: C.white, stroke: C.blue, radius: 10, alpha: 0.95 })
+    this.readoutPanel = this.add.text(rpX + 12, rpY + 12, '', {
       fontFamily: FONT,
-      fontSize: '12px',
+      fontSize: '13px',
       color: hex(C.ink),
-      lineSpacing: 4,
-      wordWrap: { width: 224 },
+      lineSpacing: 5,
+      wordWrap: { width: rpW - 24 },
     })
 
     // control strip below the plot (plot.b is at H-76)
@@ -65,8 +71,8 @@ export default class CapstoneScene extends PayoffScene {
       this.refreshAll()
     }, { step: 0.5 })
 
-    this.challengeTxt = this.label(40, 42, '', { size: 12, col: C.blue, bold: true })
-    this.challengeTxt.setWordWrapWidth(360)
+    this.challengeTxt = this.label(40, 40, '', { size: 13, col: C.blue, bold: true })
+    this.challengeTxt.setWordWrapWidth(440)
     this.updateReadout()
   }
 
@@ -102,19 +108,22 @@ export default class CapstoneScene extends PayoffScene {
       ].join('\n'),
     )
 
-    // challenge feedback: "bullish with defined (capped) risk" → long call
-    const defined = ml !== Infinity
-    const bullish = (this.p.type === 'call' && this.p.side === 'long') || (this.p.type === 'put' && this.p.side === 'short')
-    if (bullish && defined && this.p.type === 'call') {
+    // Challenge feedback: the target is a long call (bullish, defined risk, the leg the
+    // embedded P&L check is built on). Every branch states an accurate fact about the leg.
+    if (this.p.type === 'call' && this.p.side === 'long') {
       this.challengeTxt.setText('✓ Bullish with DEFINED risk — a long call. Nice.').setColor(hex(C.green))
-    } else if (bullish && !defined) {
+    } else if (this.p.type === 'call' && this.p.side === 'short') {
+      this.challengeTxt.setText('Short call: Max loss = UNLIMITED — not defined risk (module 11).').setColor(hex(C.red))
+    } else if (this.p.type === 'put' && this.p.side === 'short') {
+      // A short put IS bullish and its loss IS capped — just nudge toward the target leg.
       this.challengeTxt
-        .setText('Bullish, but a SHORT PUT has large/undefined-feeling risk — not "defined".')
-        .setColor(hex(C.red))
-    } else if (this.p.side === 'short' && this.p.type === 'call') {
-      this.challengeTxt.setText('Short call: Max loss = UNLIMITED — not defined-risk (module 11).').setColor(hex(C.red))
+        .setText(`Short put: bullish, and its risk is capped at ${lossTxt} — but the classic defined-risk bullish play is the long call.`)
+        .setColor(hex(C.blue))
     } else {
-      this.challengeTxt.setText('Goal: build a BULLISH position with DEFINED (capped) risk.').setColor(hex(C.blue))
+      // long put = bearish
+      this.challengeTxt
+        .setText('A long put is BEARISH (it profits when S falls). Aim for a bullish, defined-risk leg.')
+        .setColor(hex(C.blue))
     }
   }
 
@@ -141,11 +150,11 @@ export default class CapstoneScene extends PayoffScene {
     const sign = (n: number) => `${n >= 0 ? '+' : '−'}`
     const tag = this.label(
       x,
-      y + (vShare >= 0 ? -18 : 18),
+      y + (vShare >= 0 ? -20 : 20),
       `S=${S}: ${sign(vShare)}${Math.abs(vShare).toFixed(2)}/sh = ${sign(vContract)}$${Math.abs(vContract).toFixed(
         0,
       )}/contract`,
-      { size: 11, col, bold: true, align: 'center' },
+      { size: 13, col, bold: true, align: 'center', bg: true },
     )
     tag.setAlpha(0)
     this.tweens.add({ targets: tag, alpha: 1, duration: 300, delay: 200 })
@@ -160,16 +169,16 @@ export default class CapstoneScene extends PayoffScene {
       'hockey-stick payoff · breakeven = K ± premium',
       'delta & leverage vs the underlying',
     ]
-    const panel = this.panel(this.plot.l + 40, this.plot.t + 60, 360, 96, {
+    const panel = this.panel(this.plot.l + 40, this.plot.t + 64, 372, 108, {
       fill: C.blueSoft,
       stroke: C.blue,
       radius: 10,
     })
     panel.setAlpha(0)
     this.tweens.add({ targets: panel, alpha: 1, duration: 300, delay: 600 })
-    this.label(this.plot.l + 56, this.plot.t + 78, 'LESSON RECAP', { size: 11, col: C.blue, bold: true }).setAlpha(0)
+    this.label(this.plot.l + 56, this.plot.t + 84, 'LESSON RECAP', { size: 13, col: C.blue, bold: true }).setAlpha(0)
     lines.forEach((ln, i) => {
-      const t = this.label(this.plot.l + 56, this.plot.t + 98 + i * 18, `• ${ln}`, { size: 12, col: C.ink })
+      const t = this.label(this.plot.l + 56, this.plot.t + 108 + i * 20, `• ${ln}`, { size: 13, col: C.ink })
       t.setAlpha(0)
       this.tweens.add({ targets: t, alpha: 1, duration: 300, delay: 900 + i * 400 })
     })

@@ -55,16 +55,11 @@ export default class PayoffChallengeScene extends ModuleScene {
     this.shares = p.shares ?? 100
     this.price = p.startPrice ?? this.entry
 
-    this.label(this.W / 2, 22, 'Drag the future price up', {
-      size: 16,
-      bold: true,
-      col: C.ink,
-      align: 'center',
-    })
-    this.label(this.W / 2, 42, 'illustrative simulation · payoff math exact', {
-      size: 11,
+    // Top-left corner, clear of the diagonal payoff lines exiting the plot top.
+    this.label(12, 14, 'Illustrative simulation · payoff math exact', {
+      size: 12,
       col: C.muted,
-      align: 'center',
+      align: 'left',
     })
 
     this.drawAxes()
@@ -108,28 +103,29 @@ export default class PayoffChallengeScene extends ModuleScene {
     const yZero = this.yForPnl(0)
     g.lineStyle(1.5, C.muted, 0.6)
     g.lineBetween(this.plot.l, yZero, this.plot.r, yZero)
-    this.label(this.plot.r + 4, yZero, '$0', { size: 11, col: C.muted })
+    this.label(this.plot.r + 4, yZero, '$0', { size: 12, col: C.muted })
 
     // breakeven vertical at entry
     const xE = this.xForPrice(this.entry)
     const gv = this.add.graphics()
     gv.lineStyle(1.5, C.blue, 0.5)
     gv.lineBetween(xE, this.plot.t, xE, this.plot.b)
-    this.label(xE, this.plot.b + 14, `entry $${this.entry}`, { size: 11, col: C.blue, align: 'center' })
+    this.label(xE, this.plot.b + 34, `entry $${this.entry}`, { size: 12, col: C.blue, align: 'center', bg: true })
 
     // LONG floor: −(entry·shares). The most a long can EVER lose.
     const yFloor = this.yForPnl(-this.longMaxLoss())
     this.dashedLine(this.plot.l, yFloor, this.plot.r, C.green, 6, 5, 1.4)
-    this.label(this.plot.l + 4, yFloor - 10, `Long's MAX loss −$${this.longMaxLoss().toFixed(0)} (floored)`, {
-      size: 11,
+    this.label(this.plot.l + 4, yFloor - 11, `Long's MAX loss −$${this.longMaxLoss().toFixed(0)} (floored)`, {
+      size: 12,
       bold: true,
       col: C.green,
+      bg: true,
     })
 
     // x labels
     for (let pr = 0; pr <= this.priceMax; pr += this.priceMax / 5) {
-      this.label(this.xForPrice(pr), this.plot.b + 2, `$${pr.toFixed(0)}`, {
-        size: 10,
+      this.label(this.xForPrice(pr), this.plot.b + 16, `$${pr.toFixed(0)}`, {
+        size: 12,
         col: C.muted,
         align: 'center',
       })
@@ -151,10 +147,13 @@ export default class PayoffChallengeScene extends ModuleScene {
       } else s.lineTo(x, y)
     }
     s.strokePath()
-    this.label(this.plot.r - 70, this.yForPnl(this.shortPnl(this.priceMax)) + 12, 'SHORT ↓ no floor', {
-      size: 11,
+    // Pin the SHORT label on its tail but kept inside the plot (the tail bottoms out at
+    // the band floor), so it never collides with the x-axis price row below.
+    this.label(this.plot.r - 150, this.plot.b - 16, 'SHORT ↓ no floor', {
+      size: 12,
       bold: true,
       col: C.red,
+      bg: true,
     })
 
     // LONG (green): rises with price, but loss floored at −entry·shares.
@@ -172,19 +171,20 @@ export default class PayoffChallengeScene extends ModuleScene {
     }
     l.strokePath()
     // Long line exits the top of the band well before priceMax; pin its label at the top.
-    this.label(this.plot.r - 70, this.plot.t + 8, 'LONG ↑ no ceiling', {
-      size: 11,
+    this.label(this.plot.r - 150, this.plot.t + 8, 'LONG ↑ no ceiling', {
+      size: 12,
       bold: true,
       col: C.green,
+      bg: true,
     })
   }
 
   private drawReadouts(): void {
     this.label(574, 70, 'Future price', { size: 12, bold: true, col: C.ink })
     this.priceReadout = this.label(574, 92, '', { size: 16, bold: true, col: C.blue })
-    this.label(574, 128, 'SHORT P&L', { size: 11, bold: true, col: C.muted })
+    this.label(574, 128, 'SHORT P&L', { size: 12, bold: true, col: C.muted })
     this.shortReadout = this.label(574, 146, '', { size: 14, bold: true, col: C.red })
-    this.label(574, 178, 'LONG P&L', { size: 11, bold: true, col: C.muted })
+    this.label(574, 178, 'LONG P&L', { size: 12, bold: true, col: C.muted })
     this.longReadout = this.label(574, 196, '', { size: 14, bold: true, col: C.green })
     this.flag = this.label(574, 238, '', { size: 12, bold: true, col: C.red })
     this.flag.setWordWrapWidth(170)

@@ -54,8 +54,13 @@ export default class VolLabScene extends ModuleScene {
   private curveG!: Phaser.GameObjects.Graphics
   private shadeG!: Phaser.GameObjects.Graphics
   private beG!: Phaser.GameObjects.Graphics
+  /** Persistent breakeven marker labels (lower, upper) — created once, repositioned. */
+  private beLabelLo!: Phaser.GameObjects.Text
+  private beLabelHi!: Phaser.GameObjects.Text
+  private beChip!: Phaser.GameObjects.Graphics
   private dot!: Phaser.GameObjects.Arc
   private dotLabel!: Phaser.GameObjects.Text
+  private dotChip!: Phaser.GameObjects.Graphics
   private readoutTexts: Phaser.GameObjects.Text[] = []
   private flagText!: Phaser.GameObjects.Text
   private flagPanel!: Phaser.GameObjects.Graphics
@@ -78,20 +83,25 @@ export default class VolLabScene extends ModuleScene {
   ]
 
   protected build(): void {
-    this.label(20, 14, 'Volatility Lab — tune the whole trade', { size: 15, bold: true, col: C.ink })
+    this.label(20, 14, 'Volatility Lab — tune the whole trade', { size: this.fs(15, 14, 18), bold: true, col: C.ink })
 
     this.shadeG = this.add.graphics()
     this.curveG = this.add.graphics()
     this.beG = this.add.graphics()
     this.dot = this.add.circle(0, 0, 9, C.blue).setStrokeStyle(3, C.white)
-    this.dotLabel = this.label(0, 0, '', { size: 12, col: C.ink, bold: true, align: 'center' })
+    this.dotChip = this.add.graphics()
+    this.dotLabel = this.label(0, 0, '', { size: this.fs(13, 12, 16), col: C.ink, bold: true, align: 'center' })
+    // persistent BE labels: lower rides higher, upper lower, so they never collide; chipped
+    this.beChip = this.add.graphics()
+    this.beLabelLo = this.label(0, this.plot.t + 8, '', { size: this.fs(12, 12, 15), col: C.blueDark, bold: true, align: 'center' })
+    this.beLabelHi = this.label(0, this.plot.t + 26, '', { size: this.fs(12, 12, 15), col: C.blueDark, bold: true, align: 'center' })
 
     this.drawStaticAxes()
     this.buildControls()
     this.redraw()
 
-    this.label(20, this.H - 14, 'Build a winner, then build one where the stock moves and you still lose. Drag the dials; the breakevens decide.', {
-      size: 11, col: C.muted,
+    this.label(20, this.H - 12, 'Build a winner, then one where the stock moves and you still lose. Drag the dials; the breakevens decide.', {
+      size: this.fs(12, 12, 15), col: C.muted,
     })
     this.time.delayedCall(600, () => this.emitReady())
   }
@@ -122,9 +132,9 @@ export default class VolLabScene extends ModuleScene {
       const x = this.xFor(px)
       g.lineStyle(1, C.gray100)
       g.lineBetween(x, this.plot.t, x, this.plot.b)
-      this.label(x, this.plot.b + 12, fmt(px), { size: 10, col: C.muted, align: 'center' })
+      this.label(x, this.plot.b + 13, fmt(px), { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
     }
-    this.label(this.plot.l + (this.plot.r - this.plot.l) / 2, this.plot.b + 26, 'stock price at expiry', { size: 10, col: C.muted, align: 'center' })
+    this.label(this.plot.l + (this.plot.r - this.plot.l) / 2, this.plot.b + 28, 'stock price at expiry', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
   }
 
   // --- redraw ---------------------------------------------------------------
@@ -162,11 +172,19 @@ export default class VolLabScene extends ModuleScene {
     // strikes + breakevens
     const be = breakevens(legs)
     for (const k of [...new Set(legs.map((l) => l.K))]) this.dashV(this.beG, this.xFor(k), this.plot.t, this.plot.b, C.blue, 0.4)
-    for (const [px, lab] of [[be.lower, 'BE ' + fmt(be.lower)], [be.upper, 'BE ' + fmt(be.upper)]] as const) {
-      const x = this.xFor(px)
-      this.dashV(this.beG, x, this.plot.t, this.plot.b, C.blue, 1, 8, 6)
-      this.label(x, this.plot.t - 2, lab, { size: 10, col: C.blue, bold: true, align: 'center' })
+    this.dashV(this.beG, this.xFor(be.lower), this.plot.t, this.plot.b, C.blue, 1, 8, 6)
+    this.dashV(this.beG, this.xFor(be.upper), this.plot.t, this.plot.b, C.blue, 1, 8, 6)
+    // reposition the persistent (non-stacking) BE labels + redraw their chips
+    this.beLabelLo.setText('BE ' + fmt(be.lower)).setPosition(this.xFor(be.lower), this.plot.t + 8)
+    this.beLabelHi.setText('BE ' + fmt(be.upper)).setPosition(this.xFor(be.upper), this.plot.t + 28)
+    this.beChip.clear()
+    for (const t of [this.beLabelLo, this.beLabelHi]) {
+      const padX = 5
+      const padY = 3
+      this.beChip.fillStyle(C.white, 0.88)
+      this.beChip.fillRoundedRect(t.x - t.width / 2 - padX, t.y - t.height / 2 - padY, t.width + padX * 2, t.height + padY * 2, 5)
     }
+    this.children.moveBelow(this.beChip, this.beLabelLo)
     this.updateDot()
     this.updateReadout()
   }
@@ -180,7 +198,21 @@ export default class VolLabScene extends ModuleScene {
     this.dot.setPosition(x, y)
     const profit = pnl > 0.001
     this.dot.setFillStyle(profit ? C.green : pnl < -0.001 ? C.red : C.blue)
-    this.dotLabel.setText(`S=${fmt(this.S)}`).setPosition(x, y - 16).setColor(hex(profit ? C.green : C.red))
+    const clampedX = Phaser.Math.Clamp(x, this.plot.l + 24, this.plot.r - 24)
+    this.dotLabel.setText(`S=${fmt(this.S)}`).setPosition(clampedX, y - 16).setColor(hex(profit ? C.greenText : C.red))
+    // chip tracks the moving readout
+    const padX = 6
+    const padY = 3
+    this.dotChip.clear()
+    this.dotChip.fillStyle(C.white, 0.88)
+    this.dotChip.fillRoundedRect(
+      this.dotLabel.x - this.dotLabel.width / 2 - padX,
+      this.dotLabel.y - this.dotLabel.height / 2 - padY,
+      this.dotLabel.width + padX * 2,
+      this.dotLabel.height + padY * 2,
+      5,
+    )
+    this.children.moveBelow(this.dotChip, this.dotLabel)
   }
 
   private updateReadout(): void {
@@ -200,7 +232,7 @@ export default class VolLabScene extends ModuleScene {
     // bold flag
     const win = pnl > 0
     this.flagText.setText(win ? (short ? 'STAYED INSIDE → profit' : 'CLEARED a breakeven → profit') : (short ? 'BROKE OUT → loss' : 'inside breakevens → loss'))
-    this.flagText.setColor(hex(win ? C.green : C.red))
+    this.flagText.setColor(hex(win ? C.greenText : C.red))
     this.flagPanel.clear()
     this.flagPanel.fillStyle(win ? C.greenSoft : C.redSoft, 1)
     this.flagPanel.fillRoundedRect(this.flagText.x - 8, this.flagText.y - 13, this.flagText.width + 16, 26, 8)
@@ -214,52 +246,67 @@ export default class VolLabScene extends ModuleScene {
   // --- controls -------------------------------------------------------------
   private buildControls(): void {
     const px = 500
+    const muteFs = this.fs(12, 12, 15)
+    const labelFs = this.fs(13, 12, 16)
     // structure toggle
-    this.label(px, 40, 'Structure', { size: 11, col: C.muted })
+    this.label(px, 40, 'Structure', { size: muteFs, col: C.muted })
     this.structBtns = [
       this.button(px + 50, 60, 'Straddle', () => this.setStructure('straddle'), { w: 92, h: 26 }),
       this.button(px + 150, 60, 'Strangle', () => this.setStructure('strangle'), { w: 92, h: 26, fill: C.gray200, textCol: C.ink }),
     ]
     // side toggle
-    this.label(px, 88, 'Side', { size: 11, col: C.muted })
+    this.label(px, 88, 'Side', { size: muteFs, col: C.muted })
     this.sideBtns = [
       this.button(px + 50, 108, 'Long', () => this.setSide('long'), { w: 92, h: 26 }),
       this.button(px + 150, 108, 'Short', () => this.setSide('short'), { w: 92, h: 26, fill: C.gray200, textCol: C.ink }),
     ]
 
-    // sliders
-    this.kLabel = this.label(px, 140, '', { size: 11, col: C.ink, bold: true })
-    this.kSlider = this.slider(px, 158, 200, 90, 110, this.K, (v) => { this.K = v; this.refreshLabels(); this.redraw() }, { step: 1 })
+    // sliders (amber dials — the live "act on me" affordance)
+    this.kLabel = this.label(px, 140, '', { size: labelFs, col: C.ink, bold: true })
+    this.kSlider = this.slider(px, 158, 200, 90, 110, this.K, (v) => { this.K = v; this.refreshLabels(); this.redraw() }, { step: 1, col: C.amber })
 
-    this.spreadLabel = this.label(px, 184, '', { size: 11, col: C.ink, bold: true })
+    this.spreadLabel = this.label(px, 184, '', { size: labelFs, col: C.ink, bold: true })
     this.spreadSlider = this.slider(px, 202, 200, 3, 12, (this.Kc - this.Kp) / 2, (v) => {
       this.Kp = 100 - v; this.Kc = 100 + v; this.refreshLabels(); this.redraw()
-    }, { step: 1 })
+    }, { step: 1, col: C.amber })
 
-    this.premLabel = this.label(px, 228, '', { size: 11, col: C.ink, bold: true })
-    this.premSlider = this.slider(px, 246, 200, 1, 14, this.total, (v) => { this.total = v; this.refreshLabels(); this.redraw() }, { step: 0.5 })
+    this.premLabel = this.label(px, 228, '', { size: labelFs, col: C.ink, bold: true })
+    this.premSlider = this.slider(px, 246, 200, 1, 14, this.total, (v) => { this.total = v; this.refreshLabels(); this.redraw() }, { step: 0.5, col: C.amber })
 
-    this.moveLabel = this.label(px, 272, '', { size: 11, col: C.ink, bold: true })
-    this.moveSlider = this.slider(px, 290, 200, 80, 120, this.S, (v) => { this.S = v; this.refreshLabels(); this.updateDot(); this.updateReadout() }, { step: 0.5 })
+    this.moveLabel = this.label(px, 272, '', { size: labelFs, col: C.ink, bold: true })
+    this.moveSlider = this.slider(px, 290, 200, 80, 120, this.S, (v) => { this.S = v; this.refreshLabels(); this.updateDot(); this.updateReadout() }, { step: 0.5, col: C.amber })
 
-    // readouts (bottom-left)
-    const ry = 300
+    // --- readout cluster: ONE fixed bg panel, non-overlapping lines (bottom-left) ---
+    // Width stops short of the right control column so the preset buttons (x≈398+) never
+    // sit on top of the panel.
+    const panelX = 14
+    const panelY = 286
+    const panelW = 372
+    const panelH = 150
+    this.panel(panelX, panelY, panelW, panelH, { fill: C.gray100, stroke: C.hairline, radius: 12 })
+    const tx = panelX + 14
+    const ry = panelY + 18
     this.readoutTexts = [
-      this.label(20, ry, '', { size: 12, col: C.blue, bold: true }),
-      this.label(20, ry + 20, '', { size: 12, col: C.blue, bold: true }),
-      this.label(20, ry + 40, '', { size: 12, col: C.ink, bold: true }),
+      this.label(tx, ry, '', { size: labelFs, col: C.blueDark, bold: true }),
+      this.label(tx, ry + 24, '', { size: labelFs, col: C.blueDark, bold: true }),
+      this.label(tx, ry + 48, '', { size: labelFs, col: C.ink, bold: true }),
     ]
     this.flagPanel = this.add.graphics()
-    this.flagText = this.label(28, ry + 70, '', { size: 13, bold: true })
-    this.riskText = this.label(20, ry + 96, '', { size: 11, col: C.muted })
+    this.flagText = this.label(tx + 8, ry + 80, '', { size: labelFs, bold: true })
+    this.riskText = this.label(tx, ry + 110, '', { size: muteFs, col: C.muted })
 
     // presets
-    this.label(px, 318, 'Presets', { size: 11, col: C.muted })
+    this.label(px, 318, 'Presets', { size: muteFs, col: C.muted })
     this.presets.forEach((preset, i) => {
-      this.button(px + 8 + (i * 0), 340 + i * 30, preset.name, () => this.loadPreset(preset), {
-        w: 220, h: 24, fill: C.blueSoft, textCol: C.blue,
+      this.button(px + 8, 340 + i * 30, preset.name, () => this.loadPreset(preset), {
+        w: 220, h: 24, fill: C.amberSoft, textCol: C.amberInk,
       })
     })
+
+    // Apply the active-button highlight for the defaults so the selected structure/side
+    // reads as active from the start (not only after the first click).
+    this.highlight(this.structBtns, this.structure === 'straddle' ? 0 : 1)
+    this.highlight(this.sideBtns, this.side === 'long' ? 0 : 1)
 
     this.refreshLabels()
   }

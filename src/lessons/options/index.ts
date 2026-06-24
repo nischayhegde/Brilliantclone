@@ -14,8 +14,10 @@ import CapstoneScene from './scenes/CapstoneScene'
  * LESSON 4 — "Option Contracts: American Calls & Puts" (planning/Lesson4Spec.md).
  *
  * 15 modules: the right (not obligation) on 100 shares → calls vs puts → premium =
- * intrinsic + time → theta → the four hockey-stick payoffs & breakevens → the
- * writer's side → delta & leverage → exercise/assignment → a build-and-read capstone.
+ * intrinsic + time → theta → exercise style & the exercise/sell/expire decision → the
+ * four hockey-stick payoffs & breakevens → the writer's side → delta & leverage → a
+ * build-and-read capstone. Premium anatomy (intrinsic/time, theta) comes BEFORE the
+ * exercise modules so "early exercise forfeits time value" already has its terms.
  *
  * INTEGRITY: underlying anchors are real plausible levels; every premium / IV / theta
  * / delta is an ILLUSTRATIVE deterministic example (labelled in-scene). All payoff,
@@ -79,23 +81,9 @@ const modules: ModuleSpec[] = [
     },
   },
 
-  // 4 — TEACH American vs European -----------------------------------------
+  // 4 — TEACH premium = intrinsic + time -----------------------------------
   {
     id: 4,
-    type: 'teach',
-    kicker: 'Teach · 90-day call',
-    title: 'American vs European Style',
-    intro:
-      'American options exercise ANYTIME to expiry; European only AT expiry. Drag the "exercise now" marker — early exercise usually forfeits time value (with two special-case exceptions).',
-    scene: { kind: 'timeline', params: { variant: 'timeline', intrinsicNow: 6, timeValueNow: 2 } },
-    caption:
-      'American = exercise anytime; European = only at expiry. Equity options are usually American, but early exercise normally wastes time value — selling-to-close keeps it. Exceptions: a deep-ITM call before a dividend, and a deep-ITM put (to earn interest on the strike cash now). (Time-value figures illustrative; the trade-off logic is exact.)',
-    cta: 'Got it',
-  },
-
-  // 5 — TEACH premium = intrinsic + time -----------------------------------
-  {
-    id: 5,
     type: 'teach',
     kicker: 'Teach · CALL K=100',
     title: 'Premium = Intrinsic + Time Value',
@@ -107,9 +95,9 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 6 — CHALLENGE split the premium ----------------------------------------
+  // 5 — CHALLENGE split the premium ----------------------------------------
   {
-    id: 6,
+    id: 5,
     type: 'challenge',
     kicker: 'Challenge · CALL K=100, S=107',
     title: 'How Much Is Real Value?',
@@ -126,9 +114,9 @@ const modules: ModuleSpec[] = [
     },
   },
 
-  // 7 — TEACH theta ---------------------------------------------------------
+  // 6 — TEACH theta ---------------------------------------------------------
   {
-    id: 7,
+    id: 6,
     type: 'teach',
     kicker: 'Teach · CALL K=100, S=105',
     title: 'Theta: Time Value Decays to Zero',
@@ -140,9 +128,39 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 8 — TEACH long payoffs --------------------------------------------------
+  // 7 — TEACH American vs European -----------------------------------------
+  {
+    id: 7,
+    type: 'teach',
+    kicker: 'Teach · 90-day call',
+    title: 'American vs European Style',
+    intro:
+      'American options exercise ANYTIME to expiry; European only AT expiry. Drag the "exercise now" marker — early exercise usually forfeits time value (with two special-case exceptions).',
+    scene: { kind: 'timeline', params: { variant: 'timeline', intrinsicNow: 6, timeValueNow: 2 } },
+    caption:
+      'American = exercise anytime; European = only at expiry. Equity options are usually American, but early exercise normally wastes time value — selling-to-close keeps it. Exceptions: a deep-ITM call before a dividend, and a deep-ITM put (to earn interest on the strike cash now). (Time-value figures illustrative; the trade-off logic is exact.)',
+    cta: 'Got it',
+  },
+
+  // 8 — CHALLENGE exercise/sell/expire ------------------------------------
   {
     id: 8,
+    type: 'challenge',
+    kicker: 'Challenge · ITM call worth 8.00',
+    title: 'Exercise, Sell, or Let It Expire?',
+    intro:
+      'You hold an ITM call worth 8.00 (intrinsic 6.00, time value 2.00) with a week left, and you want out now. Pick one of the three action doors, then Submit to open them and see what each keeps.',
+    scene: { kind: 'timeline', params: { variant: 'doors', intrinsicNow: 6, timeValueNow: 2, challenge: true } },
+    challenge: {
+      prompt: 'You want out of an ITM call (intrinsic 6.00, time value 2.00). Which action keeps the most value?',
+      instructions: 'Tap Exercise, Sell-to-close, or Let it expire — then Submit.',
+      submitLabel: 'Open the doors',
+    },
+  },
+
+  // 9 — TEACH long payoffs --------------------------------------------------
+  {
+    id: 9,
     type: 'teach',
     kicker: 'Teach · long call/put',
     title: 'Long Call & Long Put Payoffs (with Breakevens)',
@@ -157,9 +175,9 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 9 — CHALLENGE breakeven -------------------------------------------------
+  // 10 — CHALLENGE breakeven -------------------------------------------------
   {
-    id: 9,
+    id: 10,
     type: 'challenge',
     kicker: 'Challenge · CALL K=50, prem 2.50',
     title: 'Find the Breakeven',
@@ -186,9 +204,9 @@ const modules: ModuleSpec[] = [
     },
   },
 
-  // 10 — TEACH writer's side -----------------------------------------------
+  // 11 — TEACH writer's side -----------------------------------------------
   {
-    id: 10,
+    id: 11,
     type: 'teach',
     kicker: 'Teach · short call/put',
     title: "The Writer's Side: Short Call & Short Put",
@@ -214,9 +232,9 @@ const modules: ModuleSpec[] = [
     cta: 'Got it',
   },
 
-  // 11 — CHALLENGE unlimited risk ------------------------------------------
+  // 12 — CHALLENGE unlimited risk ------------------------------------------
   {
-    id: 11,
+    id: 12,
     type: 'challenge',
     kicker: 'Challenge · build a leg',
     title: 'Who Has Unlimited Risk?',
@@ -230,9 +248,9 @@ const modules: ModuleSpec[] = [
     },
   },
 
-  // 12 — INTERACTIVE delta --------------------------------------------------
+  // 13 — INTERACTIVE delta --------------------------------------------------
   {
-    id: 12,
+    id: 13,
     type: 'interactive',
     kicker: 'Explore · CALL K=100',
     title: 'Value vs the Underlying (Delta)',
@@ -265,9 +283,9 @@ const modules: ModuleSpec[] = [
     cta: 'Done exploring',
   },
 
-  // 13 — TEACH leverage -----------------------------------------------------
+  // 14 — TEACH leverage -----------------------------------------------------
   {
-    id: 13,
+    id: 14,
     type: 'teach',
     kicker: 'Teach · $100 stock',
     title: 'Leverage: $1 Premium, 100 Shares',
@@ -277,22 +295,6 @@ const modules: ModuleSpec[] = [
     caption:
       '$500 buys exactly 5 shares of a $100 stock — or one $5.00 call controlling 100 shares. A +10% move turns the stock’s +10% into the call’s +100%; but 0% or down turns into −100% (the whole premium). Magnified both ways — that’s leverage. (Underlying anchor real; premium illustrative; returns computed exactly.)',
     cta: 'Got it',
-  },
-
-  // 14 — CHALLENGE exercise/sell/expire ------------------------------------
-  {
-    id: 14,
-    type: 'challenge',
-    kicker: 'Challenge · ITM call worth 8.00',
-    title: 'Exercise, Sell, or Let It Expire?',
-    intro:
-      'You hold an ITM call worth 8.00 (intrinsic 6.00, time value 2.00) with a week left, and you want out now. Pick one of the three action doors, then Submit to open them and see what each keeps.',
-    scene: { kind: 'timeline', params: { variant: 'doors', intrinsicNow: 6, timeValueNow: 2, challenge: true } },
-    challenge: {
-      prompt: 'You want out of an ITM call (intrinsic 6.00, time value 2.00). Which action keeps the most value?',
-      instructions: 'Tap Exercise, Sell-to-close, or Let it expire — then Submit.',
-      submitLabel: 'Open the doors',
-    },
   },
 
   // 15 — CAPSTONE -----------------------------------------------------------

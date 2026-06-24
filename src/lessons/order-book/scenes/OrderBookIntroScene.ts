@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, FONT, hex } from '../../../engine/palette'
 import { fmtPrice, fmtShares, type Level } from './book'
 
 interface IntroParams {
@@ -38,8 +38,10 @@ export default class OrderBookIntroScene extends ModuleScene {
 
   protected build(): void {
     const p = this.params as IntroParams
-    this.asks = p.asks ?? DEFAULT_ASKS
-    this.bids = p.bids ?? DEFAULT_BIDS
+    // asks: worst (highest) first so the ladder reads top→bottom with the BEST (lowest)
+    // ask hugging the spread gap; bids: best (highest) first, sitting just below the gap.
+    this.asks = (p.asks ?? DEFAULT_ASKS).slice().sort((a, b) => b.price - a.price)
+    this.bids = (p.bids ?? DEFAULT_BIDS).slice().sort((a, b) => b.price - a.price)
     this.maxSize = Math.max(...this.asks.map((l) => l.size), ...this.bids.map((l) => l.size))
 
     this.simLabel()
@@ -61,17 +63,18 @@ export default class OrderBookIntroScene extends ModuleScene {
     g.fillStyle(C.green, 1)
     g.fillRoundedRect(-110, -34, 220, 68, 14)
     const t = this.add
-      .text(0, 0, 'Buy', { fontFamily: '"Segoe UI", sans-serif', fontSize: '28px', color: hex(C.white), fontStyle: 'bold' })
+      .text(0, 0, 'Buy', { fontFamily: FONT, fontSize: '28px', color: hex(C.white), fontStyle: 'bold' })
       .setOrigin(0.5)
     const btn = this.add.container(cx, cy, [g, t]).setSize(220, 68)
     btn.setInteractive({ useHandCursor: true })
 
     const sub = this.label(cx, cy + 60, 'Press Buy — where does your order go?', { size: 14, col: C.muted, align: 'center' })
 
-    // Gentle blue pulse to invite the press.
-    const pulse = this.add.circle(cx, cy, 130, C.blueSoft).setAlpha(0).setScale(0.6)
+    // Gentle amber pulse to invite the press (amber = the brand's "active path").
+    const pulse = this.add.circle(cx, cy, 130, C.amberSoft).setScale(0.6)
     pulse.setDepth(-1)
-    this.tweens.add({ targets: pulse, alpha: 0.6, scale: 1, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' })
+    pulse.setAlpha(this.reduceMotion ? 0.5 : 0)
+    this.loop({ targets: pulse, alpha: 0.6, scale: 1, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' })
 
     btn.once('pointerup', () => {
       pulse.destroy()
@@ -117,9 +120,10 @@ export default class OrderBookIntroScene extends ModuleScene {
     const { cx, rowH, gap, askTop, maxBarW } = this.rungGeom()
     const midY = askTop + this.asks.length * rowH + gap / 2
 
-    // asks: index 0 is best ask (closest to gap, lowest on screen of the ask block)
+    // asks sorted worst (highest) first → draw top→bottom; best (lowest) ask lands
+    // on the row just above the spread gap, mirroring the bids below it.
     this.asks.forEach((lvl, i) => {
-      const targetY = askTop + (this.asks.length - 1 - i) * rowH + rowH / 2
+      const targetY = askTop + i * rowH + rowH / 2
       this.makeRung(lvl, 'ask', cx, targetY, maxBarW, -160, i * 80)
     })
     // bids: index 0 is best bid (closest to gap)
@@ -154,10 +158,10 @@ export default class OrderBookIntroScene extends ModuleScene {
     bar.strokeRoundedRect(-barW / 2, -this.rowHalf, barW, this.rowHalf * 2, 6)
 
     const priceT = this.add
-      .text(-barW / 2 + 8, 0, fmtPrice(lvl.price), { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(col), fontStyle: 'bold' })
+      .text(-barW / 2 + 8, 0, fmtPrice(lvl.price), { fontFamily: FONT, fontSize: '13px', color: hex(col), fontStyle: 'bold' })
       .setOrigin(0, 0.5)
     const sizeT = this.add
-      .text(barW / 2 - 8, 0, fmtShares(lvl.size), { fontFamily: '"Segoe UI", sans-serif', fontSize: '12px', color: hex(C.muted) })
+      .text(barW / 2 - 8, 0, fmtShares(lvl.size), { fontFamily: FONT, fontSize: '12px', color: hex(C.muted) })
       .setOrigin(1, 0.5)
 
     const container = this.add.container(cx + fromDx, targetY, [bar, priceT, sizeT]).setSize(barW, this.rowHalf * 2)
@@ -165,15 +169,15 @@ export default class OrderBookIntroScene extends ModuleScene {
     container.setInteractive(new Phaser.Geom.Rectangle(-barW / 2, -this.rowHalf, barW, this.rowHalf * 2), Phaser.Geom.Rectangle.Contains)
     container.input!.cursor = 'pointer'
 
-    this.tweens.add({ targets: container, x: cx, alpha: 1, duration: 520, delay: 420 + delay, ease: 'Back.out' })
+    this.tweens.add({ targets: container, x: cx, alpha: 1, duration: 520, delay: 420 + delay, ease: 'Quint.out' })
 
     let revealed = false
-    const shimmer = this.tweens.add({ targets: bar, alpha: 0.55, duration: 1100, yoyo: true, repeat: -1, delay: 1200 + delay, ease: 'Sine.inOut' })
+    const shimmer = this.loop({ targets: bar, alpha: 0.6, duration: 1100, yoyo: true, repeat: -1, delay: 1200 + delay, ease: 'Sine.inOut' })
 
     container.on('pointerup', () => {
       if (revealed) return
       revealed = true
-      shimmer.stop()
+      shimmer?.stop()
       bar.alpha = 1
       sizeT.setText(side === 'ask' ? 'ask (seller)' : 'bid (buyer)')
       sizeT.setColor(hex(col))
@@ -194,12 +198,12 @@ export default class OrderBookIntroScene extends ModuleScene {
     g.lineStyle(1.5, C.blue, 0.8)
     g.strokeRoundedRect(cx - w / 2, midY - h / 2, w, h, 8)
     const lbl = this.add
-      .text(cx, midY, 'the spread', { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(C.blue), fontStyle: 'bold' })
+      .text(cx, midY, 'the spread', { fontFamily: FONT, fontSize: '13px', color: hex(C.blue), fontStyle: 'bold' })
       .setOrigin(0.5)
     g.setAlpha(0)
     lbl.setAlpha(0)
     this.tweens.add({ targets: [g, lbl], alpha: 1, duration: 400 })
-    this.tweens.add({ targets: g, alpha: 0.65, duration: 1200, yoyo: true, repeat: -1, delay: 600, ease: 'Sine.inOut' })
+    this.loop({ targets: g, alpha: 0.65, duration: 1200, yoyo: true, repeat: -1, delay: 600, ease: 'Sine.inOut' })
 
     // tappable gap
     const hit = this.add.rectangle(cx, midY, w, h, 0x000000, 0).setInteractive({ useHandCursor: true })

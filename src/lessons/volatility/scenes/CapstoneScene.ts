@@ -43,56 +43,17 @@ export default class CapstoneScene extends ModuleScene {
   private sideBtns: Phaser.GameObjects.Container[] = []
   private expectBtns: Phaser.GameObjects.Container[] = []
   private scoreContainer?: Phaser.GameObjects.Container
+  /** The landing dot from the last run (destroyed before each new run, no stacking). */
+  private resultDot?: Phaser.GameObjects.Arc
 
   protected build(): void {
-    this.label(20, 14, 'Capstone — Trade an Earnings Event', { size: 15, bold: true, col: C.ink })
+    this.label(20, 14, 'Capstone — Trade an Earnings Event', { size: this.fs(15, 14, 18), bold: true, col: C.ink })
     this.reelG = this.add.graphics()
-    this.reelLabel = this.label(this.W / 2, this.H - 40, '', { size: 13, col: C.blue, bold: true, align: 'center' })
-    this.playReel()
-  }
-
-  // --- recap reel -----------------------------------------------------------
-  private playReel(): void {
-    const cx = this.W / 2
-    const cy = 210
-    const drawShape = (kind: 'V' | 'valley' | 'balloon' | 'short', cap: string) => {
-      this.reelG.clear()
-      this.reelLabel.setText(cap)
-      const g = this.reelG
-      const sx = (p: number) => cx - 160 + ((p - 80) / 40) * 320
-      const sy = (v: number) => cy - v * 7
-      if (kind === 'V' || kind === 'valley' || kind === 'short') {
-        const legs =
-          kind === 'V' ? straddle(100, 4, 3, 'long')
-          : kind === 'valley' ? strangle(95, 105, 1.25, 1.75, 'long')
-          : straddle(100, 4, 3, 'short')
-        g.lineStyle(1.5, C.blue, 0.5)
-        g.lineBetween(sx(80), sy(0), sx(120), sy(0))
-        g.lineStyle(3, kind === 'short' ? C.red : C.green, 1)
-        g.beginPath()
-        let first = true
-        for (let p = 80; p <= 120; p += 0.5) {
-          const v = Math.max(-12, Math.min(12, combinedPnL(legs, p)))
-          if (first) { g.moveTo(sx(p), sy(v)); first = false } else g.lineTo(sx(p), sy(v))
-        }
-        g.strokePath()
-      } else {
-        // IV balloon
-        g.fillStyle(C.blueSoft, 0.7)
-        g.fillCircle(cx, cy - 10, 70)
-        g.lineStyle(2, C.blue, 1)
-        g.strokeCircle(cx, cy - 10, 70)
-      }
-    }
-
-    const steps: Array<[() => void, number]> = [
-      [() => drawShape('V', 'Straddle = a V · breakevens K ± premium'), 0],
-      [() => drawShape('valley', 'Strangle = a flat-bottomed valley · cheaper, needs a bigger move'), 1100],
-      [() => drawShape('balloon', 'IV crush: clear the breakeven, not just move'), 2200],
-      [() => drawShape('short', 'Short = the mirror · collect premium, large risk'), 3300],
-    ]
-    for (const [fn, delay] of steps) this.time.delayedCall(delay, fn)
-    this.time.delayedCall(4500, () => this.startBuild())
+    this.reelLabel = this.label(this.W / 2, this.H - 40, '', { size: this.fs(13, 12, 16), col: C.blueDark, bold: true, align: 'center' })
+    // Straight into the hands-on build — no forced multi-second recap reel gating the
+    // interactive module (it left the canvas blank under reduced motion / a hidden tab,
+    // and a timed load sequence runs against the "no orchestrated page-load" principle).
+    this.startBuild()
   }
 
   // --- build phase ----------------------------------------------------------
@@ -100,40 +61,50 @@ export default class CapstoneScene extends ModuleScene {
     this.phase = 'build'
     this.reelG.clear()
     this.reelLabel.setText('')
-    this.payoffG = this.add.graphics()
 
+    // Panel first, THEN the payoff graphics — otherwise the opaque white panel is drawn
+    // on top of the curve and hides it (the "blank payoff" bug).
     this.panel(this.vx - 12, this.vy - 30, this.vw + 24, this.vh + 56, { fill: C.white, stroke: C.hairline, radius: 12 })
-    this.label(this.vx + this.vw / 2, this.vy - 18, 'your payoff (rich pre-event IV)', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.vx + this.vw / 2, this.vy - 18, 'your payoff (rich pre-event IV)', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
+    this.payoffG = this.add.graphics()
 
     // controls (right column)
     const px = 400
-    this.label(px, 70, 'Structure', { size: 11, col: C.muted })
+    const muteFs = this.fs(12, 12, 15)
+    this.label(px, 70, 'Structure', { size: muteFs, col: C.muted })
     this.structBtns = [
       this.button(px + 60, 90, 'Straddle', () => this.setStruct('straddle'), { w: 100, h: 26 }),
       this.button(px + 170, 90, 'Strangle', () => this.setStruct('strangle'), { w: 100, h: 26, fill: C.gray200, textCol: C.ink }),
     ]
-    this.label(px, 122, 'Side', { size: 11, col: C.muted })
+    this.label(px, 122, 'Side', { size: muteFs, col: C.muted })
     this.sideBtns = [
       this.button(px + 60, 142, 'Long', () => this.setSide('long'), { w: 100, h: 26 }),
       this.button(px + 170, 142, 'Short', () => this.setSide('short'), { w: 100, h: 26, fill: C.gray200, textCol: C.ink }),
     ]
-    this.label(px, 174, 'Your expectation', { size: 11, col: C.muted })
+    this.label(px, 174, 'Your expectation', { size: muteFs, col: C.muted })
     this.expectBtns = [
       this.button(px + 70, 194, 'Big move', () => this.setExpect(true), { w: 110, h: 26 }),
       this.button(px + 190, 194, 'Quiet pin', () => this.setExpect(false), { w: 110, h: 26, fill: C.gray200, textCol: C.ink }),
     ]
 
-    const moveLabel = this.label(px, 232, '', { size: 11, col: C.ink, bold: true })
+    const moveLabel = this.label(px, 232, '', { size: this.fs(13, 12, 16), col: C.ink, bold: true })
     moveLabel.setText(`Realized move: S = ${fmt(this.realizedS)}`)
+    // amber dial — the live "act on me" affordance
     this.slider(px, 250, 280, 80, 120, this.realizedS, (v) => {
       this.realizedS = v
       moveLabel.setText(`Realized move: S = ${fmt(this.realizedS)} (set, or accept default)`)
-    }, { step: 0.5 })
+    }, { step: 0.5, col: C.amber })
 
     this.button(px + 90, 300, 'Run earnings ▶', () => this.runEarnings(), { w: 200, h: 34, fill: C.green })
 
+    // Apply the active-button highlight for the defaults so the selected toggle in each
+    // group reads as active from the start (not only after the first click).
+    this.highlight(this.structBtns, this.structure === 'straddle' ? 0 : 1)
+    this.highlight(this.sideBtns, this.side === 'long' ? 0 : 1)
+    this.highlight(this.expectBtns, this.expectBig ? 0 : 1)
+
     this.drawPayoff()
-    this.time.delayedCall(300, () => this.emitReady())
+    this.emitReady()
   }
 
   private legs(): Leg[] {
@@ -191,6 +162,7 @@ export default class CapstoneScene extends ModuleScene {
   // --- run + scorecard ------------------------------------------------------
   private runEarnings(): void {
     if (this.scoreContainer) this.scoreContainer.destroy()
+    if (this.resultDot) this.resultDot.destroy()
     const legs = this.legs()
     const be = breakevens(legs)
     const total = totalPremium(legs)
@@ -201,35 +173,46 @@ export default class CapstoneScene extends ModuleScene {
     const insideBand = S >= be.lower && S <= be.upper
 
     // walk a dot to the landing spot
-    const dot = this.add.circle(this.vxFor(100), this.vyFor(short ? total : -total), 8, C.blue).setStrokeStyle(3, C.white)
+    const landX = this.vxFor(Phaser.Math.Clamp(S, 80, 120))
     const landY = this.vyFor(Math.max(-12, Math.min(12, pnl)))
-    this.tweens.add({ targets: dot, x: this.vxFor(Phaser.Math.Clamp(S, 80, 120)), y: landY, duration: 700, ease: 'Cubic.out' })
+    const dot = this.add.circle(this.vxFor(100), this.vyFor(short ? total : -total), 9, C.blue).setStrokeStyle(3, C.white)
+    this.resultDot = dot
     dot.setFillStyle(win ? C.green : C.red)
+    if (this.reduceMotion) {
+      dot.setPosition(landX, landY)
+    } else {
+      this.tweens.add({ targets: dot, x: landX, y: landY, duration: 700, ease: 'Cubic.out' })
+    }
 
-    // scorecard (bottom-left, under the payoff panel)
-    const cw = 700
+    // scorecard (bottom strip, under the controls). One fixed panel; the verdict shares
+    // row 0 with the first line, then two full-width lines below so nothing wraps/clips.
+    const cw = 704
     const cx = 28
-    const cyTop = 344
-    const panel = this.panel(cx, cyTop, cw, 106, { fill: win ? C.greenSoft : C.redSoft, stroke: win ? C.green : C.red, radius: 12 })
-    const verdict = this.label(cx + 16, cyTop + 18, win ? 'WIN' : 'LOSS', { size: 18, bold: true, col: win ? C.green : C.red })
+    const cyTop = 332
+    const panelH = 120
+    const panel = this.panel(cx, cyTop, cw, panelH, { fill: win ? C.greenSoft : C.redSoft, stroke: win ? C.green : C.red, radius: 12 })
+    const verdict = this.label(cx + 16, cyTop + 20, win ? 'WIN' : 'LOSS', { size: this.fs(18, 16, 22), bold: true, col: win ? C.greenText : C.red })
     const ivNote = short
       ? (insideBand ? 'Quiet pin — you kept the premium and IV crush helped you.' : 'Big move broke out — short risk bit (large loss).')
       : (win ? 'You cleared a breakeven — the move was big enough.' : 'Moved but lost — the move stayed inside the breakevens. Clear the breakeven, not just move.')
     // embedded check: was the expectation matched to the structure?
     const wellMatched = (this.expectBig && this.side === 'long') || (!this.expectBig && this.side === 'short')
-    const lines = [
-      `${this.structure} · ${this.side} · breakevens ${fmt(be.lower)} / ${fmt(be.upper)} · realized S = ${fmt(S)} (${insideBand ? 'inside' : 'outside'} the band)`,
-      `P&L = ${fmtSigned(pnl)} per share (${fmtDollars(pnl)}).  ${ivNote}`,
-      wellMatched ? '✓ your structure matched your stated expectation' : '✗ your structure did not match your stated expectation',
-    ]
-    const texts = lines.map((ln, i) => {
-      const t = this.label(cx + 90, cyTop + 16 + i * 26, ln, { size: 12, col: i === 2 ? (wellMatched ? C.green : C.muted) : C.ink })
-      t.setWordWrapWidth(cw - 110)
-      return t
-    })
-    this.scoreContainer = this.add.container(0, 0, [panel, verdict, ...texts])
-    this.scoreContainer.alpha = 0
-    this.tweens.add({ targets: this.scoreContainer, alpha: 1, duration: 400, delay: 400 })
+    const lineFs = this.fs(13, 12, 16)
+    // row 0 sits to the right of the verdict; rows 1 & 2 run full panel width
+    const line0 = this.label(cx + 78, cyTop + 20, `${this.structure} · ${this.side} · breakevens ${fmt(be.lower)} / ${fmt(be.upper)} · realized S = ${fmt(S)} (${insideBand ? 'inside' : 'outside'} the band)`,
+      { size: lineFs, col: C.ink })
+    line0.setWordWrapWidth(cw - 92)
+    const line1 = this.label(cx + 16, cyTop + 56, `P&L = ${fmtSigned(pnl)} per share (${fmtDollars(pnl)}).  ${ivNote}`,
+      { size: lineFs, col: C.ink })
+    line1.setWordWrapWidth(cw - 32)
+    const line2 = this.label(cx + 16, cyTop + 92, wellMatched ? '✓ your structure matched your stated expectation' : '✗ your structure did not match your stated expectation',
+      { size: lineFs, col: wellMatched ? C.greenText : C.muted })
+    line2.setWordWrapWidth(cw - 32)
+    this.scoreContainer = this.add.container(0, 0, [panel, verdict, line0, line1, line2])
+    if (!this.reduceMotion) {
+      this.scoreContainer.alpha = 0
+      this.tweens.add({ targets: this.scoreContainer, alpha: 1, duration: 400, delay: 200, ease: 'Cubic.out' })
+    }
   }
 
   // React may emit 'reveal' for the embedded check; just run the event if not yet run.

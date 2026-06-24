@@ -22,7 +22,8 @@ interface PremiumBarParams {
 const AXIS_Y = 380
 const BAR_X = 470
 const BAR_W = 80
-const SCALE = 13 // px per $ of premium height
+const SCALE = 13 // default px per $ of premium height (challenge/quiz)
+const BAR_TOP = 96 // bars never climb above this y (keeps them inside the canvas)
 
 /**
  * PremiumBarScene — premium = intrinsic (solid blue) + time value (light blue).
@@ -41,6 +42,8 @@ export default class PremiumBarScene extends ModuleScene {
   private timeLabel!: Phaser.GameObjects.Text
   private totalLabel!: Phaser.GameObjects.Text
   private moneyTag!: Phaser.GameObjects.Container
+  /** px per $ — computed so the tallest possible bar fits between BAR_TOP and AXIS_Y. */
+  private sy = SCALE
 
   protected build(): void {
     const raw = this.params as PremiumBarParams
@@ -57,8 +60,17 @@ export default class PremiumBarScene extends ModuleScene {
     this.type = this.p.type
     this.S = this.p.S
 
-    this.label(40, 28, 'PREMIUM = INTRINSIC + TIME VALUE', { size: 14, col: C.ink, bold: true })
-    this.label(40, 48, '(time-value numbers illustrative; intrinsic math exact)', { size: 11, col: C.muted })
+    // Dynamic vertical scale: the intrinsic leg can be as tall as the largest
+    // in-the-money distance across the draggable range, so size px-per-$ to the
+    // worst case (plus the time-value cap) and never let the bar leave the canvas.
+    const maxIntrinsic = Math.max(this.p.sMax - this.p.K, this.p.K - this.p.sMin, 0)
+    const worstTotal =
+      this.p.mode === 'interactive' ? maxIntrinsic + this.p.premium : this.p.premium
+    const avail = AXIS_Y - BAR_TOP
+    this.sy = worstTotal > 0 ? Math.min(SCALE, avail / worstTotal) : SCALE
+
+    this.label(40, 26, 'PREMIUM = INTRINSIC + TIME VALUE', { size: 16, col: C.ink, bold: true })
+    this.label(40, 48, '(time-value numbers illustrative; intrinsic math exact)', { size: 13, col: C.muted })
 
     // axis baseline for the bar
     const g = this.add.graphics()
@@ -67,9 +79,9 @@ export default class PremiumBarScene extends ModuleScene {
 
     this.barIntrinsic = this.add.graphics()
     this.barTime = this.add.graphics()
-    this.intrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 12, col: C.blue, bold: true })
-    this.timeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 12, col: C.blue })
-    this.totalLabel = this.label(BAR_X + BAR_W / 2, AXIS_Y + 16, '', { size: 12, col: C.ink, bold: true, align: 'center' })
+    this.intrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 13, col: C.blue, bold: true })
+    this.timeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 13, col: C.blue })
+    this.totalLabel = this.label(BAR_X + BAR_W / 2, AXIS_Y + 18, '', { size: 13, col: C.ink, bold: true, align: 'center' })
 
     if (this.p.mode === 'quiz') this.buildQuiz()
     else if (this.p.mode === 'challenge') this.buildChallenge()
@@ -87,8 +99,8 @@ export default class PremiumBarScene extends ModuleScene {
   private drawBar(intr: number, tv: number, animate = false): void {
     this.barIntrinsic.clear()
     this.barTime.clear()
-    const intrH = intr * SCALE
-    const tvH = tv * SCALE
+    const intrH = intr * this.sy
+    const tvH = tv * this.sy
     // intrinsic (solid blue) at bottom
     this.barIntrinsic.fillStyle(C.blue, 1)
     this.barIntrinsic.fillRect(BAR_X, AXIS_Y - intrH, BAR_W, intrH)
@@ -122,18 +134,31 @@ export default class PremiumBarScene extends ModuleScene {
     const xK = lx + ((this.p.K - this.p.sMin) / (this.p.sMax - this.p.sMin)) * lw
     g.lineStyle(2, C.blue)
     g.lineBetween(xK, lineY - 14, xK, lineY + 14)
-    this.label(xK, lineY - 24, `K=${this.p.K}`, { size: 11, col: C.blue, bold: true, align: 'center' })
+    this.label(xK, lineY - 26, `K=${this.p.K}`, { size: 13, col: C.blue, bold: true, align: 'center' })
     // end labels
-    this.label(lx, lineY + 22, `${this.p.sMin}`, { size: 10, col: C.muted, align: 'center' })
-    this.label(lx + lw, lineY + 22, `${this.p.sMax}`, { size: 10, col: C.muted, align: 'center' })
+    this.label(lx, lineY + 24, `${this.p.sMin}`, { size: 12, col: C.muted, align: 'center' })
+    this.label(lx + lw, lineY + 24, `${this.p.sMax}`, { size: 12, col: C.muted, align: 'center' })
 
     // draggable S marker
     const dot = this.add.circle(0, lineY, 9, C.ink).setStrokeStyle(3, C.white)
-    const sTxt = this.label(0, lineY + 26, '', { size: 12, col: C.ink, bold: true, align: 'center' })
+    const sChip = this.add.graphics()
+    const sTxt = this.label(0, lineY + 28, '', { size: 13, col: C.ink, bold: true, align: 'center' })
     const place = (S: number) => {
       const x = lx + ((S - this.p.sMin) / (this.p.sMax - this.p.sMin)) * lw
       dot.setX(x)
       sTxt.setX(x).setText(`S=${S.toFixed(0)}`)
+      const padX = 6
+      const padY = 3
+      sChip.clear()
+      sChip.fillStyle(C.white, 0.85)
+      sChip.fillRoundedRect(
+        sTxt.x - sTxt.originX * sTxt.width - padX,
+        sTxt.y - sTxt.originY * sTxt.height - padY,
+        sTxt.width + padX * 2,
+        sTxt.height + padY * 2,
+        5,
+      )
+      this.children.moveBelow(sChip, sTxt)
     }
     dot.setInteractive({ useHandCursor: true, draggable: true })
     this.input.setDraggable(dot)
@@ -144,7 +169,7 @@ export default class PremiumBarScene extends ModuleScene {
       this.refresh()
     })
     place(this.S)
-    this.label(60, lineY + 50, '↔ drag S across the strike', { size: 10, col: C.muted })
+    this.label(60, lineY + 52, '↔ drag S across the strike', { size: 13, col: C.muted })
 
     // CALL/PUT toggle
     this.toggle(120, 290, ['CALL', 'PUT'], 0, (i) => {
@@ -173,7 +198,7 @@ export default class PremiumBarScene extends ModuleScene {
   private splitTimeLabel!: Phaser.GameObjects.Text
 
   private get chTotalH(): number {
-    return this.p.premium * SCALE
+    return this.p.premium * this.sy
   }
 
   private buildChallenge(): void {
@@ -181,9 +206,9 @@ export default class PremiumBarScene extends ModuleScene {
     this.intrLabel.setAlpha(0)
     this.timeLabel.setAlpha(0)
 
-    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.p.S}`, { size: 14, col: C.ink, bold: true })
-    this.label(60, 174, `The ${this.p.premium.toFixed(2)} premium — split it into real value vs time value.`, {
-      size: 12,
+    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.p.S}`, { size: 15, col: C.ink, bold: true })
+    this.label(60, 176, `The ${this.p.premium.toFixed(2)} premium — split it into real value vs time value.`, {
+      size: 13,
       col: C.muted,
     })
 
@@ -192,8 +217,8 @@ export default class PremiumBarScene extends ModuleScene {
     const outline = this.add.graphics()
     outline.lineStyle(1.5, C.blue)
     outline.strokeRect(BAR_X, AXIS_Y - totalH, BAR_W, totalH)
-    this.label(BAR_X + BAR_W / 2, AXIS_Y + 16, `premium ${this.p.premium.toFixed(2)}`, {
-      size: 12,
+    this.label(BAR_X + BAR_W / 2, AXIS_Y + 18, `premium ${this.p.premium.toFixed(2)}`, {
+      size: 13,
       col: C.ink,
       bold: true,
       align: 'center',
@@ -201,8 +226,8 @@ export default class PremiumBarScene extends ModuleScene {
 
     // live segments + split handle
     this.splitLine = this.add.graphics()
-    this.splitIntrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 12, col: C.blue, bold: true })
-    this.splitTimeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 12, col: C.blue })
+    this.splitIntrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 13, col: C.blue, bold: true })
+    this.splitTimeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 13, col: C.blue })
 
     this.splitHandle = this.add
       .circle(BAR_X + BAR_W / 2, 0, 9, C.ink)
@@ -218,8 +243,8 @@ export default class PremiumBarScene extends ModuleScene {
       this.redrawSplit()
     })
     this.redrawSplit()
-    this.label(60, 230, '↕ drag the divider: below = intrinsic (real), above = time value', {
-      size: 10,
+    this.label(60, 232, '↕ drag the divider: below = intrinsic (real), above = time value', {
+      size: 13,
       col: C.muted,
     })
     this.setCanSubmit(true)
@@ -266,11 +291,12 @@ export default class PremiumBarScene extends ModuleScene {
     this.splitFrac = trueIntr / this.p.premium
     this.redrawSplit()
     this.splitHandle.setFillStyle(correct ? C.green : C.red)
-    this.label(BAR_X - 30, AXIS_Y - trueIntr * SCALE - 6, `max(${this.p.S}−${this.p.K},0)=${trueIntr.toFixed(0)}`, {
-      size: 11,
+    this.label(BAR_X - 16, AXIS_Y - trueIntr * this.sy - 6, `max(${this.p.S}−${this.p.K},0)=${trueIntr.toFixed(0)}`, {
+      size: 13,
       col: C.blue,
       bold: true,
       align: 'right',
+      bg: true,
     })
 
     const title = correct
@@ -299,7 +325,7 @@ export default class PremiumBarScene extends ModuleScene {
     const tv = this.p.quizTimeValue ?? this.p.premium - intr
     // draw the real split underneath, then cover with a grey "premium 9.00" block
     this.drawBar(intr, tv)
-    const totalH = (intr + tv) * SCALE
+    const totalH = (intr + tv) * this.sy
     this.mask = this.add.graphics()
     this.mask.fillStyle(C.gray200, 1)
     this.mask.fillRect(BAR_X, AXIS_Y - totalH, BAR_W, totalH)
@@ -320,8 +346,8 @@ export default class PremiumBarScene extends ModuleScene {
     this.timeLabel.setAlpha(0)
 
     // setup labels
-    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.S}`, { size: 14, col: C.ink, bold: true })
-    this.label(60, 174, 'How does the 9.00 premium split?', { size: 12, col: C.muted })
+    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.S}`, { size: 15, col: C.ink, bold: true })
+    this.label(60, 176, 'How does the 9.00 premium split?', { size: 13, col: C.muted })
   }
 
   protected onReveal(): void {
@@ -342,11 +368,12 @@ export default class PremiumBarScene extends ModuleScene {
     this.tweens.add({ targets: [this.intrLabel, this.timeLabel], alpha: 1, duration: 400, delay: 200 })
     const intr = this.p.quizIntrinsic ?? 7
     this.time.delayedCall(260, () => {
-      this.label(BAR_X - 30, AXIS_Y - intr * SCALE - 6, `max(${this.S}−${this.p.K},0)=${intr}`, {
-        size: 11,
+      this.label(BAR_X - 16, AXIS_Y - intr * this.sy - 6, `max(${this.S}−${this.p.K},0)=${intr}`, {
+        size: 13,
         col: C.blue,
         bold: true,
         align: 'right',
+        bg: true,
       })
     })
   }

@@ -49,25 +49,22 @@ export default class PayoffScene extends ModuleScene {
     this.revealPrice = p.revealPrice ?? this.priceMax
     this.cursorX = this.entry
 
-    this.label(this.W / 2, 24, 'Capped gain vs. unlimited loss', {
-      size: 16,
-      bold: true,
-      col: C.ink,
-      align: 'center',
-    })
-    this.label(this.W / 2, 42, 'illustrative simulation · payoff math exact', {
-      size: 11,
+    // Integrity tag in the top-left corner, clear of the diagonal payoff lines that
+    // exit the top of the plot near centre/right.
+    this.label(12, 14, 'Illustrative simulation · payoff math exact', {
+      size: 12,
       col: C.muted,
-      align: 'center',
+      align: 'left',
     })
 
     this.drawAxes()
 
     // Right-side legend / readouts
-    this.label(584, 70, 'Future price', { size: 12, bold: true, col: C.ink })
-    this.priceReadout = this.label(584, 92, '', { size: 14, bold: true, col: C.blue })
-    this.readoutShort = this.label(584, 130, '', { size: 13, bold: true, col: C.red })
-    this.readoutLong = this.label(584, 156, '', { size: 13, bold: true, col: C.green })
+    this.label(584, 78, 'Future price', { size: 12, bold: true, col: C.ink })
+    this.priceReadout = this.label(584, 100, '', { size: 15, bold: true, col: C.blue })
+    // Below the zero-P&L line so the readouts never collide with the right-edge "0%".
+    this.readoutShort = this.label(584, 166, '', { size: 13, bold: true, col: C.red })
+    this.readoutLong = this.label(584, 190, '', { size: 13, bold: true, col: C.green })
 
     if (this.mode === 'teach') {
       // Sequenced draw-in of both lines + callouts, then interactive cursor.
@@ -118,22 +115,22 @@ export default class PayoffScene extends ModuleScene {
     const yZero = this.yForPct(0)
     g.lineStyle(1.5, C.muted, 0.6)
     g.lineBetween(this.plot.l, yZero, this.plot.r, yZero)
-    this.label(this.plot.r + 4, yZero, '0%', { size: 11, col: C.muted })
+    this.label(this.plot.r + 4, yZero, '0%', { size: 12, col: C.muted })
     // breakeven vertical at entry
     const xE = this.xForPrice(this.entry)
     const gv = this.add.graphics()
     gv.lineStyle(1.5, C.blue, 0.5)
     gv.lineBetween(xE, this.plot.t, xE, this.plot.b)
-    this.label(xE, this.plot.b + 14, `entry $${this.entry}`, { size: 11, col: C.blue, align: 'center' })
+    this.label(xE, this.plot.b + 32, `entry $${this.entry}`, { size: 12, col: C.blue, align: 'center', bg: true })
     // ceiling +100% (green dashed) and floor −100% (red dashed)
     this.dashedLine(this.plot.l, this.yForPct(1), this.plot.r, C.green, 6, 5, 1.2)
-    this.label(this.plot.l + 4, this.yForPct(1) - 10, '+100% ceiling', { size: 11, bold: true, col: C.green })
+    this.label(this.plot.l + 4, this.yForPct(1) - 11, '+100% ceiling', { size: 12, bold: true, col: C.green, bg: true })
     this.dashedLine(this.plot.l, this.yForPct(-1), this.plot.r, C.red, 6, 5, 1.2)
-    this.label(this.plot.l + 4, this.yForPct(-1) + 12, '−100% floor (long)', { size: 11, bold: true, col: C.red })
+    this.label(this.plot.l + 4, this.yForPct(-1) + 13, '−100% floor (long)', { size: 12, bold: true, col: C.red, bg: true })
 
     // x labels
     for (let pr = 0; pr <= this.priceMax; pr += this.priceMax / 4) {
-      this.label(this.xForPrice(pr), this.plot.b + 2, `$${pr.toFixed(0)}`, { size: 10, col: C.muted, align: 'center' })
+      this.label(this.xForPrice(pr), this.plot.b + 16, `$${pr.toFixed(0)}`, { size: 12, col: C.muted, align: 'center' })
     }
   }
 
@@ -157,7 +154,7 @@ export default class PayoffScene extends ModuleScene {
     g.alpha = 0
     this.tweens.add({ targets: g, alpha: 1, duration: 500 })
     this.shortLine = g
-    this.fadeIn(this.label(this.plot.r - 90, this.yForPct(this.shortPct(this.priceMax)) + 10, 'SHORT', { size: 12, bold: true, col: C.red }))
+    this.fadeIn(this.label(this.plot.r - 90, this.yForPct(this.shortPct(this.priceMax)) + 10, 'SHORT', { size: 13, bold: true, col: C.red, bg: true }))
   }
 
   private drawLongLine(): void {
@@ -178,14 +175,14 @@ export default class PayoffScene extends ModuleScene {
     this.tweens.add({ targets: g, alpha: 1, duration: 500 })
     this.longLine = g
     g.setVisible(this.showLong)
-    this.fadeIn(this.label(this.plot.r - 86, this.yForPct(this.longPct(this.priceMax)) - 4, 'LONG', { size: 12, bold: true, col: C.green }))
+    this.fadeIn(this.label(this.plot.r - 86, this.yForPct(this.longPct(this.priceMax)) - 4, 'LONG', { size: 13, bold: true, col: C.green, bg: true }))
   }
 
   private drawCeilingArrows(): void {
-    // "↓ no floor" on the short tail at the right edge
-    this.label(this.plot.r - 40, this.plot.b - 6, '↓ no floor', { size: 11, bold: true, col: C.red })
-    // "↑ no ceiling" on the long line
-    this.label(this.plot.r - 50, this.plot.t + 8, '↑ no ceiling', { size: 11, bold: true, col: C.green })
+    // "↓ no floor" on the short tail (mid-plot, left of the SHORT line label/tail)
+    this.label(this.plot.l + 90, this.plot.b - 18, '↓ no floor', { size: 12, bold: true, col: C.red, bg: true })
+    // "↑ no ceiling" on the long line near the top
+    this.label(this.plot.r - 130, this.plot.t + 8, '↑ no ceiling', { size: 12, bold: true, col: C.green, bg: true })
   }
 
   private enableInteractive(): void {
@@ -265,8 +262,10 @@ export default class PayoffScene extends ModuleScene {
       this.add.circle(x, yLo, 6, C.green).setStrokeStyle(2, C.white)
       const sD = (this.entry - this.revealPrice) * this.shares
       const lD = (this.revealPrice - this.entry) * this.shares
-      this.fadeIn(this.label(x + 8, ySh, `Short ${sD >= 0 ? '+' : '−'}$${Math.abs(sD).toFixed(0)} ↓ no floor`, { size: 12, bold: true, col: C.red }))
-      this.fadeIn(this.label(x + 8, yLo, `Long ${lD >= 0 ? '+' : '−'}$${Math.abs(lD).toFixed(0)}`, { size: 12, bold: true, col: C.green }))
+      // labels right-aligned to the LEFT of the marker so they stay inside the plot,
+      // with chips so they read over the payoff lines.
+      this.fadeIn(this.label(x - 8, ySh, `Short ${sD >= 0 ? '+' : '−'}$${Math.abs(sD).toFixed(0)} ↓ no floor`, { size: 12, bold: true, col: C.red, align: 'right', bg: true }))
+      this.fadeIn(this.label(x - 8, yLo, `Long ${lD >= 0 ? '+' : '−'}$${Math.abs(lD).toFixed(0)}`, { size: 12, bold: true, col: C.green, align: 'right', bg: true }))
       this.cursorX = this.revealPrice
       this.cursor.x = x
       this.refreshReadout()

@@ -89,8 +89,8 @@ export default class TwoBooksScene extends ModuleScene {
       bg.lineStyle(1.5, C.red, 1)
       bg.strokeRoundedRect(left, y - rowH / 2 + 3, w, rowH - 6, 4)
       const fillG = this.add.graphics()
-      this.label(left + 6, y, fmtPrice(lvl.price), { size: 11, col: C.red, bold: true })
-      const sizeT = this.label(left + maxBarW + 8, y, fmtShares(lvl.size), { size: 10, col: C.ink })
+      this.label(left + 6, y, fmtPrice(lvl.price), { size: 12, col: C.red, bold: true })
+      const sizeT = this.label(left + maxBarW + 8, y, fmtShares(lvl.size), { size: 12, col: C.ink })
       bars.push({ lvl, baseY: y, fillG, sizeT })
     })
 
@@ -141,8 +141,8 @@ export default class TwoBooksScene extends ModuleScene {
     this.panel(px, py, 152, 240, { fill: C.white, stroke: C.hairline, radius: 10 })
     this.label(px + 12, py + 18, 'Compare', { size: 13, col: C.ink, bold: true })
     const mk = (key: string, y: number, lbl: string, col = C.ink) => {
-      this.label(px + 12, py + y, lbl, { size: 11, col: C.muted })
-      this.cmp[key] = this.label(px + 12, py + y + 16, '—', { size: 12, col, bold: true })
+      this.label(px + 12, py + y, lbl, { size: 12, col: C.muted })
+      this.cmp[key] = this.label(px + 12, py + y + 17, '—', { size: 13, col, bold: true })
     }
     mk('order', 40, 'Order')
     mk('deepAvg', 78, 'Deep avg / slip')

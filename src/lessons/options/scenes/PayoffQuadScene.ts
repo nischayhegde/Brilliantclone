@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C } from '../../../engine/palette'
 import { pnlPerShare, maxLoss, type OptType, type Side } from './optionMath'
 
 interface QuadParams {
@@ -39,8 +39,8 @@ export default class PayoffQuadScene extends ModuleScene {
       sMin: raw.sMin ?? 60,
       sMax: raw.sMax ?? 140,
     }
-    this.label(40, 22, 'Which single-leg position has UNLIMITED loss?', { size: 14, col: C.ink, bold: true })
-    this.label(40, 42, 'loss tails are fogged — submit to reveal', { size: 11, col: C.muted })
+    this.label(40, 22, 'Which single-leg position has UNLIMITED loss?', { size: 16, col: C.ink, bold: true })
+    this.label(40, 44, 'loss tails are fogged — submit to reveal', { size: 13, col: C.muted })
 
     const defs: Array<{ type: OptType; side: Side; title: string }> = [
       { type: 'call', side: 'long', title: 'Long call' },
@@ -72,7 +72,7 @@ export default class PayoffQuadScene extends ModuleScene {
   private drawCell(type: OptType, side: Side, title: string, x: number, y: number, w: number, h: number): void {
     const pos = { type, side, K: this.p.K, premium: this.p.premium }
     this.panel(x, y, w, h, { fill: C.white, stroke: C.hairline, radius: 10 })
-    this.label(x + 10, y + 14, title, { size: 12, col: C.ink, bold: true })
+    this.label(x + 10, y + 14, title, { size: 14, col: C.ink, bold: true })
 
     const plotL = x + 12
     const plotR = x + w - 12
@@ -107,15 +107,12 @@ export default class PayoffQuadScene extends ModuleScene {
     fog.fillRect(plotL, y0, plotR - plotL, h / 2 - 6)
     fog.lineStyle(1, C.blue, 0.4)
     fog.strokeRect(plotL, y0, plotR - plotL, h / 2 - 6)
-    this.add
-      .text(x + w / 2, y0 + h / 4 - 4, 'loss ?', {
-        fontFamily: 'sans-serif',
-        fontSize: '14px',
-        color: hex(C.blue),
-        fontStyle: 'bold',
-      })
-      .setOrigin(0.5)
-      .setData('fogTxt', fog)
+    this.label(x + w / 2, y0 + h / 4 - 4, 'loss ?', {
+      size: 14,
+      col: C.blue,
+      bold: true,
+      align: 'center',
+    }).setData('fogTxt', fog)
 
     this.cells.push({ type, side, title, x, y, w, h, fog })
   }
@@ -133,10 +130,11 @@ export default class PayoffQuadScene extends ModuleScene {
         const unlimited = ml === Infinity
         const tag = unlimited ? '⚠ loss → ∞' : `max loss $${ml.toLocaleString()}`
         const t = this.label(cell.x + cell.w / 2, cell.y + cell.h - 14, tag, {
-          size: 11,
+          size: 13,
           col: unlimited ? C.red : C.green,
           bold: true,
           align: 'center',
+          bg: true,
         })
         t.setAlpha(0)
         this.tweens.add({ targets: t, alpha: 1, duration: 300, delay: 200 })

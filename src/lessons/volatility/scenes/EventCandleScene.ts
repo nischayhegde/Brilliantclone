@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import { ModuleScene } from '../../../engine/ModuleScene'
-import { C, hex } from '../../../engine/palette'
+import { C, hex, FONT } from '../../../engine/palette'
 import {
   type Leg,
   straddle,
@@ -34,26 +34,33 @@ export default class EventCandleScene extends ModuleScene {
   private direction: 1 | -1 = 1
   private sizePct = 10
   private structure: 'straddle' | 'strangle' = 'straddle'
-  private eventType = 'Earnings'
+  /** Last realized price shown (so a structure switch can re-light the dot + readout
+   *  consistently instead of leaving stale numbers from the previous structure). */
+  private lastS = 100
 
-  // chart panel (left)
+  // chart panel (left) — heights trimmed so a clean full-width control strip fits
+  // below both panels (the old 250-tall panels left every control stacked in a ~40px
+  // band at the bottom).
   private cx = 40
-  private cy = 70
-  private cw = 380
-  private ch = 250
+  private cy = 50
+  private cw = 372
+  private ch = 172
   private priceMin = 80
   private priceMax = 120
 
   // mini payoff (right)
-  private vx = 470
-  private vy = 70
-  private vw = 250
-  private vh = 250
+  private vx = 460
+  private vy = 50
+  private vw = 270
+  private vh = 172
 
   private coilG!: Phaser.GameObjects.Graphics
   private candleG!: Phaser.GameObjects.Graphics
   private vG!: Phaser.GameObjects.Graphics
   private armG!: Phaser.GameObjects.Graphics
+  /** Persistent payoff breakeven labels (lower, upper) — created once, repositioned. */
+  private beLabelLo!: Phaser.GameObjects.Text
+  private beLabelHi!: Phaser.GameObjects.Text
   private pnlText!: Phaser.GameObjects.Text
   private badge!: Phaser.GameObjects.Text
   private badgePanel!: Phaser.GameObjects.Graphics
@@ -61,7 +68,7 @@ export default class EventCandleScene extends ModuleScene {
 
   protected build(): void {
     this.p = this.params as EventParams
-    if (this.p.title) this.label(20, 16, this.p.title, { size: 15, bold: true, col: C.ink })
+    if (this.p.title) this.label(20, 16, this.p.title, { size: this.fs(15, 14, 18), bold: true, col: C.ink })
 
     // chart scaffold
     this.panel(this.cx - 10, this.cy - 20, this.cw + 20, this.ch + 56, { fill: C.white, stroke: C.hairline, radius: 12 })
@@ -71,27 +78,41 @@ export default class EventCandleScene extends ModuleScene {
 
     // payoff scaffold
     this.panel(this.vx - 10, this.vy - 20, this.vw + 20, this.vh + 40, { fill: C.white, stroke: C.hairline, radius: 12 })
-    this.label(this.vx + this.vw / 2, this.vy - 8, 'payoff overlay', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.vx + this.vw / 2, this.vy - 8, 'payoff overlay', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
     this.vG = this.add.graphics()
     this.armG = this.add.graphics()
+    // persistent breakeven axis labels (repositioned in drawPayoff; never re-added)
+    this.beLabelLo = this.label(0, this.vy + this.vh + 6, '', { size: this.fs(12, 12, 15), col: C.blueDark, align: 'center' })
+    this.beLabelHi = this.label(0, this.vy + this.vh + 6, '', { size: this.fs(12, 12, 15), col: C.blueDark, align: 'center' })
 
-    this.pnlText = this.label(20, this.H - 70, '', { size: 13, col: C.ink, bold: true })
+    // live readout + verdict badge, in the clean strip just below the panels
+    this.pnlText = this.label(24, 280, '', { size: this.fs(13, 12, 16), col: C.ink, bold: true })
     this.badgePanel = this.add.graphics()
-    this.badge = this.add.text(0, 0, '', { fontFamily: '"Segoe UI", sans-serif', fontSize: '13px', color: hex(C.green), fontStyle: 'bold' }).setOrigin(0, 0.5)
+    this.badge = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: `${this.fs(13, 12, 16)}px`, color: hex(C.greenText), fontStyle: 'bold' }).setOrigin(0, 0.5)
 
     this.drawCoil()
     this.drawPayoff()
+    this.lightArm(this.anchor)
+    this.updateReadout(this.anchor)
 
-    // Scripted intro: green up-whip then red down-whip — both light the arm green
-    // (profit on EITHER whip if it clears a breakeven). Then hand off to the controls.
-    this.time.delayedCall(900, () => { this.direction = 1; this.sizePct = 14; this.fireEvent() })
-    this.time.delayedCall(2600, () => { this.direction = -1; this.sizePct = 14; this.fireEvent() })
-    if (this.p.interactive) {
-      this.time.delayedCall(3600, () => { this.direction = 1; this.sizePct = 10; this.buildControls() })
+    // Controls are built immediately (never gated behind the intro animation) so the
+    // module is usable even under reduced motion or when the tab is backgrounded.
+    if (this.p.interactive) this.buildControls()
+
+    if (this.reduceMotion) {
+      // No timed sequence: show one representative up-whip so the lit arm + payoff read.
+      this.fireEvent(1, 14)
+    } else {
+      // Gentle demo: green up-whip then red down-whip (profit on EITHER whip that clears
+      // a breakeven), then settle back to the learner's defaults (up, 10%).
+      this.time.delayedCall(900, () => this.fireEvent(1, 14))
+      this.time.delayedCall(2600, () => this.fireEvent(-1, 14))
+      this.time.delayedCall(3600, () => this.fireEvent(1, 10))
     }
+
     if (this.p.caption) {
-      const cap = this.label(20, this.H - 18, this.p.caption, { size: 12, col: C.muted })
-      cap.setWordWrapWidth(this.W - 40)
+      const cap = this.label(24, this.H - 16, this.p.caption, { size: this.fs(12, 12, 15), col: C.muted })
+      cap.setWordWrapWidth(this.W - 48)
     }
     this.time.delayedCall(800, () => this.emitReady())
   }
@@ -118,7 +139,7 @@ export default class EventCandleScene extends ModuleScene {
     g.lineStyle(2, C.blue)
     g.lineBetween(fx, this.cy, fx, this.cy + this.ch + 14)
     this.add.triangle(fx + 18, this.cy + 6, 0, 0, 0, 18, 22, 9, C.blue).setOrigin(0.5)
-    this.label(fx + 8, this.cy - 10, 'earnings', { size: 11, col: C.blue, bold: true })
+    this.label(fx + 8, this.cy - 10, 'earnings', { size: this.fs(12, 12, 15), col: C.blueDark, bold: true, bg: true })
   }
 
   private drawCoil(): void {
@@ -137,13 +158,18 @@ export default class EventCandleScene extends ModuleScene {
     this.coilG.strokePath()
   }
 
-  private fireEvent(): void {
+  /**
+   * Draw the event candle for a given direction/size. Defaults to the learner's current
+   * state (driven by the controls); the scripted intro passes explicit values so it can
+   * demo a whip WITHOUT clobbering the learner's selected direction/size.
+   */
+  private fireEvent(direction: 1 | -1 = this.direction, sizePct: number = this.sizePct): void {
     this.candleG.clear()
     const flagT = 0.72
-    const newPrice = this.anchor * (1 + (this.direction * this.sizePct) / 100)
+    const newPrice = this.anchor * (1 + (direction * sizePct) / 100)
     const x0 = this.pxForT(flagT)
     const x1 = this.pxForT(0.9)
-    const up = this.direction > 0
+    const up = direction > 0
     const col = up ? C.green : C.red
     // gap candle from anchor to newPrice
     const bodyTop = this.pyForPrice(Math.max(this.anchor, newPrice))
@@ -156,6 +182,7 @@ export default class EventCandleScene extends ModuleScene {
     this.candleG.lineStyle(2, col, 0.6)
     this.candleG.lineBetween(this.pxForT(flagT), this.pyForPrice(this.anchor), (x0 + x1) / 2, this.pyForPrice(newPrice))
 
+    this.lastS = newPrice
     this.lightArm(newPrice)
     this.updateReadout(newPrice)
   }
@@ -180,8 +207,8 @@ export default class EventCandleScene extends ModuleScene {
       const x = this.vxFor(px)
       this.dashV(this.vG, x, this.vy, this.vy + this.vh, C.blue, 0.7)
     }
-    this.label(this.vxFor(be.lower), this.vy + this.vh + 4, fmt(be.lower), { size: 10, col: C.blue, align: 'center' })
-    this.label(this.vxFor(be.upper), this.vy + this.vh + 4, fmt(be.upper), { size: 10, col: C.blue, align: 'center' })
+    this.beLabelLo.setText(fmt(be.lower)).setPosition(this.vxFor(be.lower), this.vy + this.vh + 6)
+    this.beLabelHi.setText(fmt(be.upper)).setPosition(this.vxFor(be.upper), this.vy + this.vh + 6)
     // curve
     this.vG.lineStyle(3, C.green, 1)
     this.vG.beginPath()
@@ -214,65 +241,79 @@ export default class EventCandleScene extends ModuleScene {
     const pnl = combinedPnL(legs, S)
     const cleared = clearedBreakeven(legs, S)
     this.pnlText.setText(
-      `${this.eventType} · ${this.structure} · S = ${fmt(S)}   →   P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
+      `${this.structure} · S = ${fmt(S)}   →   P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
     )
     const text = cleared ? 'cleared a breakeven → profit' : 'small move — did not clear a breakeven (see next module)'
-    const col = cleared ? C.green : C.red
+    const col = cleared ? C.greenText : C.red
+    const badgeY = 310
     this.badge.setText(text).setColor(hex(col))
-    this.badge.setPosition(24, this.H - 44)
+    this.badge.setPosition(24, badgeY)
     this.badgePanel.clear()
     this.badgePanel.fillStyle(cleared ? C.greenSoft : C.redSoft, 1)
-    this.badgePanel.fillRoundedRect(18, this.H - 44 - 12, this.badge.width + 12, 24, 8)
+    this.badgePanel.fillRoundedRect(18, badgeY - this.badge.height / 2 - 4, this.badge.width + 12, this.badge.height + 8, 8)
     this.children.bringToTop(this.badge)
   }
 
   // --- interactive controls -------------------------------------------------
+  /**
+   * One tidy control row in the strip below the panels. (The old layout stacked an
+   * event-type picker + structure toggle + direction + size + trigger into the same
+   * ~40px band; they all overlapped. The event-type picker was purely cosmetic — it
+   * only changed a label prefix — so it's dropped to cut clutter; the calendar flag
+   * already says "earnings".)
+   */
   private buildControls(): void {
-    // event-type picker
-    const types = ['Earnings', 'FDA decision', 'Court ruling']
-    types.forEach((t, i) => {
-      this.button(this.cx + 30 + i * 120, this.cy + this.ch + 40, t, () => {
-        this.eventType = t
-      }, { w: 110, h: 26, fill: C.blueSoft, textCol: C.blue })
-    })
+    const rowY = 366
+    const btnFs = this.fs(13, 13, 16)
 
-    // structure toggle
-    const sx = this.vx + 30
+    // structure toggle (left)
     this.structBtns = [
-      this.button(sx, this.vy + this.vh + 30, 'Straddle', () => this.setStructure('straddle'), { w: 100, h: 28 }),
-      this.button(sx + 120, this.vy + this.vh + 30, 'Strangle', () => this.setStructure('strangle'), { w: 100, h: 28, fill: C.gray200, textCol: C.ink }),
+      this.button(72, rowY, 'Straddle', () => this.setStructure('straddle'), { w: 100, h: 30 }),
+      this.button(180, rowY, 'Strangle', () => this.setStructure('strangle'), { w: 100, h: 30, fill: C.gray200, textCol: C.ink }),
     ]
+    this.structBtns.forEach((b) => ((b.list[1] as Phaser.GameObjects.Text).setFontSize(btnFs)))
 
-    // direction toggle + size dial + trigger
-    const ctrlY = this.H - 96
-    const dirBtn = this.button(120, ctrlY, 'Direction: UP ↑', () => {
+    // direction toggle
+    const dirBtn = this.button(300, rowY, 'Direction: UP ↑', () => {
       this.direction = (this.direction === 1 ? -1 : 1) as 1 | -1
       dirBtn.list.forEach((o) => {
         if (o instanceof Phaser.GameObjects.Text) o.setText(this.direction === 1 ? 'Direction: UP ↑' : 'Direction: DOWN ↓')
       })
-    }, { w: 170, h: 28 })
+    }, { w: 120, h: 30 })
+    ;(dirBtn.list[1] as Phaser.GameObjects.Text).setFontSize(btnFs)
 
-    const sizeText = this.label(300, ctrlY - 22, '', { size: 11, col: C.ink, bold: true })
+    // move-size dial (amber — the live "act on me" affordance)
+    const sizeText = this.label(380, rowY - 24, '', { size: this.fs(12, 12, 15), col: C.ink, bold: true })
     sizeText.setText(`move size: ${fmt(this.sizePct)}%`)
-    this.slider(300, ctrlY, 160, 1, 20, this.sizePct, (v) => {
+    this.slider(380, rowY, 150, 1, 20, this.sizePct, (v) => {
       this.sizePct = v
       sizeText.setText(`move size: ${fmt(this.sizePct)}%`)
-    }, { step: 1 })
+    }, { step: 1, col: C.amber })
 
-    this.button(560, ctrlY, 'Trigger event', () => this.fireEvent(), { w: 150, h: 30, fill: C.green })
+    // trigger (right)
+    const trig = this.button(640, rowY, 'Trigger event', () => this.fireEvent(), { w: 130, h: 32, fill: C.green })
+    ;(trig.list[1] as Phaser.GameObjects.Text).setFontSize(this.fs(14, 13, 17))
+
+    // Apply the active-button highlight for the default structure so it reads as
+    // selected from the start (not just after the first click).
+    this.setStructure(this.structure)
   }
 
   private setStructure(s: 'straddle' | 'strangle'): void {
     this.structure = s
     this.drawPayoff()
-    this.armG.clear()
+    // Re-light the dot + refresh the live readout for the NEW structure at the same
+    // realized price, so the chart, the P&L line, and the verdict badge never disagree
+    // (previously the dot was cleared but the text kept the old structure's numbers).
+    this.lightArm(this.lastS)
+    this.updateReadout(this.lastS)
     // highlight active button
     this.structBtns.forEach((b, i) => {
       const active = (i === 0) === (s === 'straddle')
       const g = b.list[0] as Phaser.GameObjects.Graphics
       g.clear()
       g.fillStyle(active ? C.blue : C.gray200, 1)
-      g.fillRoundedRect(-50, -14, 100, 28, 10)
+      g.fillRoundedRect(-50, -15, 100, 30, 10)
       const t = b.list[1] as Phaser.GameObjects.Text
       t.setColor(hex(active ? C.white : C.ink))
     })

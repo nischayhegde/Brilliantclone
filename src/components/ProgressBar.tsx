@@ -28,7 +28,7 @@ export default function ProgressBar({
       <button
         onClick={onClose}
         aria-label="Exit lesson"
-        className="shrink-0 rounded-full p-1 text-muted transition hover:bg-gray-100 hover:text-ink"
+        className="shrink-0 rounded-full p-1.5 text-muted transition hover:bg-surface-2 hover:text-ink"
       >
         <CloseIcon />
       </button>
@@ -36,7 +36,7 @@ export default function ProgressBar({
         onClick={onBack}
         disabled={!onBack}
         aria-label="Previous module"
-        className="shrink-0 rounded-full p-1 text-muted transition hover:bg-gray-100 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
+        className="shrink-0 rounded-full p-1.5 text-muted transition hover:bg-surface-2 hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
       >
         <ChevronLeftIcon />
       </button>
@@ -45,7 +45,7 @@ export default function ProgressBar({
           const idx = i + 1
           const done = idx <= completedCount
           const current = idx === currentIndex
-          const tone = done ? 'bg-brand-green' : current ? 'bg-brand-blue' : 'bg-gray-200'
+          const tone = done ? 'bg-brand-green' : current ? 'bg-ink' : 'bg-surface-2'
           const base = `h-2 flex-1 rounded-full transition-colors ${tone}`
           if (onJump && idx <= maxUnlocked) {
             return (
