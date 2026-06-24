@@ -732,17 +732,19 @@ export default class PayoffScene extends ModuleScene {
     const beS = breakevens(strad)
     const beT = breakevens(stran)
     const y0 = this.yFor(0)
-    // Stagger the four BE labels across two rows by colour so they never overlap, all
-    // chipped to stay readable over the curves.
-    for (const [px, lab, col, dy] of [
-      [beS.lower, 'straddle BE 93', C.green, 8],
-      [beS.upper, 'straddle BE 107', C.green, 8],
-      [beT.lower, 'strangle BE 92', C.blue, 26],
-      [beT.upper, 'strangle BE 108', C.blue, 26],
+    // Anchor the four BE labels to the BOTTOM of their dashed lines (straddle green row
+    // above the strangle blue row). The top is already occupied by the legend (top-left)
+    // and the amber "expected S" marker (top-right), so keeping these down here is the
+    // only way the labels never collide with them.
+    for (const [px, lab, col, fromBottom] of [
+      [beS.lower, 'straddle BE 93', C.green, 30],
+      [beS.upper, 'straddle BE 107', C.green, 30],
+      [beT.lower, 'strangle BE 92', C.blue, 12],
+      [beT.upper, 'strangle BE 108', C.blue, 12],
     ] as const) {
       const x = this.xFor(px)
       this.dashLineV(this.beG, x, this.plot.t, this.plot.b, col, 1, 8, 6)
-      this.beLabels.push(this.label(x, this.plot.t + dy, lab, { size: 12, col, bold: true, align: 'center', bg: true }))
+      this.beLabels.push(this.label(x, this.plot.b - fromBottom, lab, { size: 12, col, bold: true, align: 'center', bg: true }))
     }
     // measuring arrows from 100 to each nearest upper breakeven
     const x100 = this.xFor(100)
@@ -867,9 +869,8 @@ export default class PayoffScene extends ModuleScene {
     const midX = this.xFor(this.K)
     const flash = this.add.circle(midX, this.yFor(-total), 10, C.red).setAlpha(0)
     this.tweens.add({ targets: flash, alpha: 1, scale: 1.6, duration: 240, yoyo: true, repeat: 2 })
-    this.label(midX, this.yFor(-total) + 30, `vertex: max loss ${fmtSigned(-total)} at K=${fmt(this.K)}`, {
-      size: 12, col: C.red, bold: true, align: 'center', bg: true,
-    })
+    // `drawBreakevens` already prints the "max loss −7" tag at the vertex; the K context
+    // lives in the footer detail below, so no second overlapping label is drawn here.
 
     const title = correct
       ? `Both breakevens nailed · ${fmt(be.lower)} / ${fmt(be.upper)}`
@@ -994,7 +995,11 @@ export default class PayoffScene extends ModuleScene {
     const dot = this.add.circle(this.xFor(S), dotY, 8, dotCol).setStrokeStyle(3, C.white)
     dot.setScale(0)
     this.tweens.add({ targets: dot, scale: 1, duration: 320, ease: 'Quint.out' })
-    this.label(this.xFor(S), dotY - 20, `pin S=100 · P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
+    // The dot lands on the vertex, where `drawBreakevens` already prints a "max profit/
+    // loss" tag. Put the pin readout on the opposite side of the dot so the two never
+    // overlap: below the peak for a short tent, above the vertex for a long V.
+    const pinLabelY = volPick === 'short' ? dotY + 22 : dotY - 20
+    this.label(this.xFor(S), pinLabelY, `pin S=100 · P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
       { size: 12, col: dotCol, bold: true, align: 'center', bg: true })
 
     const correct = volPick === 'short'

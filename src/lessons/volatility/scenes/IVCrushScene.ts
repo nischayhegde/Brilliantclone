@@ -74,6 +74,7 @@ export default class IVCrushScene extends ModuleScene {
   private guessG!: Phaser.GameObjects.Graphics
   private guessKnob!: Phaser.GameObjects.Arc
   private guessLabel!: Phaser.GameObjects.Text
+  private hintLabel?: Phaser.GameObjects.Text
   private challengeRedraw: () => void = () => {}
 
   protected build(): void {
@@ -440,8 +441,9 @@ export default class IVCrushScene extends ModuleScene {
     this.challengeRedraw = redraw
 
     // hint in the clear band below the panels/ledger/badge (the prompt + how-to also
-    // live in the footer; this is just an in-canvas nudge by the draggable marker)
-    this.label(20, 386, 'drag the amber marker on the V → then run earnings + IV crush', {
+    // live in the footer; this is just an in-canvas nudge by the draggable marker).
+    // Removed on grade so the stale "drag … then run" instruction doesn't linger.
+    this.hintLabel = this.label(20, 386, 'drag the amber marker on the V → then run earnings + IV crush', {
       size: this.fs(12, 12, 15), col: C.amberInk, bold: true,
     })
     this.setCanSubmit(true)
@@ -451,6 +453,7 @@ export default class IVCrushScene extends ModuleScene {
     if (!this.p.challenge || this.graded) return
     this.graded = true
     this.setCanSubmit(false)
+    this.hintLabel?.setVisible(false)
     this.challengeRedraw()
 
     // Apply the IV crush + land the dot at the chosen price.
