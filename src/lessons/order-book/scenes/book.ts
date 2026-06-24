@@ -13,18 +13,6 @@ export interface Level {
   size: number
 }
 
-export interface Book {
-  /** Ask levels, BEST (lowest) ask FIRST. */
-  asks: Level[]
-  /** Bid levels, BEST (highest) bid FIRST. */
-  bids: Level[]
-}
-
-export const bestAsk = (b: Book): number => b.asks[0]?.price ?? NaN
-export const bestBid = (b: Book): number => b.bids[0]?.price ?? NaN
-export const spread = (b: Book): number => bestAsk(b) - bestBid(b)
-export const mid = (b: Book): number => (bestAsk(b) + bestBid(b)) / 2
-
 export interface Fill {
   price: number
   shares: number

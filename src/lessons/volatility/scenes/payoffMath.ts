@@ -98,12 +98,6 @@ export function breakevens(legs: Leg[]): { lower: number; upper: number } {
   }
 }
 
-/** The smaller of the two breakeven distances from a reference spot (default 100). */
-export function nearestBreakevenMove(legs: Leg[], spot = 100): number {
-  const be = breakevens(legs)
-  return Math.min(Math.abs(be.upper - spot), Math.abs(spot - be.lower))
-}
-
 /**
  * Did expiry price S clear a breakeven (i.e., land in profit) for a LONG structure?
  * For a long straddle/strangle, profit is OUTSIDE the breakevens.
