@@ -3,6 +3,29 @@ import Phaser from 'phaser'
 import { SceneBus } from './bus'
 import { DESIGN } from './ModuleScene'
 
+// Crisp text under the supersampling camera zoom (see PhaserCanvas/ModuleScene).
+// A Phaser Text rasterises to a texture at its font size; ModuleScene then zooms the
+// camera by RES, which magnifies that texture and leaves text soft even though the
+// vector graphics are sharp. Rendering each Text's texture at the zoom factor fixes it.
+// We patch the factory once (idempotent) so EVERY `scene.add.text(...)` is covered,
+// including the many scenes that build text without going through `label()`.
+type CrispFactory = Phaser.GameObjects.GameObjectFactory & {
+  __crispTextPatched?: boolean
+  scene: Phaser.Scene
+  text(...args: unknown[]): Phaser.GameObjects.Text
+}
+const factoryProto = Phaser.GameObjects.GameObjectFactory.prototype as unknown as CrispFactory
+if (!factoryProto.__crispTextPatched) {
+  const originalText = factoryProto.text
+  factoryProto.text = function (this: CrispFactory, ...args: unknown[]) {
+    const t = originalText.apply(this, args) as Phaser.GameObjects.Text
+    const res = this.scene.scale.gameSize.width / DESIGN.width
+    if (res > 1) t.setResolution(res)
+    return t
+  }
+  factoryProto.__crispTextPatched = true
+}
+
 interface PhaserCanvasProps {
   /** The scene class to mount. */
   scene: new (config?: Phaser.Types.Scenes.SettingsConfig) => Phaser.Scene
