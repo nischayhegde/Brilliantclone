@@ -1,6 +1,5 @@
 import type { LessonPackage, ModuleSpec } from '../../engine/types'
 import CandleChartScene from '../../engine/scenes/CandleChartScene'
-import TitleScene from '../../engine/scenes/TitleScene'
 
 /**
  * LESSON 2 — Reading the Charts (reference implementation).
@@ -733,7 +732,6 @@ const pkg: LessonPackage = {
   },
   scenes: {
     candle: CandleChartScene,
-    title: TitleScene,
   },
 }
 

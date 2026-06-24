@@ -6,7 +6,7 @@ import { initialProgress, type Progress } from '../domain/progress'
 /** Per-lesson progress keyed by lesson id (e.g. 'reading-charts'). */
 export type LessonProgressMap = Record<string, Progress>
 
-export interface UserDoc {
+interface UserDoc {
   email: string | null
   displayName: string | null
   photoURL: string | null

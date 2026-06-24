@@ -3,7 +3,6 @@ import ContractCardScene from './scenes/ContractCardScene'
 import PremiumBarScene from './scenes/PremiumBarScene'
 import ThetaDecayScene from './scenes/ThetaDecayScene'
 import PayoffScene from './scenes/PayoffScene'
-import PayoffQuadScene from './scenes/PayoffQuadScene'
 import PositionBuilderScene from './scenes/PositionBuilderScene'
 import DeltaCurveScene from './scenes/DeltaCurveScene'
 import ExerciseTimelineScene from './scenes/ExerciseTimelineScene'
@@ -355,7 +354,6 @@ const pkg: LessonPackage = {
     premium: PremiumBarScene,
     theta: ThetaDecayScene,
     payoff: PayoffScene,
-    quad: PayoffQuadScene,
     builder: PositionBuilderScene,
     delta: DeltaCurveScene,
     timeline: ExerciseTimelineScene,

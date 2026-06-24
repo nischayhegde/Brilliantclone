@@ -16,7 +16,7 @@ export function initialProgress(): Progress {
   return { lastCompletedModule: 0, completedModules: [] }
 }
 
-export type ProgressAction = { type: 'COMPLETE_MODULE'; moduleId: number; total: number }
+type ProgressAction = { type: 'COMPLETE_MODULE'; moduleId: number; total: number }
 
 /**
  * Records a module completion.
