@@ -50,6 +50,10 @@ interface TradeChallenge {
 interface CandleParams {
   candlesKey?: string
   candles?: Candle[]
+  /** Stock symbol for the "real market data" provenance badge (else inferred from candlesKey). */
+  ticker?: string
+  /** Show the "real market data · {ticker} · {date range}" provenance badge. Default true. */
+  realData?: boolean
   mode?: 'teach' | 'quiz'
   /** First hidden index (quiz). Use this OR splitDate. */
   splitIndex?: number
@@ -156,6 +160,7 @@ export default class CandleChartScene extends ModuleScene {
     this.pmax = hi + padY
 
     this.drawAxis()
+    this.drawDataBadge()
 
     const mode = this.p.mode ?? 'teach'
     const split =
@@ -234,6 +239,76 @@ export default class CandleChartScene extends ModuleScene {
     if (p >= 100) return p.toFixed(0)
     if (p >= 10) return p.toFixed(1)
     return p.toFixed(2)
+  }
+
+  // ── Real-data provenance badge ────────────────────────────────────────────
+  /** Infer the stock symbol from a candles key (e.g. 'asctri_quiz_AMD' → 'AMD', 'nvda_2023' → 'NVDA'). */
+  private tickerFromKey(key?: string): string | undefined {
+    if (!key) return undefined
+    const segs = key.split('_')
+    for (const s of segs) {
+      const m = /^([A-Z]{1,6})\d*$/.exec(s)
+      if (m) return m[1]
+    }
+    const first = segs[0]
+    return /^[a-z]{1,6}$/.test(first) ? first.toUpperCase() : undefined
+  }
+
+  /** Human date span of the loaded candles (UTC), e.g. "Nov 2021 – Feb 2022" or "May–Jul 2023". */
+  private fmtDateRange(): string {
+    const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const d0 = new Date(this.candles[0].t * 1000)
+    const d1 = new Date(this.candles[this.candles.length - 1].t * 1000)
+    const m0 = MON[d0.getUTCMonth()]
+    const m1 = MON[d1.getUTCMonth()]
+    const y0 = d0.getUTCFullYear()
+    const y1 = d1.getUTCFullYear()
+    if (y0 !== y1) return `${m0} ${y0} – ${m1} ${y1}`
+    return m0 === m1 ? `${m0} ${y0}` : `${m0}–${m1} ${y0}`
+  }
+
+  /**
+   * Provenance badge in the bottom-left axis gutter: a calm blue chip stating the data is
+   * real and naming the stock + actual historical window. Reinforces the product's "earned
+   * trust through accuracy" — every candle is a real ticker over real dates, not synthetic.
+   */
+  private drawDataBadge(): void {
+    if ((this.p.realData ?? true) === false) return
+    const ticker = this.p.ticker ?? this.tickerFromKey(this.p.candlesKey)
+    const range = this.fmtDateRange()
+    const lead = this.compact ? 'Real data' : 'Real market data'
+    const text = ticker ? `${lead} · ${ticker} · ${range}` : `${lead} · ${range}`
+
+    const y = this.plot.b + (this.compact ? 12 : 16)
+    const t = this.label(0, y, text, {
+      size: this.fs(this.compact ? 10 : 11),
+      col: C.blueDark,
+      bold: true,
+      align: 'left',
+    })
+    const padX = 8
+    const padY = 3
+    const dotR = 3
+    const gap = 7
+    const totalW = dotR * 2 + gap + t.width + padX * 2
+    const x = Math.min(this.plot.l, this.plot.r - totalW)
+    const top = y - (t.height / 2 + padY)
+    const h = t.height + padY * 2
+
+    const chip = this.add.graphics()
+    chip.fillStyle(C.blueSoft, 0.96)
+    chip.fillRoundedRect(x, top, totalW, h, 6)
+    chip.lineStyle(1, C.blue, 0.3)
+    chip.strokeRoundedRect(x, top, totalW, h, 6)
+    const dot = this.add.circle(x + padX + dotR, y, dotR, C.blue)
+    t.setPosition(x + padX + dotR * 2 + gap, y)
+    this.children.moveBelow(chip, t)
+
+    if (!this.reduceMotion) {
+      const objs: Array<Phaser.GameObjects.GameObject & { alpha: number }> = [chip, dot, t]
+      objs.forEach((o) => (o.alpha = 0))
+      this.tweens.add({ targets: objs, alpha: 1, duration: 300, delay: 140, ease: 'Cubic.out' })
+    }
   }
 
   // ── Candle draw-in ────────────────────────────────────────────────────────

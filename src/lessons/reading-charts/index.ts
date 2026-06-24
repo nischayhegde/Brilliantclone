@@ -21,7 +21,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · NVDA · Bull Flag',
     title: 'Bull Flag',
     intro:
-      'A sharp rally (the flagpole), a tight pullback (the flag), then a breakout that resumes the trend. Watch where to buy, target, and stop.',
+      'Every chart in this lesson is real, unedited price history — actual tickers over actual dates, never synthetic. First, the Bull Flag: a sharp rally (the flagpole), a tight pullback (the flag), then a breakout that resumes the trend. Watch where to buy, target, and stop.',
     scene: {
       kind: 'candle',
       params: {
@@ -724,10 +724,10 @@ const pkg: LessonPackage = {
     id: 'reading-charts',
     index: 2,
     title: 'Reading the Charts',
-    subtitle: '12 Technical-Analysis Patterns',
+    subtitle: '12 Patterns on Real Stock Charts',
     level: 2,
     blurb:
-      'Learn to spot 12 classic chart patterns on real stock data — then prove it: half the chart is hidden and you call the breakout.',
+      'Spot 12 classic chart patterns on real, unedited price history — actual tickers and dates, never synthetic — then prove it: half the chart is hidden and you call the breakout.',
     modules,
   },
   scenes: {
