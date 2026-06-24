@@ -212,10 +212,10 @@ export default class PayoffChallengeScene extends ModuleScene {
     let dragging = false
     strip.on('pointerdown', (p: Phaser.Input.Pointer) => {
       dragging = true
-      moveTo(p.x)
+      moveTo(p.worldX)
     })
     const onMove = (p: Phaser.Input.Pointer) => {
-      if (dragging) moveTo(p.x)
+      if (dragging) moveTo(p.worldX)
     }
     const onUp = () => {
       dragging = false

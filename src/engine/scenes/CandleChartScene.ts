@@ -618,9 +618,9 @@ export default class CandleChartScene extends ModuleScene {
       const actives = this.tradeControls.filter((c) => c.isActive())
       if (actives.length === 0) return
       this.dragging = actives.reduce((best, c) =>
-        Math.abs(c.pixelY() - p.y) < Math.abs(best.pixelY() - p.y) ? c : best,
+        Math.abs(c.pixelY() - p.worldY) < Math.abs(best.pixelY() - p.worldY) ? c : best,
       )
-      this.dragging.setFromPointerY(p.y)
+      this.dragging.setFromPointerY(p.worldY)
     })
 
     const tp0 = tr.tp0 ?? (long ? entry + span * 0.2 : entry - span * 0.2)
@@ -633,7 +633,7 @@ export default class CandleChartScene extends ModuleScene {
     )
 
     const onMove = (p: Phaser.Input.Pointer) => {
-      if (this.dragging && !this.locked) this.dragging.setFromPointerY(p.y)
+      if (this.dragging && !this.locked) this.dragging.setFromPointerY(p.worldY)
     }
     const onUp = () => {
       this.dragging = undefined

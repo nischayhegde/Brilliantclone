@@ -30,6 +30,17 @@ export abstract class ModuleScene extends Phaser.Scene {
   }
 
   create(): void {
+    // The game boots at DESIGN×RES (see PhaserCanvas) for a crisp, supersampled drawing
+    // buffer on hi-DPI screens. Zoom the camera by that same factor and re-centre on the
+    // design midpoint so the visible world is exactly [0,DESIGN.width]×[0,DESIGN.height] —
+    // every scene keeps authoring in DESIGN space and never sees the larger buffer.
+    // (Input hit-testing and drag deltas are camera-aware; manual pointer reads use
+    // `pointer.worldX/worldY`, which this zoom maps back into design space.)
+    const res = this.scale.gameSize.width / DESIGN.width
+    if (res !== 1) {
+      this.cameras.main.setZoom(res)
+      this.cameras.main.centerOn(DESIGN.width / 2, DESIGN.height / 2)
+    }
     this.offBus = this.bus.on((e) => this.handleBus(e))
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.offBus?.())
     this.build()
@@ -194,6 +205,10 @@ export abstract class ModuleScene extends Phaser.Scene {
     g.fillStyle(color(bgCol ?? C.white), bgAlpha)
     g.fillRoundedRect(bx, by, t.width + padX * 2, t.height + padY * 2, 5)
     this.children.moveBelow(g, t)
+    // Tie the chip to its text's lifecycle. Scenes that redraw labels (e.g. breakevens
+    // on a slider drag) destroy and recreate the text each frame; without this the chip
+    // graphics leak and pile up as stray white rectangles wherever the label used to be.
+    t.once(Phaser.GameObjects.Events.DESTROY, () => g.destroy())
     return g
   }
 
@@ -272,8 +287,9 @@ export abstract class ModuleScene extends Phaser.Scene {
    *
    * Mapping note: the value domain [min,max] and the pixel domain [0,w] are kept
    * strictly separate (an earlier version conflated them, which made the knob jumpy
-   * and unable to reach the ends). Pointer positions are game-space, and the slider
-   * is placed at the scene root, so localX = pointer.x - container.x ∈ [0,w].
+   * and unable to reach the ends). Pointer positions are read in DESIGN/world space
+   * (pointer.worldX, camera-zoom-safe) and the slider sits at the scene root, so
+   * localX = pointer.worldX - container.x ∈ [0,w].
    */
   slider(
     x: number,
@@ -335,10 +351,10 @@ export abstract class ModuleScene extends Phaser.Scene {
       dragging = true
       halo.setVisible(true)
       knob.setScale(1.18)
-      apply(valueAt(p.x), true)
+      apply(valueAt(p.worldX), true)
     })
     const onMove = (p: Phaser.Input.Pointer) => {
-      if (dragging) apply(valueAt(p.x), true)
+      if (dragging) apply(valueAt(p.worldX), true)
     }
     const onUp = () => {
       if (!dragging) return

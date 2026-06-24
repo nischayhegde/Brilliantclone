@@ -826,11 +826,11 @@ export default class PayoffScene extends ModuleScene {
     hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (this.graded) return
       dragging = true
-      set(this.priceFor(p.x))
+      set(this.priceFor(p.worldX))
       redraw()
     })
     const onMove = (p: Phaser.Input.Pointer) => {
-      if (dragging) { set(this.priceFor(p.x)); redraw() }
+      if (dragging) { set(this.priceFor(p.worldX)); redraw() }
     }
     const onUp = () => { dragging = false }
     this.input.on('pointermove', onMove)

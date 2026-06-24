@@ -423,11 +423,11 @@ export default class IVCrushScene extends ModuleScene {
     hit.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (this.graded) return
       dragging = true
-      this.move = this.priceForVx(p.x) / this.K - 1
+      this.move = this.priceForVx(p.worldX) / this.K - 1
       redraw()
     })
     const onMove = (p: Phaser.Input.Pointer) => {
-      if (dragging && !this.graded) { this.move = this.priceForVx(p.x) / this.K - 1; redraw() }
+      if (dragging && !this.graded) { this.move = this.priceForVx(p.worldX) / this.K - 1; redraw() }
     }
     const onUp = () => { dragging = false }
     this.input.on('pointermove', onMove)

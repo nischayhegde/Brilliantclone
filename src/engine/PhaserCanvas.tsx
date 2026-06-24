@@ -29,11 +29,19 @@ export default function PhaserCanvas({ scene, params, bus, className }: PhaserCa
     // layout (fewer labels, larger touch targets) on phones. Measured once at boot.
     const displayW = Math.round(host.getBoundingClientRect().width || host.clientWidth || DESIGN.width)
 
+    // Supersample factor. In Phaser's FIT mode the canvas drawing buffer is fixed to the
+    // config width/height (zoom only affects CSS, never the backing store), so a 760-wide
+    // buffer gets stretched across a wider, hi-DPI display and looks soft. We boot the
+    // game at DESIGN×RES so the buffer comfortably exceeds the physical pixel count, then
+    // ModuleScene zooms the camera by RES so every scene still authors in DESIGN space.
+    // Clamped to 2–3: enough to be crisp on 1×–3× displays without a huge framebuffer.
+    const RES = Math.max(2, Math.min(3, Math.ceil((window.devicePixelRatio || 1) * 1.2)))
+
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: host,
-      width: DESIGN.width,
-      height: DESIGN.height,
+      width: DESIGN.width * RES,
+      height: DESIGN.height * RES,
       backgroundColor: '#ffffff',
       transparent: false,
       scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },

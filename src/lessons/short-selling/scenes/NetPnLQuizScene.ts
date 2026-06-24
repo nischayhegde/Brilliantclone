@@ -159,10 +159,10 @@ export default class NetPnLQuizScene extends ModuleScene {
     strip.on('pointerdown', (p: Phaser.Input.Pointer) => {
       if (this.locked) return
       dragging = true
-      moveTo(p.y)
+      moveTo(p.worldY)
     })
     const onMove = (p: Phaser.Input.Pointer) => {
-      if (dragging && !this.locked) moveTo(p.y)
+      if (dragging && !this.locked) moveTo(p.worldY)
     }
     const onUp = () => {
       dragging = false

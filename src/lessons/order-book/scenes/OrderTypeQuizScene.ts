@@ -212,12 +212,12 @@ export default class OrderTypeQuizScene extends ModuleScene {
     hit.on('pointerdown', (pt: Phaser.Input.Pointer) => {
       if (this.locked) return
       dragging = true
-      this.limitPrice = Phaser.Math.Clamp(this.snap(this.priceForY(pt.y)), this.limitMin, this.limitMax)
+      this.limitPrice = Phaser.Math.Clamp(this.snap(this.priceForY(pt.worldY)), this.limitMin, this.limitMax)
       redraw()
     })
     const onMove = (pt: Phaser.Input.Pointer) => {
       if (dragging && !this.locked) {
-        this.limitPrice = Phaser.Math.Clamp(this.snap(this.priceForY(pt.y)), this.limitMin, this.limitMax)
+        this.limitPrice = Phaser.Math.Clamp(this.snap(this.priceForY(pt.worldY)), this.limitMin, this.limitMax)
         redraw()
       }
     }
