@@ -4,18 +4,17 @@ import PhaserCanvas from '../engine/PhaserCanvas'
 import { SceneBus } from '../engine/bus'
 import Button from '../components/ui/Button'
 import { resolvePracticeScene } from './scenes'
-import { resolveChartTrade } from './resolve/charts'
+import { getEngine } from './engines'
 import { getRubric } from './rubrics'
 import { NUDGES } from './nudges'
 import { curatedDebrief } from './debrief'
 import { usePractice } from '../state/PracticeContext'
 import Journal from './Journal'
-import type { Candle } from '../data/candles'
-import type { ChartsDecision, Decision, Feeling, ProcessScore, ScenarioOutcome, ScenarioSpec } from './types'
+import type { Decision, Feeling, ProcessScore, ScenarioOutcome, ScenarioSpec } from './types'
 
 type Phase = 'setup' | 'journal' | 'resolved'
 
-export default function ScenarioPlayer({ spec, candles }: { spec: ScenarioSpec; candles: Candle[] }) {
+export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; data: unknown }) {
   const navigate = useNavigate()
   const { applyResult } = usePractice()
   const busRef = useRef<SceneBus>()
@@ -28,19 +27,15 @@ export default function ScenarioPlayer({ spec, candles }: { spec: ScenarioSpec; 
   const [result, setResult] = useState<{ outcome: ScenarioOutcome; score: ProcessScore } | null>(null)
   const [journal, setJournal] = useState<{ rationale: string; feeling: Feeling } | null>(null)
 
-  const scene = resolvePracticeScene('chart-trade')!
-  const splitIndex = spec.dataRef.splitIndex ?? Math.floor(candles.length * 0.6)
-  const entry = candles[splitIndex].c
+  // The engine makes the player track-agnostic: it decides which scene to mount, how to
+  // shape its params from the loaded data, and how to resolve the decision into an outcome.
+  const engine = getEngine(spec.track)
+  const scene = resolvePracticeScene(engine.sceneKind)!
+  const params = useMemo(() => engine.sceneParams(spec, data), [engine, spec, data])
 
   const canvas = useMemo(
-    () => (
-      <PhaserCanvas
-        scene={scene}
-        bus={bus}
-        params={{ candles, splitIndex, entry, constraints: spec.constraints }}
-      />
-    ),
-    [scene, bus, candles, splitIndex, entry, spec.constraints],
+    () => <PhaserCanvas scene={scene} bus={bus} params={params} />,
+    [scene, bus, params],
   )
 
   // Collect live nudges + the structured decision from the scene.
@@ -57,8 +52,8 @@ export default function ScenarioPlayer({ spec, candles }: { spec: ScenarioSpec; 
 
   const onJournal = (entry: { rationale: string; feeling: Feeling }) => {
     setJournal(entry)
-    const decision = decisionRef.current as ChartsDecision
-    const outcome = resolveChartTrade(candles, decision, spec.dataRef)
+    const decision = decisionRef.current as Decision
+    const outcome = engine.resolve(spec, data, decision)
     const score = getRubric(spec.rubricId)(spec, decision, outcome)
     setResult({ outcome, score })
     setPhase('resolved')
@@ -110,6 +105,11 @@ export default function ScenarioPlayer({ spec, candles }: { spec: ScenarioSpec; 
           <div className={`rounded-2xl px-5 py-3 text-lg font-bold ${result.score.total >= spec.objective.passScore ? 'bg-brand-green-soft text-brand-green-text' : 'bg-brand-red-soft text-brand-red'}`}>
             Process score {result.score.total}/100 · P&amp;L {result.outcome.pnl >= 0 ? '+' : '−'}${Math.abs(Math.round(result.outcome.pnl))}
           </div>
+          {result.outcome.facts.modelEstimate === true && (
+            <p className="text-xs font-semibold text-muted">
+              Closed early — P&amp;L is a model estimate · IV real. A held-to-expiry P&amp;L is exact.
+            </p>
+          )}
           <ul className="w-full space-y-1">
             {result.score.dimensions.map((d) => (
               <li key={d.id} className="flex justify-between gap-3 text-sm">

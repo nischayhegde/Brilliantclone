@@ -4,14 +4,13 @@ import TopNav from '../components/TopNav'
 import Spinner from '../components/ui/Spinner'
 import ScenarioPlayer from '../practice/ScenarioPlayer'
 import { getScenario } from '../practice/scenarioRegistry'
-import { loadCandles } from '../practice/corpus'
-import type { Candle } from '../data/candles'
+import { getEngine } from '../practice/engines'
 
 export default function ScenarioPlayerPage() {
   const { specId } = useParams<{ specId: string }>()
   const navigate = useNavigate()
   const spec = specId ? getScenario(specId) : undefined
-  const [candles, setCandles] = useState<Candle[] | null>(null)
+  const [data, setData] = useState<unknown>(null)
 
   useEffect(() => {
     if (!spec) {
@@ -19,8 +18,9 @@ export default function ScenarioPlayerPage() {
       return
     }
     let active = true
-    loadCandles(spec.dataRef)
-      .then((c) => active && setCandles(c))
+    getEngine(spec.track)
+      .loadData(spec)
+      .then((d) => active && setData(d))
       .catch((e) => {
         console.error('Failed to load scenario data', e)
         if (active) navigate('/practice', { replace: true })
@@ -34,7 +34,7 @@ export default function ScenarioPlayerPage() {
     <div className="min-h-screen bg-paper">
       <TopNav />
       <main className="mx-auto flex max-w-5xl justify-center px-4 py-10">
-        {!spec || !candles ? <Spinner className="h-8 w-8" /> : <ScenarioPlayer spec={spec} candles={candles} />}
+        {!spec || data === null ? <Spinner className="h-8 w-8" /> : <ScenarioPlayer spec={spec} data={data} />}
       </main>
     </div>
   )
