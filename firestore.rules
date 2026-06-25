@@ -6,7 +6,6 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // progress must be a sane shape: pointer 0..24, completedModules a list <= 24.
     function progressOk(p) {
       return p.lastCompletedModule is int
              && p.lastCompletedModule >= 0
@@ -15,11 +14,20 @@ service cloud.firestore {
              && p.completedModules.size() <= 24;
     }
 
+    // practice.account shape: balance a number, three integer tiers, three numeric skills.
+    function practiceOk(p) {
+      return p.account.balance is number
+             && p.account.balance >= 0
+             && p.account.ruinEvents is int
+             && p.account.ruinEvents >= 0
+             && p.account.tier.charts is int
+             && p.account.tier.options is int
+             && p.account.tier['market-making'] is int;
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
 
-      // Only a full profile doc may be created — this blocks a partial merge-write
-      // (persistProgress/persistBestStreak) from accidentally creating the doc.
       allow create: if isOwner(uid)
                     && request.resource.data.keys().hasAll(
                          ['email', 'displayName', 'photoURL', 'progress', 'bestStreak', 'createdAt'])
@@ -27,19 +35,27 @@ service cloud.firestore {
                     && request.resource.data.bestStreak >= 0
                     && progressOk(request.resource.data.progress);
 
-      // progress never regresses; bestStreak is monotonic (a record only grows).
-      // A progress-only write leaves bestStreak unchanged, so >= holds trivially.
+      // Legacy invariants unchanged; if a `practice` object is present it must be well-formed.
       allow update: if isOwner(uid)
                     && progressOk(request.resource.data.progress)
                     && request.resource.data.progress.lastCompletedModule
                          >= resource.data.progress.lastCompletedModule
                     && request.resource.data.bestStreak is int
-                    && request.resource.data.bestStreak >= resource.data.bestStreak;
+                    && request.resource.data.bestStreak >= resource.data.bestStreak
+                    && (!('practice' in request.resource.data) || practiceOk(request.resource.data.practice));
 
       allow delete: if false;
+
+      // Append-only completed-run history, owner-scoped. No edits/deletes.
+      match /practiceHistory/{runId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+                      && request.resource.data.score is number
+                      && request.resource.data.track is string;
+        allow update, delete: if false;
+      }
     }
 
-    // Everything else is denied.
     match /{document=**} {
       allow read, write: if false;
     }
