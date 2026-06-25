@@ -4,6 +4,8 @@ import { loadCandles } from './corpus'
 import { findContract, loadChain, type ChainSnapshot } from './chain'
 import { resolveChartTrade } from './resolve/charts'
 import { resolveOptionsPosition } from './resolve/options'
+import { bookStatsFromCandles, type BookStats } from './bookStats'
+import { simulateMarketMaking } from './resolve/marketMaking'
 
 export interface TrackEngine<Data> {
   sceneKind: string
@@ -51,11 +53,31 @@ const optionsEngine: TrackEngine<OptionsData> = {
   },
 }
 
+/**
+ * Track B (market making). The mid path is REAL (close prices from the bundled OHLC);
+ * the order flow is a deterministic, labelled illustrative simulation calibrated to the
+ * path's realized volatility. The session math (spread/inventory/mark-to-market) is exact
+ * and RNG-free, so re-running a scenario with the same inputs reproduces the outcome.
+ */
+const marketMakingEngine: TrackEngine<BookStats> = {
+  sceneKind: 'market-make',
+  loadData: async (spec) => bookStatsFromCandles(await loadCandles(spec.dataRef)),
+  sceneParams: (spec, data) => ({
+    sceneKey: 'MarketMakeScene',
+    mids: data.mids,
+    sigma: data.sigma,
+    mid0: data.mid0,
+    constraints: spec.constraints,
+  }),
+  resolve: (_spec, data, decision) =>
+    simulateMarketMaking(decision as never, { mids: data.mids, sigma: data.sigma }),
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const ENGINES: Record<Track, TrackEngine<any>> = {
   charts: chartsEngine,
   options: optionsEngine,
-  'market-making': chartsEngine, // placeholder until M5 (never selected: no MM specs yet)
+  'market-making': marketMakingEngine,
 }
 
 export function getEngine(track: Track): TrackEngine<unknown> {
