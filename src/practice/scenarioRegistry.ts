@@ -26,7 +26,13 @@ function chartsSpec(
       'Real price action up to a decision point. If the setup is sound, set your size, stop, and target; otherwise stay out.',
     dataRef: { candlesKey, splitIndex: Math.max(1, Math.floor(len * 0.6)), revealToIndex: len },
     objective: { kind: 'process', passScore: 70 },
-    constraints: { accountBalance: 10000, maxRiskPct: 2, requireStop: true, minRewardRisk: tier >= 2 ? 2 : 1.5 },
+    constraints: {
+      accountBalance: 10000,
+      maxRiskPct: 2,
+      requireStop: true,
+      // Complexity scales with tier (rubric R:R target), never the market odds.
+      minRewardRisk: tier >= 3 ? 2.5 : tier >= 2 ? 2 : 1.5,
+    },
     rubricId: 'charts-v1',
     nudges: [{ id: 'sizing' }, { id: 'no-stop' }],
     coachContextKeys: ['outcome', 'exit', 'netMove'],

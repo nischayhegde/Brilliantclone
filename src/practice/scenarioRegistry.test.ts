@@ -30,4 +30,9 @@ describe('scenario registry', () => {
     const byTier = scenariosFor(first.track, first.tier)
     expect(byTier.every((s) => s.tier === first.tier)).toBe(true)
   })
+
+  it('charts + options cover tiers 1..3 so adaptive difficulty has targets', () => {
+    for (const track of ['charts', 'options'] as const)
+      for (const tier of [1, 2, 3]) expect(scenariosFor(track, tier).length, `${track} t${tier}`).toBeGreaterThan(0)
+  })
 })
