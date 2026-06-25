@@ -8,6 +8,8 @@ import { getEngine } from './engines'
 import { getRubric } from './rubrics'
 import { NUDGES } from './nudges'
 import { curatedDebrief } from './debrief'
+import { coachDebrief } from './ai/coach'
+import { getModelClient } from '../services/aiModel'
 import { usePractice } from '../state/PracticeContext'
 import Journal from './Journal'
 import type { Decision, Feeling, ProcessScore, ScenarioOutcome, ScenarioSpec } from './types'
@@ -26,6 +28,7 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
   const decisionRef = useRef<Decision | null>(null)
   const [result, setResult] = useState<{ outcome: ScenarioOutcome; score: ProcessScore } | null>(null)
   const [journal, setJournal] = useState<{ rationale: string; feeling: Feeling } | null>(null)
+  const [debrief, setDebrief] = useState<string>('')
 
   // The engine makes the player track-agnostic: it decides which scene to mount, how to
   // shape its params from the loaded data, and how to resolve the decision into an outcome.
@@ -70,6 +73,27 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
     })
     navigate('/practice')
   }
+
+  // Debrief is LLM-authored (coach), constrained to whitelisted real facts, with a curated
+  // fallback baked in. Falls straight back to curated prose when no model is configured.
+  useEffect(() => {
+    if (phase !== 'resolved' || !result) return
+    const model = getModelClient()
+    const allowedFacts = { pnl: result.outcome.pnl, ...result.outcome.facts }
+    if (!model) {
+      setDebrief(curatedDebrief(spec, decisionRef.current as Decision, result.outcome, result.score, journal ?? undefined))
+      return
+    }
+    let active = true
+    coachDebrief(
+      {
+        spec, decision: decisionRef.current as Decision, outcome: result.outcome, score: result.score,
+        nudgesFired: firedNudges, journal: journal ?? undefined, allowedFacts,
+      },
+      model,
+    ).then((r) => { if (active) setDebrief(r.text) })
+    return () => { active = false }
+  }, [phase, result, spec, firedNudges, journal])
 
   return (
     <div className="flex w-full max-w-4xl flex-col items-center gap-4">
@@ -119,7 +143,7 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
             ))}
           </ul>
           <p className="text-center text-base leading-relaxed text-ink-soft">
-            {curatedDebrief(spec, decisionRef.current as Decision, result.outcome, result.score, journal ?? undefined)}
+            {debrief}
           </p>
           <Button onClick={finish}>Continue</Button>
         </div>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import Spinner from '../components/ui/Spinner'
@@ -13,15 +14,31 @@ const TRACK_LABEL: Record<Track, string> = {
 
 export default function PracticePage() {
   const { track } = useParams<{ track?: Track }>()
-  const { loading, account, nextScenario } = usePractice()
+  const { loading, account, nextScenario, primeScenarios } = usePractice()
   const navigate = useNavigate()
+  const [starting, setStarting] = useState<Track | null>(null)
 
   // Gate the card on a pure, synchronous check (NOT on calling nextScenario) so the
-  // button stays render-safe when M3 makes nextScenario async/LLM-primary.
+  // button stays render-safe now that nextScenario is async/LLM-primary.
   const hasTrack = (t: Track) => scenariosFor(t).length > 0
-  const start = (t: Track) => {
-    const s = nextScenario(t) // M1: synchronous; M3: becomes `await nextScenario(t)`
-    if (s) navigate(`/practice/play/${s.id}`)
+
+  // Warm the prefetch queue for playable tracks so the first scenario is usually already LLM.
+  useEffect(() => {
+    if (loading) return
+    for (const t of allTracks) if (scenariosFor(t).length > 0) primeScenarios(t)
+  }, [loading, primeScenarios])
+
+  const start = async (t: Track) => {
+    if (starting) return
+    setStarting(t)
+    try {
+      const s = await nextScenario(t) // LLM-primary: instant when warm, composes on demand otherwise
+      if (s) navigate(`/practice/play/${s.id}`)
+    } catch (e) {
+      console.error('Failed to start scenario', e)
+    } finally {
+      setStarting(null)
+    }
   }
 
   return (
@@ -55,10 +72,10 @@ export default function PracticePage() {
                   <div className="mt-1 text-sm text-muted">Skill {Math.round(account.skill[t])}/100</div>
                   <button
                     onClick={() => start(t)}
-                    disabled={!hasTrack(t)}
+                    disabled={!hasTrack(t) || starting !== null}
                     className="mt-4 rounded-xl bg-ink px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
                   >
-                    {hasTrack(t) ? 'Start scenario' : 'Coming soon'}
+                    {!hasTrack(t) ? 'Coming soon' : starting === t ? 'Composing…' : 'Start scenario'}
                   </button>
                 </div>
               ))}

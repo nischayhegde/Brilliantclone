@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import {
   appendPracticeRun,
@@ -9,13 +9,26 @@ import {
 import { accountReducer, initialAccount, type PracticeAccount } from '../practice/account'
 import { getScenario, scenariosFor } from '../practice/scenarioRegistry'
 import type { PracticeRun, ScenarioSpec, Track } from '../practice/types'
+import { getModelClient } from '../services/aiModel'
+import { composeScenario, type ComposeResult } from '../practice/ai/composer'
+import { makeScenarioQueue } from '../practice/ai/scenarioQueue'
+import { buildCatalog } from '../practice/ai/catalog'
 
 interface PracticeValue {
   loading: boolean
   account: PracticeAccount
   recentRuns: PracticeRun[]
-  /** Pick the next scenario for a track at the account's current tier (adaptive in M4). */
-  nextScenario: (track?: Track) => ScenarioSpec | undefined
+  /**
+   * LLM-primary: serve a bespoke composed scenario via the prefetch queue (instant when
+   * warm). Curated specs are only the cold-start + the silent fallback inside the composer.
+   */
+  nextScenario: (track?: Track) => Promise<ScenarioSpec>
+  /** Resolve a scenario that nextScenario already produced (LLM specs aren't in the registry). */
+  getComposedScenario: (id: string) => ScenarioSpec | undefined
+  /** Warm the prefetch queue for a track so the first real scenario is usually already LLM. */
+  primeScenarios: (track?: Track) => void
+  /** True when a model client is configured; false → curated-only mode. */
+  aiEnabled: boolean
   /** Apply a graded run: update balance/skill/tier, persist, append to history. */
   applyResult: (run: PracticeRun) => void
 }
@@ -28,6 +41,9 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<PracticeAccount>(initialAccount())
   const [recentRuns, setRecentRuns] = useState<PracticeRun[]>([])
   const accountRef = useRef<PracticeAccount>(initialAccount())
+  // Specs produced by nextScenario (LLM-composed or curated) so the player can resolve
+  // them by id even though LLM specs never live in the static scenario registry.
+  const composedById = useRef<Map<string, ScenarioSpec>>(new Map())
 
   useEffect(() => {
     let active = true
@@ -56,22 +72,48 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
-  const nextScenario = useCallback(
-    (track: Track = 'charts'): ScenarioSpec | undefined => {
+  // One queue for the provider lifetime. compose() is LLM when a model exists, else curated.
+  const queue = useMemo(() => {
+    const model = getModelClient()
+    const compose = async (track: Track): Promise<ComposeResult> => {
       const tier = accountRef.current.tier[track]
-      const atTier = scenariosFor(track, tier)
-      const pool = atTier.length ? atTier : scenariosFor(track)
-      // Avoid immediate repeats where possible.
-      const recentIds = new Set(recentRuns.slice(0, 5).map((r) => r.specId))
-      return pool.find((s) => !recentIds.has(s.id)) ?? pool[0]
+      const balance = accountRef.current.balance
+      if (!model) {
+        const atTier = scenariosFor(track, tier)
+        const pool = atTier.length ? atTier : scenariosFor(track)
+        return { spec: pool[Math.floor(Math.random() * pool.length)], source: 'curated', attempts: 0 }
+      }
+      // buildCatalog reads the full ingested manifests (cached after the first call).
+      const catalog = await buildCatalog(track)
+      return composeScenario({ track, tier, accountBalance: balance, catalog }, model)
+    }
+    return makeScenarioQueue(compose)
+  }, [])
+
+  const aiEnabled = useMemo(() => getModelClient() !== null, [])
+
+  // LLM-primary: take from the queue (instant if prefetched; composes on demand otherwise).
+  const nextScenario = useCallback(
+    async (track: Track = 'charts'): Promise<ScenarioSpec> => {
+      const spec = await queue.take(track)
+      if (spec) composedById.current.set(spec.id, spec)
+      return spec
     },
-    [recentRuns],
+    [queue],
   )
+
+  const getComposedScenario = useCallback(
+    (id: string): ScenarioSpec | undefined => composedById.current.get(id),
+    [],
+  )
+
+  // Warm the queue for a track (call on track-card mount/select).
+  const primeScenarios = useCallback((track: Track = 'charts') => queue.prime(track), [queue])
 
   const applyResult = useCallback(
     (run: PracticeRun) => {
       if (!user) return
-      const spec = getScenario(run.specId)
+      const spec = getScenario(run.specId) ?? composedById.current.get(run.specId)
       const track = spec?.track ?? run.track
       const next = accountReducer(accountRef.current, {
         type: 'APPLY_RESULT',
@@ -90,7 +132,11 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   )
 
   return (
-    <Ctx.Provider value={{ loading, account, recentRuns, nextScenario, applyResult }}>{children}</Ctx.Provider>
+    <Ctx.Provider
+      value={{ loading, account, recentRuns, nextScenario, getComposedScenario, primeScenarios, aiEnabled, applyResult }}
+    >
+      {children}
+    </Ctx.Provider>
   )
 }
 

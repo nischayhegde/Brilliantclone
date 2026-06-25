@@ -5,11 +5,15 @@ import Spinner from '../components/ui/Spinner'
 import ScenarioPlayer from '../practice/ScenarioPlayer'
 import { getScenario } from '../practice/scenarioRegistry'
 import { getEngine } from '../practice/engines'
+import { usePractice } from '../state/PracticeContext'
 
 export default function ScenarioPlayerPage() {
   const { specId } = useParams<{ specId: string }>()
   const navigate = useNavigate()
-  const spec = specId ? getScenario(specId) : undefined
+  const { getComposedScenario } = usePractice()
+  // LLM-composed specs live in the provider (not the static registry); fall back to the
+  // registry so curated deep-links / refreshes still resolve.
+  const spec = specId ? getComposedScenario(specId) ?? getScenario(specId) : undefined
   const [data, setData] = useState<unknown>(null)
 
   useEffect(() => {
