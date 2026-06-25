@@ -10,7 +10,7 @@ export default defineConfig({
         // Split the Firebase SDK into its own chunk (keeps the app chunk lean and
         // clears the >500 kB warning).
         manualChunks: {
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions'],
           // Phaser is ~1.4 MB on its own — split it out so it caches independently
           // and the app chunk (lesson content + React) stays lean.
           phaser: ['phaser'],
