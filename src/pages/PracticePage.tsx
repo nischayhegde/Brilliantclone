@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import Spinner from '../components/ui/Spinner'
+import ResetReflect from '../practice/ResetReflect'
 import { usePractice } from '../state/PracticeContext'
 import { allTracks, scenariosFor } from '../practice/scenarioRegistry'
 import type { Track } from '../practice/types'
@@ -14,7 +15,7 @@ const TRACK_LABEL: Record<Track, string> = {
 
 export default function PracticePage() {
   const { track } = useParams<{ track?: Track }>()
-  const { loading, account, nextScenario, primeScenarios } = usePractice()
+  const { loading, account, nextScenario, primeScenarios, pendingRuin } = usePractice()
   const navigate = useNavigate()
   const [starting, setStarting] = useState<Track | null>(null)
 
@@ -41,6 +42,16 @@ export default function PracticePage() {
     }
   }
 
+  if (pendingRuin)
+    return (
+      <div className="min-h-screen bg-paper">
+        <TopNav />
+        <main className="mx-auto max-w-5xl px-4 py-10">
+          <ResetReflect />
+        </main>
+      </div>
+    )
+
   return (
     <div className="min-h-screen bg-paper">
       <TopNav />
@@ -58,9 +69,15 @@ export default function PracticePage() {
                   Trade real historical setups. Graded on process, not luck.
                 </p>
               </div>
-              <div className="rounded-2xl bg-ink px-5 py-3 text-white">
-                <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Paper balance</div>
-                <div className="font-display text-2xl font-bold">${account.balance.toLocaleString('en-US')}</div>
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl bg-ink px-5 py-3 text-white">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Paper balance</div>
+                  <div className="font-display text-2xl font-bold">${account.balance.toLocaleString('en-US')}</div>
+                </div>
+                <div className="rounded-2xl border border-hairline bg-white px-5 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-muted">Resets</div>
+                  <div className="font-display text-2xl font-bold">{account.ruinEvents}</div>
+                </div>
               </div>
             </header>
 
