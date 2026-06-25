@@ -1,6 +1,7 @@
 import type { DimensionScore, Rubric } from '../types'
 import { chartsRubricV1 } from './charts'
 import { optionsRubricV1 } from './options'
+import { marketMakingRubricV1 } from './marketMaking'
 
 /** Weighted average of dimension scores (0..1), scaled to a 0..100 integer. */
 export function weightedTotal(dimensions: DimensionScore[]): number {
@@ -27,7 +28,12 @@ const noop: Rubric = (_spec, _decision, outcome) => {
   }
 }
 
-export const RUBRICS: Record<string, Rubric> = { noop, 'charts-v1': chartsRubricV1, 'options-v1': optionsRubricV1 }
+export const RUBRICS: Record<string, Rubric> = {
+  noop,
+  'charts-v1': chartsRubricV1,
+  'options-v1': optionsRubricV1,
+  'market-making-v1': marketMakingRubricV1,
+}
 
 export function getRubric(id: string): Rubric {
   const r = RUBRICS[id]

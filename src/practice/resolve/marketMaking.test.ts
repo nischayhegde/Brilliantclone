@@ -37,4 +37,8 @@ describe('simulateMarketMaking', () => {
     const wide = simulateMarketMaking({ ...flat, bidWidth: 1.8, askWidth: 1.8 }, path)
     expect(tight.facts.fills as number).toBeGreaterThan(wide.facts.fills as number)
   })
+
+  it('echoes realized sigma in facts for the rubric', () => {
+    expect(simulateMarketMaking(flat, { mids: [100, 100], sigma: 1, orderRate: 4 }).facts.sigma).toBe(1)
+  })
 })
