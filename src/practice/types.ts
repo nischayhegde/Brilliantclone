@@ -1,3 +1,5 @@
+import type { ScenarioLayout } from './genui/types'
+
 /** The three Practice tracks. */
 export type Track = 'charts' | 'market-making' | 'options'
 
@@ -112,6 +114,11 @@ export interface ScenarioSpec {
   /** Fields rendered "illustrative; math exact". */
   illustrativeFlags?: string[]
   source: 'curated' | 'llm'
+  /**
+   * Optional LLM-authored (or curated) interactive layout. When absent, the player
+   * falls back to `defaultLayoutFor(track)`. Validated via `validateLayout` when present.
+   */
+  layout?: ScenarioLayout
 }
 
 // --- Grading ---

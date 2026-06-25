@@ -2,6 +2,8 @@ import type { ScenarioSpec } from './types'
 import { RUBRICS } from './rubrics'
 import { NUDGES } from './nudges'
 import { CANDLES } from '../data/candles'
+import { validateLayout, layoutFitsTrack } from './genui/schema'
+import type { LayoutCatalog } from './genui/types'
 
 export interface ValidationResult {
   ok: boolean
@@ -19,6 +21,21 @@ export const DISALLOWED_CLAIM_PATTERNS: RegExp[] = [
   /\bcan'?t lose\b/i,
   /\brisk[- ]free\b/i,
 ]
+
+/**
+ * Price-like number in prose, e.g. "$182.50", "182.5", a bare "200" — LLM/widget copy
+ * must avoid inventing specific numbers (the model never produces a traded number).
+ */
+export const NUMERIC_CLAIM_PATTERN = /\$\s?\d[\d,]*(\.\d+)?|\b\d{2,}(\.\d+)?\b/
+
+/** The single source of truth for the copy lints (reused by the genui schema). */
+export function hasDisallowedClaim(text: string): boolean {
+  return DISALLOWED_CLAIM_PATTERNS.some((re) => re.test(text))
+}
+
+export function hasNumericClaim(text: string): boolean {
+  return NUMERIC_CLAIM_PATTERN.test(text)
+}
 
 const ASSET_RE = /^data\/(ohlc|options)\/[\w.-]+\.json$/
 
@@ -72,6 +89,20 @@ export function validateSpec(
   for (const re of DISALLOWED_CLAIM_PATTERNS)
     if (re.test(spec.brief) || re.test(spec.title))
       errors.push(`brief/title contains a disallowed claim: ${re}`)
+
+  // Rule 6: optional generative-UI layout. Backward compatible — legacy specs omit it.
+  // Widget data refs are checked against the bundled candle keys + this spec's own
+  // assets; track-fitness is checked against the spec's track.
+  if (spec.layout !== undefined) {
+    const layoutCatalog: LayoutCatalog = {
+      candlesKeys: Object.keys(CANDLES),
+      ohlcAssets: spec.dataRef.ohlcAsset ? [spec.dataRef.ohlcAsset] : [],
+      chainAssets: spec.dataRef.chainAsset ? [spec.dataRef.chainAsset] : [],
+    }
+    const lv = validateLayout(spec.layout, layoutCatalog)
+    if (!lv.ok) errors.push(...lv.errors)
+    errors.push(...layoutFitsTrack(spec.layout, spec.track))
+  }
 
   return { ok: errors.length === 0, errors }
 }

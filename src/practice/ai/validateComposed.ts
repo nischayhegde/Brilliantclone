@@ -1,10 +1,8 @@
 import type { RiskConstraints, ScenarioSpec, Track } from '../types'
 import type { DataCatalog } from './types'
-import { validateSpec } from '../validator'
+import { hasNumericClaim, validateSpec } from '../validator'
+import { layoutFitsTrack, validateLayout } from '../genui/schema'
 import { CANDLES } from '../../data/candles'
-
-/** Price-like number in prose, e.g. "$182.50", "182.5", "200" near $ — LLM briefs must avoid these. */
-const NUMERIC_CLAIM = /\$\s?\d[\d,]*(\.\d+)?|\b\d{2,}(\.\d+)?\b/
 
 /** Fallback paper balance used to size grading constraints when none is supplied. */
 const DEFAULT_ACCOUNT_BALANCE = 10000
@@ -54,11 +52,22 @@ export function validateComposed(
 
   // Numeric-claim lint: composed specs are LLM output (source forced above), so this ALWAYS
   // runs — no invented price numbers in prose.
-  if (NUMERIC_CLAIM.test(spec.brief ?? '')) errors.push('brief contains a numeric claim (LLM may not invent numbers)')
-  if (NUMERIC_CLAIM.test(spec.title ?? '')) errors.push('title contains a numeric claim')
+  if (hasNumericClaim(spec.brief ?? '')) errors.push('brief contains a numeric claim (LLM may not invent numbers)')
+  if (hasNumericClaim(spec.title ?? '')) errors.push('title contains a numeric claim')
 
-  // Base deterministic validator with catalog-aware resolvers.
-  const base = validateSpec(spec, {
+  // Generative-UI layout: validate against the FULL catalog allow-list (model output),
+  // plus per-track widget fitness. Backward compatible — composed specs without a layout
+  // are still accepted (a curated default layout is applied at render time).
+  if (spec.layout !== undefined) {
+    const lv = validateLayout(spec.layout, catalog)
+    if (!lv.ok) errors.push(...lv.errors)
+    errors.push(...layoutFitsTrack(spec.layout, catalog.track))
+  }
+
+  // Base deterministic validator with catalog-aware resolvers. The layout is already
+  // validated above against the FULL catalog, so we strip it here to avoid re-validating
+  // it against validateSpec's narrower (spec-dataRef-only) layout catalog.
+  const base = validateSpec({ ...spec, layout: undefined }, {
     resolveCandles: (k) => CANDLES[k],
     assetExists: (p) => catalog.ohlcAssets.includes(p) || catalog.chainAssets.includes(p),
   })
