@@ -139,16 +139,16 @@ function ChallengeFooter({
         {result ? (
           <>
             <ResultBanner correct={result.correct} title={result.correct ? 'Correct' : 'Not quite'} />
-            {result.title && <p className="max-w-xl text-center font-bold text-ink">{result.title}</p>}
-            <p className="max-w-xl text-center text-sm text-muted">{result.detail}</p>
+            {result.title && <p className="max-w-xl text-center text-lg font-bold text-ink">{result.title}</p>}
+            <p className="max-w-2xl text-center text-base leading-relaxed text-ink-soft">{result.detail}</p>
           </>
         ) : (
-          <p className="max-w-xl text-center text-sm text-muted">
+          <p className="max-w-2xl text-center text-base leading-relaxed text-ink-soft">
             See how it resolved on the chart above, then continue.
           </p>
         )}
         {result && !result.correct && (
-          <p className="max-w-xl text-center text-xs font-semibold text-muted">
+          <p className="max-w-xl text-center text-sm font-semibold text-muted">
             No worries — review the explanation, then continue.
           </p>
         )}
@@ -159,9 +159,9 @@ function ChallengeFooter({
 
   return (
     <div className="flex w-full flex-col items-center gap-3">
-      <p className="max-w-xl text-center font-semibold">{challenge.prompt}</p>
+      <p className="max-w-xl text-center text-lg font-semibold">{challenge.prompt}</p>
       {challenge.instructions && (
-        <p className="max-w-xl text-center text-sm text-muted">{challenge.instructions}</p>
+        <p className="max-w-2xl text-center text-base leading-relaxed text-ink-soft">{challenge.instructions}</p>
       )}
       <Button disabled={phase === 'awaiting'} onClick={submit}>
         {phase === 'awaiting' ? 'Revealing…' : (challenge.submitLabel ?? 'Submit')}
@@ -199,7 +199,7 @@ function QuizFooter({
   if (!revealed) {
     return (
       <div className="flex w-full flex-col items-center gap-3">
-        <p className="max-w-xl text-center font-semibold">{quiz.prompt}</p>
+        <p className="max-w-xl text-center text-lg font-semibold">{quiz.prompt}</p>
         <div role="group" aria-label="Your answer" className="flex flex-wrap justify-center gap-2">
           {quiz.options.map((o) => (
             <button
@@ -226,11 +226,11 @@ function QuizFooter({
   return (
     <div ref={doneRef} className="flex w-full scroll-mt-6 flex-col items-center gap-3">
       <ResultBanner correct={isRight} title={isRight ? 'Correct!' : 'Not quite.'} />
-      <p className="max-w-xl text-center text-sm text-muted">
+      <p className="max-w-2xl text-center text-base leading-relaxed text-ink-soft">
         {isRight ? quiz.explainRight : quiz.explainWrong}
       </p>
       {!isRight && (
-        <p className="max-w-xl text-center text-xs font-semibold text-muted">
+        <p className="max-w-xl text-center text-sm font-semibold text-muted">
           No worries — review the explanation, then continue.
         </p>
       )}

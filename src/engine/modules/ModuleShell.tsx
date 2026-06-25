@@ -20,12 +20,20 @@ export default function ModuleShell({ kicker, title, intro, caption, canvas, foo
           </span>
         )}
         <h1 className="mt-2 font-display text-3xl font-bold leading-tight">{title}</h1>
-        {intro && <p className="mx-auto mt-2 max-w-xl text-sm text-ink-soft">{intro}</p>}
+        {intro && (
+          <p className="mx-auto mt-3 max-w-2xl text-lg leading-relaxed text-ink-soft text-pretty">
+            {intro}
+          </p>
+        )}
       </header>
 
       {canvas}
 
-      {caption && <p className="mx-auto max-w-xl text-center text-sm text-muted">{caption}</p>}
+      {caption && (
+        <p className="mx-auto max-w-2xl text-center text-lg leading-relaxed text-ink-soft text-pretty">
+          {caption}
+        </p>
+      )}
 
       <div className="mt-1 flex flex-col items-center gap-3">{footer}</div>
     </div>
