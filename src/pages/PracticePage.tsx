@@ -1,8 +1,8 @@
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import Spinner from '../components/ui/Spinner'
 import { usePractice } from '../state/PracticeContext'
-import { allTracks } from '../practice/scenarioRegistry'
+import { allTracks, scenariosFor } from '../practice/scenarioRegistry'
 import type { Track } from '../practice/types'
 
 const TRACK_LABEL: Record<Track, string> = {
@@ -13,7 +13,16 @@ const TRACK_LABEL: Record<Track, string> = {
 
 export default function PracticePage() {
   const { track } = useParams<{ track?: Track }>()
-  const { loading, account } = usePractice()
+  const { loading, account, nextScenario } = usePractice()
+  const navigate = useNavigate()
+
+  // Gate the card on a pure, synchronous check (NOT on calling nextScenario) so the
+  // button stays render-safe when M3 makes nextScenario async/LLM-primary.
+  const hasTrack = (t: Track) => scenariosFor(t).length > 0
+  const start = (t: Track) => {
+    const s = nextScenario(t) // M1: synchronous; M3: becomes `await nextScenario(t)`
+    if (s) navigate(`/practice/play/${s.id}`)
+  }
 
   return (
     <div className="min-h-screen bg-paper">
@@ -44,7 +53,13 @@ export default function PracticePage() {
                   <div className="text-sm font-bold uppercase tracking-wide text-muted">{TRACK_LABEL[t]}</div>
                   <div className="mt-2 text-3xl font-bold">Tier {account.tier[t]}</div>
                   <div className="mt-1 text-sm text-muted">Skill {Math.round(account.skill[t])}/100</div>
-                  <p className="mt-4 text-sm text-ink-soft">Scenario player arrives in the next milestone.</p>
+                  <button
+                    onClick={() => start(t)}
+                    disabled={!hasTrack(t)}
+                    className="mt-4 rounded-xl bg-ink px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+                  >
+                    {hasTrack(t) ? 'Start scenario' : 'Coming soon'}
+                  </button>
                 </div>
               ))}
             </section>
