@@ -54,6 +54,15 @@ service cloud.firestore {
                       && request.resource.data.track is string;
         allow update, delete: if false;
       }
+
+      // Append-only, owner-scoped analytics events. Create-only and immutable.
+      match /practiceEvents/{eventId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+                      && request.resource.data.ts is int
+                      && request.resource.data.type is string;
+        allow update, delete: if false;
+      }
     }
 
     match /{document=**} {
