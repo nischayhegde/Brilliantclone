@@ -27,7 +27,7 @@ describe('chartsRubricV1', () => {
 
   it('rewards a disciplined SKIP when the move was small/whipsaw', () => {
     const d: ChartsDecision = { took: false }
-    const r = chartsRubricV1(spec(), d, out({ took: false, pnl: 0, facts: { took: false, hit: 'none', netMove: 0.3 } }))
+    const r = chartsRubricV1(spec(), d, out({ pnl: 0, facts: { took: false, hit: 'none', netMove: 0.3 } }))
     expect(r.dimensions.find((x) => x.id === 'read')!.score).toBeGreaterThan(0.7)
   })
 
