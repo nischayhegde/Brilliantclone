@@ -76,7 +76,7 @@ src/
   data/          candles.ts              — 29 real verified OHLC series (generated)
   engine/        types.ts, palette.ts, bus.ts, PhaserCanvas.tsx, ModuleScene.ts,
                  modules/ModuleRenderer (intro/teach/interactive/quiz/capstone),
-                 scenes/CandleChartScene + TitleScene (reusable)
+                 scenes/CandleChartScene (reusable)
   lessons/       registry.ts + one folder per lesson (index.ts = LessonPackage,
                  scenes/*.ts = that lesson's Phaser scenes)  — registry.test.ts wiring check
   components/    ui/*, TopNav, ProgressBar, StreakBadge, LessonCard

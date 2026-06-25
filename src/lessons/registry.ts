@@ -36,5 +36,3 @@ export function lessonTotal(lessonId: string): number {
 export function resolveScene(lessonId: string, kind: string): SceneCtor | undefined {
   return getPackage(lessonId)?.scenes[kind]
 }
-
-export const FIRST_LESSON_ID = PACKAGES[0]?.lesson.id ?? 'reading-charts'
