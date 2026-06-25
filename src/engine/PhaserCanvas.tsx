@@ -69,6 +69,12 @@ export default function PhaserCanvas({ scene, params, bus, className }: PhaserCa
       transparent: false,
       scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
       render: { antialias: true, roundPixels: false },
+      // Let mouse-wheel events over the canvas scroll the page. Phaser defaults
+      // `preventDefaultWheel` to true, which calls preventDefault() on every wheel
+      // event whose target is the canvas — trapping the page scroll whenever the
+      // cursor is over a module. No scene uses wheel input (sliders are pointer-drag),
+      // so releasing the wheel is safe and restores normal page scrolling.
+      input: { mouse: { preventDefaultWheel: false } },
       callbacks: {
         postBoot: (g) => {
           g.scene.add('module', scene, true, { params: { ...(params ?? {}), _displayW: displayW }, bus })
