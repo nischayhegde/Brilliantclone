@@ -1,15 +1,16 @@
 /**
  * Pure per-kind config validators + `validateLayout`. Part of the isomorphic core:
- * NO React/DOM/Phaser/firebase. The copy lints reuse the single source of truth in
- * `validator.ts` (`hasDisallowedClaim` / `hasNumericClaim`) so client and server agree.
+ * NO React/DOM/Phaser/firebase. The copy lints come from the `copyLint` leaf module
+ * (the single source of truth) so client and server agree.
  *
- * NOTE: `validator.ts` imports `validateLayout` from here and this module imports the
- * lint helpers from there — a deliberate cycle. It is safe because both sides reference
- * the other only through hoisted `function` declarations used at call time, never at
- * module-init time.
+ * Cycle-free by construction: this module imports the lints from `./copyLint` (a leaf
+ * that imports nothing), NOT from `../validator`. `validator.ts` depends on this module
+ * (`validateLayout`) and on the same leaf, so there is no `validator ⇄ schema` cycle —
+ * which is what lets the Cloud Functions bundle import `validateLayout` without dragging
+ * in `validator.ts` and its data dependencies.
  */
 import type { Track } from '../types'
-import { hasDisallowedClaim, hasNumericClaim } from '../validator'
+import { hasDisallowedClaim, hasNumericClaim } from './copyLint'
 import { WIDGET_REGISTRY, isWidgetKind } from './registry'
 import type { LayoutCatalog, PriceLineId, WidgetDataRef } from './types'
 

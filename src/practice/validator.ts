@@ -3,38 +3,23 @@ import { RUBRICS } from './rubrics'
 import { NUDGES } from './nudges'
 import { CANDLES } from '../data/candles'
 import { validateLayout, layoutFitsTrack } from './genui/schema'
+import { DISALLOWED_CLAIM_PATTERNS } from './genui/copyLint'
 import type { LayoutCatalog } from './genui/types'
+
+// Re-export the copy lints from their leaf home so existing consumers
+// (`ai/validateComposed.ts`, `ai/coachPrompt.ts`) keep importing them from
+// `../validator`. The definitions moved to `genui/copyLint.ts` to break the former
+// `validator.ts ⇄ genui/schema.ts` import cycle.
+export {
+  DISALLOWED_CLAIM_PATTERNS,
+  NUMERIC_CLAIM_PATTERN,
+  hasDisallowedClaim,
+  hasNumericClaim,
+} from './genui/copyLint'
 
 export interface ValidationResult {
   ok: boolean
   errors: string[]
-}
-
-/** Phrases an LLM brief must NOT contain — predictions, advice, guarantees. */
-export const DISALLOWED_CLAIM_PATTERNS: RegExp[] = [
-  /\bwill (?:definitely |certainly )?(?:go|rise|fall|drop|moon|crash)\b/i,
-  /\bguarantee(?:d|s)?\b/i,
-  /\bbuy now\b/i,
-  /\bsell now\b/i,
-  /\b(?:financial )?advice\b/i,
-  /\bsure thing\b/i,
-  /\bcan'?t lose\b/i,
-  /\brisk[- ]free\b/i,
-]
-
-/**
- * Price-like number in prose, e.g. "$182.50", "182.5", a bare "200" — LLM/widget copy
- * must avoid inventing specific numbers (the model never produces a traded number).
- */
-export const NUMERIC_CLAIM_PATTERN = /\$\s?\d[\d,]*(\.\d+)?|\b\d{2,}(\.\d+)?\b/
-
-/** The single source of truth for the copy lints (reused by the genui schema). */
-export function hasDisallowedClaim(text: string): boolean {
-  return DISALLOWED_CLAIM_PATTERNS.some((re) => re.test(text))
-}
-
-export function hasNumericClaim(text: string): boolean {
-  return NUMERIC_CLAIM_PATTERN.test(text)
 }
 
 const ASSET_RE = /^data\/(ohlc|options)\/[\w.-]+\.json$/
