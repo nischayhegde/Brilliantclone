@@ -21,4 +21,8 @@ describe('practice scene registry', () => {
     expect(resolvePracticeScene('chart-trade')).toBeTruthy()
     expect(resolvePracticeScene('missing')).toBeUndefined()
   })
+
+  it('registers the options-build scene', () => {
+    expect(typeof PRACTICE_SCENES['options-build']).toBe('function')
+  })
 })
