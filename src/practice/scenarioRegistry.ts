@@ -115,6 +115,50 @@ SCENARIOS.push(
     'NFLX premiums are fat. Express a thesis with a spread whose reward-to-risk is sane, and keep the position within your risk budget.'),
 )
 
+/**
+ * Build a curated market-making scenario over a REAL bundled window. The mid path is the
+ * series' close prices (honest); the order flow is a deterministic, labelled illustrative
+ * simulation calibrated to that path's realized volatility (`illustrativeFlags: ['orderFlow']`).
+ * Tier scales the lesson — quiet range → choppier vol → a trend where inventory/adverse
+ * selection bites — never the P&L odds. Every entry must pass validateSpec.
+ */
+function marketMakingSpec(id: string, tier: number, candlesKey: string, title: string, brief: string): ScenarioSpec {
+  return {
+    id,
+    track: 'market-making',
+    tier,
+    title,
+    brief,
+    dataRef: { candlesKey },
+    objective: { kind: 'process', passScore: 70 },
+    constraints: { accountBalance: 10000, maxRiskPct: 5 },
+    rubricId: 'market-making-v1',
+    nudges: [{ id: 'spread-too-tight' }, { id: 'inventory-runaway' }],
+    coachContextKeys: ['spreadCaptured', 'adverseSelection', 'finalInventory', 'sigma'],
+    illustrativeFlags: ['orderFlow'],
+    source: 'curated',
+  }
+}
+
+// --- Track B (market-making) curated catalog — tiers 1–3 over real bundled windows ---
+SCENARIOS.push(
+  // Tier 1 — calm, range-bound: earn the spread, keep inventory near flat.
+  marketMakingSpec('mm-t1-01', 1, 'asctri_quiz_AMD', 'Make a market in a quiet session',
+    'A calm, range-bound name. Post a two-sided quote and earn the spread while keeping your inventory near flat — size the spread to the realized move.'),
+  marketMakingSpec('mm-t1-02', 1, 'pltr_2024', 'Quote both sides in a quiet tape',
+    'Price is drifting gently. Set bid and ask widths around the mid, pick a quote size, and cap your inventory so a quiet session stays a quiet session.'),
+  // Tier 2 — choppier vol: spread sizing matters more.
+  marketMakingSpec('mm-t2-01', 2, 'cupHandle_quiz_DIS', 'Size your spread to the volatility',
+    'The tape is choppier here. Too tight and you get picked off; too wide and you barely fill. Tune your spread to the realized move and stay two-sided.'),
+  marketMakingSpec('mm-t2-02', 2, 'hs_quiz_META', 'Earn the spread without overstaying',
+    'Moderate volatility with swings both ways. Quote both sides, size to the move, and keep your inventory cap sane relative to your account.'),
+  // Tier 3 — a trending session: inventory + adverse-selection management is the lesson.
+  marketMakingSpec('mm-t3-01', 3, 'gme_squeeze_2021', 'Manage inventory through a trend',
+    'A strong directional run. One-sided flow will load you up against the move — manage your skew and your cap so adverse selection does not bury the spread you captured.'),
+  marketMakingSpec('mm-t3-02', 3, 'vw_squeeze_2008', 'Survive a violent move',
+    'A violent, trending regime. Keep quoting both sides but respect your inventory cap — the lesson here is discipline, not printing green.'),
+)
+
 export const allTracks: Track[] = ['charts', 'options', 'market-making']
 
 export function getScenario(id: string): ScenarioSpec | undefined {

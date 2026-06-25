@@ -35,4 +35,8 @@ describe('scenario registry', () => {
     for (const track of ['charts', 'options'] as const)
       for (const tier of [1, 2, 3]) expect(scenariosFor(track, tier).length, `${track} t${tier}`).toBeGreaterThan(0)
   })
+
+  it('market-making covers tiers 1..3', () => {
+    for (const t of [1, 2, 3]) expect(scenariosFor('market-making', t).length).toBeGreaterThan(0)
+  })
 })
