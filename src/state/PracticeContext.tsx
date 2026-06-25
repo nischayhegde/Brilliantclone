@@ -14,6 +14,8 @@ import { getModelClient } from '../services/aiModel'
 import { composeScenario, type ComposeResult } from '../practice/ai/composer'
 import { makeScenarioQueue } from '../practice/ai/scenarioQueue'
 import { buildCatalog } from '../practice/ai/catalog'
+import { PracticeAnalytics, evReset } from '../practice/analytics'
+import { firestoreSink, noopSink } from '../services/analyticsSink'
 
 interface PracticeValue {
   loading: boolean
@@ -38,6 +40,8 @@ interface PracticeValue {
   ruinSummary: RuinSummary | null
   /** Coached reset: refill to $10k, drop one tier per track, count the ruin, clear the gate. */
   resetAndReflect: () => void
+  /** Privacy-light learning analytics; Firestore-backed when signed in, no-op otherwise. */
+  analytics: PracticeAnalytics
 }
 
 const Ctx = createContext<PracticeValue | undefined>(undefined)
@@ -108,6 +112,14 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
 
   const aiEnabled = useMemo(() => getModelClient() !== null, [])
 
+  // Privacy-light analytics: writes go under the signed-in user's own document tree;
+  // signed-out sessions use the no-op sink. The emitter swallows sink errors, so
+  // analytics can never break practice.
+  const analytics = useMemo(
+    () => new PracticeAnalytics({ sink: user ? firestoreSink(user.uid) : noopSink }),
+    [user],
+  )
+
   // LLM-primary: take from the queue (instant if prefetched; composes on demand otherwise).
   const nextScenario = useCallback(
     async (track: Track = 'charts'): Promise<ScenarioSpec> => {
@@ -161,8 +173,9 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     setAccount(next)
     setPendingRuin(false)
     setRuinSummary(null)
+    void analytics.emit(evReset({ ruinEvents: next.ruinEvents }))
     persistPracticeState(user.uid, next).catch((e) => console.error('persist reset', e))
-  }, [user])
+  }, [user, analytics])
 
   return (
     <Ctx.Provider
@@ -178,6 +191,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
         pendingRuin,
         ruinSummary,
         resetAndReflect,
+        analytics,
       }}
     >
       {children}

@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import PhaserCanvas from '../engine/PhaserCanvas'
 import { SceneBus } from '../engine/bus'
 import Button from '../components/ui/Button'
+import Disclaimer from '../components/Disclaimer'
+import { useReducedMotion } from '../hooks/useReducedMotion'
 import { resolvePracticeScene } from './scenes'
 import { getEngine } from './engines'
 import { getRubric } from './rubrics'
 import { NUDGES } from './nudges'
 import { curatedDebrief } from './debrief'
 import { coachDebrief } from './ai/coach'
+import { illustrativeLabel } from './copy'
+import { evScenarioStarted, evDecision, evNudge, evCompleted } from './analytics'
 import { getModelClient } from '../services/aiModel'
 import { usePractice } from '../state/PracticeContext'
 import Journal from './Journal'
@@ -18,7 +22,8 @@ type Phase = 'setup' | 'journal' | 'resolved'
 
 export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; data: unknown }) {
   const navigate = useNavigate()
-  const { applyResult } = usePractice()
+  const { applyResult, analytics } = usePractice()
+  const reduceMotion = useReducedMotion()
   const busRef = useRef<SceneBus>()
   if (!busRef.current) busRef.current = new SceneBus()
   const bus = busRef.current
@@ -29,6 +34,10 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
   const [result, setResult] = useState<{ outcome: ScenarioOutcome; score: ProcessScore } | null>(null)
   const [journal, setJournal] = useState<{ rationale: string; feeling: Feeling } | null>(null)
   const [debrief, setDebrief] = useState<string>('')
+  const resultRef = useRef<HTMLDivElement>(null)
+  const [shown, setShown] = useState(false)
+
+  const illus = useMemo(() => illustrativeLabel(spec), [spec])
 
   // The engine makes the player track-agnostic: it decides which scene to mount, how to
   // shape its params from the loaded data, and how to resolve the decision into an outcome.
@@ -41,17 +50,29 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
     [scene, bus, params],
   )
 
+  // Learning analytics: a scenario was presented. Keyed on the spec so a new
+  // scenario re-emits. Errors are swallowed by the emitter (never breaks play).
+  useEffect(() => {
+    void analytics.emit(
+      evScenarioStarted({ specId: spec.id, track: spec.track, tier: spec.tier, source: spec.source }),
+    )
+  }, [analytics, spec.id, spec.track, spec.tier, spec.source])
+
   // Collect live nudges + the structured decision from the scene.
   useEffect(() => {
     const off = bus.on((e) => {
-      if (e.type === 'nudge') setFiredNudges((prev) => (prev.includes(e.id) ? prev : [...prev, e.id]))
+      if (e.type === 'nudge') {
+        setFiredNudges((prev) => (prev.includes(e.id) ? prev : [...prev, e.id]))
+        void analytics.emit(evNudge({ specId: spec.id, track: spec.track, nudgeId: e.id }))
+      }
       if (e.type === 'decision') {
         decisionRef.current = e.payload as unknown as Decision
+        void analytics.emit(evDecision({ specId: spec.id, track: spec.track, tier: spec.tier }))
         setPhase('journal')
       }
     })
     return off
-  }, [bus])
+  }, [bus, analytics, spec.id, spec.track, spec.tier])
 
   const onJournal = (entry: { rationale: string; feeling: Feeling }) => {
     setJournal(entry)
@@ -60,6 +81,12 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
     const score = getRubric(spec.rubricId)(spec, decision, outcome)
     setResult({ outcome, score })
     setPhase('resolved')
+    void analytics.emit(
+      evCompleted({
+        specId: spec.id, track: spec.track, tier: spec.tier,
+        score: score.total, pnl: outcome.pnl, nudgesFired: firedNudges,
+      }),
+    )
   }
 
   const finish = () => {
@@ -95,6 +122,24 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
     return () => { active = false }
   }, [phase, result, spec, firedNudges, journal])
 
+  // Reduced-motion-aware reveal: fade the graded result in, or show it instantly when
+  // the user prefers reduced motion. Either way, move focus to the result region so
+  // keyboard + screen-reader users land on the outcome.
+  useEffect(() => {
+    if (phase !== 'resolved') {
+      setShown(false)
+      return
+    }
+    resultRef.current?.focus()
+    if (reduceMotion) {
+      setShown(true)
+      return
+    }
+    setShown(false)
+    const id = requestAnimationFrame(() => setShown(true))
+    return () => cancelAnimationFrame(id)
+  }, [phase, reduceMotion])
+
   return (
     <div className="flex w-full max-w-4xl flex-col items-center gap-4">
       <header className="text-center">
@@ -107,47 +152,64 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
 
       {canvas}
 
-      {/* Live nudges */}
-      {phase === 'setup' && firedNudges.length > 0 && (
-        <div className="w-full max-w-xl space-y-2">
-          {firedNudges.map((id) => (
-            <p key={id} role="status" className="rounded-xl bg-brand-amber-soft px-4 py-2 text-sm font-semibold text-brand-amber-dark">
-              {NUDGES[id]?.copy}
-            </p>
-          ))}
-        </div>
+      {/* Honesty label: any simulated elements are flagged "illustrative; math exact". */}
+      {illus && (
+        <p className="rounded-full bg-surface px-3 py-1 text-center text-xs font-semibold text-muted">
+          {illus}
+        </p>
       )}
 
-      {phase === 'setup' && (
-        <Button onClick={() => bus.emit({ type: 'submit' })}>Submit trade</Button>
-      )}
-
-      {phase === 'journal' && <Journal onSubmit={onJournal} />}
-
-      {phase === 'resolved' && result && (
-        <div className="flex w-full max-w-2xl flex-col items-center gap-3">
-          <div className={`rounded-2xl px-5 py-3 text-lg font-bold ${result.score.total >= spec.objective.passScore ? 'bg-brand-green-soft text-brand-green-text' : 'bg-brand-red-soft text-brand-red'}`}>
-            Process score {result.score.total}/100 · P&amp;L {result.outcome.pnl >= 0 ? '+' : '−'}${Math.abs(Math.round(result.outcome.pnl))}
-          </div>
-          {result.outcome.facts.modelEstimate === true && (
-            <p className="text-xs font-semibold text-muted">
-              Closed early — P&amp;L is a model estimate · IV real. A held-to-expiry P&amp;L is exact.
-            </p>
-          )}
-          <ul className="w-full space-y-1">
-            {result.score.dimensions.map((d) => (
-              <li key={d.id} className="flex justify-between gap-3 text-sm">
-                <span className="font-semibold">{d.label}</span>
-                <span className="text-muted">{Math.round(d.score * 100)}% — {d.note}</span>
-              </li>
+      {/* Phase region: announce setup → journal → result to assistive tech. */}
+      <div aria-live="polite" className="flex w-full flex-col items-center gap-4">
+        {/* Live nudges */}
+        {phase === 'setup' && firedNudges.length > 0 && (
+          <div className="w-full max-w-xl space-y-2">
+            {firedNudges.map((id) => (
+              <p key={id} role="status" className="rounded-xl bg-brand-amber-soft px-4 py-2 text-sm font-semibold text-brand-amber-dark">
+                {NUDGES[id]?.copy}
+              </p>
             ))}
-          </ul>
-          <p className="text-center text-base leading-relaxed text-ink-soft">
-            {debrief}
-          </p>
-          <Button onClick={finish}>Continue</Button>
-        </div>
-      )}
+          </div>
+        )}
+
+        {phase === 'setup' && (
+          <Button onClick={() => bus.emit({ type: 'submit' })}>Submit trade</Button>
+        )}
+
+        {phase === 'journal' && <Journal onSubmit={onJournal} />}
+
+        {phase === 'resolved' && result && (
+          <div
+            ref={resultRef}
+            tabIndex={-1}
+            aria-label="Scenario result"
+            className={`flex w-full max-w-2xl flex-col items-center gap-3 rounded-2xl outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/35 ${reduceMotion ? '' : 'transition-opacity duration-300'} ${shown ? 'opacity-100' : 'opacity-0'}`}
+          >
+            <div className={`rounded-2xl px-5 py-3 text-lg font-bold ${result.score.total >= spec.objective.passScore ? 'bg-brand-green-soft text-brand-green-text' : 'bg-brand-red-soft text-brand-red'}`}>
+              Process score {result.score.total}/100 · P&amp;L {result.outcome.pnl >= 0 ? '+' : '−'}${Math.abs(Math.round(result.outcome.pnl))}
+            </div>
+            {result.outcome.facts.modelEstimate === true && (
+              <p className="text-xs font-semibold text-muted">
+                Closed early — P&amp;L is a model estimate · IV real. A held-to-expiry P&amp;L is exact.
+              </p>
+            )}
+            <ul className="w-full space-y-1">
+              {result.score.dimensions.map((d) => (
+                <li key={d.id} className="flex justify-between gap-3 text-sm">
+                  <span className="font-semibold">{d.label}</span>
+                  <span className="text-muted">{Math.round(d.score * 100)}% — {d.note}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-center text-base leading-relaxed text-ink-soft">
+              {debrief}
+            </p>
+            <Button onClick={finish}>Continue</Button>
+          </div>
+        )}
+      </div>
+
+      <Disclaimer />
     </div>
   )
 }

@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import Spinner from '../components/ui/Spinner'
+import Disclaimer from '../components/Disclaimer'
 import ResetReflect from '../practice/ResetReflect'
+import PracticeStats from '../practice/PracticeStats'
 import { usePractice } from '../state/PracticeContext'
 import { allTracks, scenariosFor } from '../practice/scenarioRegistry'
+import { TRACK_BLURB } from '../practice/copy'
 import type { Track } from '../practice/types'
 
 const TRACK_LABEL: Record<Track, string> = {
@@ -15,7 +18,7 @@ const TRACK_LABEL: Record<Track, string> = {
 
 export default function PracticePage() {
   const { track } = useParams<{ track?: Track }>()
-  const { loading, account, nextScenario, primeScenarios, pendingRuin } = usePractice()
+  const { loading, account, recentRuns, nextScenario, primeScenarios, pendingRuin } = usePractice()
   const navigate = useNavigate()
   const [starting, setStarting] = useState<Track | null>(null)
 
@@ -48,6 +51,7 @@ export default function PracticePage() {
         <TopNav />
         <main className="mx-auto max-w-5xl px-4 py-10">
           <ResetReflect />
+          <Disclaimer />
         </main>
       </div>
     )
@@ -85,7 +89,8 @@ export default function PracticePage() {
               {allTracks.map((t) => (
                 <div key={t} className="rounded-2xl border border-hairline bg-white p-5">
                   <div className="text-sm font-bold uppercase tracking-wide text-muted">{TRACK_LABEL[t]}</div>
-                  <div className="mt-2 text-3xl font-bold">Tier {account.tier[t]}</div>
+                  <p className="mt-2 text-sm text-ink-soft">{TRACK_BLURB[t]}</p>
+                  <div className="mt-3 text-3xl font-bold">Tier {account.tier[t]}</div>
                   <div className="mt-1 text-sm text-muted">Skill {Math.round(account.skill[t])}/100</div>
                   <button
                     onClick={() => start(t)}
@@ -103,6 +108,12 @@ export default function PracticePage() {
                 Selected track: <span className="font-bold text-ink">{TRACK_LABEL[track as Track] ?? track}</span>
               </p>
             )}
+
+            <div className="mt-8">
+              <PracticeStats runs={recentRuns} account={account} />
+            </div>
+
+            <Disclaimer />
           </>
         )}
       </main>
