@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage'
 import LessonPage from './pages/LessonPage'
 import CongratsPage from './pages/CongratsPage'
 import PracticePage from './pages/PracticePage'
+import ScenarioPlayerPage from './pages/ScenarioPlayerPage'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
             <Route path="/lesson/:lessonId/:moduleId" element={<LessonPage />} />
             <Route path="/congrats/:lessonId" element={<CongratsPage />} />
             <Route path="/practice" element={<PracticePage />} />
+            <Route path="/practice/play/:specId" element={<ScenarioPlayerPage />} />
             <Route path="/practice/:track" element={<PracticePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
