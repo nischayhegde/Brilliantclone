@@ -25,10 +25,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Volatility',
     title: 'Betting on Motion, Not Direction',
     intro:
-      'You can bet on volatility itself: profit from a big move either way, and lose only if the stock sits still. Drag the future price and watch the profit meter.',
+      "Here's a different kind of bet: you win if the stock makes a big move — up OR down — and lose only if it sits still. You're betting on how FAR it travels, not which way. Drag the future price and watch the profit meter.",
     scene: { kind: 'intro', params: {} },
     caption:
-      "Illustrative: a $100 anchor. This is a volatility bet — it doesn't care which way, it cares how far. The next modules build the exact trade that pays off like this meter.",
+      'Illustrative: a $100 anchor. Think of a coiled spring — you profit if it snaps loose either way, and lose only if it just sits there. This bet cares how FAR price moves, not which direction. The next modules build the real trade behind this meter.',
     cta: 'Got it',
   },
 
@@ -39,7 +39,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Recap',
     title: 'Stacking Two Lesson-4 Payoffs',
     intro:
-      'A straddle is literally a long call + a long put from Lesson 4, summed. Two hockey-stick payoffs add vertically into a new V — and the cost is the sum of the two premiums.',
+      'A straddle is just two bets from Lesson 4 bought together: a call (wins if price rises) plus a put (wins if price falls). Think of taping two one-way tickets into one — the two payoffs stack into a V, and you pay both premiums (the price of each option).',
     scene: {
       kind: 'payoff',
       params: {
@@ -48,12 +48,12 @@ const modules: ModuleSpec[] = [
         callPremium: 4,
         putPremium: 3,
         showLegMerge: true,
-        title: 'long call (−4) + long put (−3)  →  combined V',
+        title: 'buy a call (−4) + buy a put (−3)  →  one combined V',
         caption:
-          'Illustrative example. Add the two hockey sticks and you get a V that is down 7 at the strike (the total premium) and climbs in both directions.',
+          'Illustrative example. Stack the two payoffs and you get a V: it sits 7 below zero at the strike — that is the total premium you paid — and climbs back up on both sides.',
       },
     },
-    caption: 'A straddle is nothing new — it is two Lesson-4 legs stacked into a V.',
+    caption: "A straddle is nothing new — it's just two Lesson-4 options (a call and a put) stacked into a V.",
     cta: 'Got it',
   },
 
@@ -64,7 +64,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Long Straddle',
     title: 'The Long Straddle',
     intro:
-      'Long 1 call + long 1 put at the SAME strike (usually ATM), same expiry. Cost = call + put premium. It is non-directional / long-volatility. Max loss = total premium if the stock pins at K. Drag the sliders to feel it.',
+      "Buy one call and one put at the SAME strike (usually at-the-money, ATM — right where the stock trades), same expiry. It's a non-directional, long-volatility bet: like storm insurance that pays whether the storm blows in from the north or the south — you just need a big move. Cost = both premiums; max loss = that total if the stock pins at the strike K. Drag the sliders to feel it.",
     scene: {
       kind: 'payoff',
       params: {
@@ -80,11 +80,11 @@ const modules: ModuleSpec[] = [
           { key: 'callPremium', label: 'call prem', min: 1, max: 8, step: 0.5 },
           { key: 'putPremium', label: 'put prem', min: 1, max: 8, step: 0.5 },
         ],
-        title: 'Long straddle — V, vertex (100, −7)',
+        title: 'Long straddle — V with its low at (100, −7)',
       },
     },
     caption:
-      'Illustrative example. You pay 7 up front (×100 = $700). The worst case is the stock pinning at 100 — both options expire worthless and you lose the full 7. Everything past the arms is profit.',
+      "Illustrative example. You pay 7 up front (×100 = $700). Worst case: the stock pins at 100, both options expire worthless, and you lose the whole 7. Past the arms of the V, you're in profit.",
     cta: 'Got it',
   },
 
@@ -95,7 +95,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Breakevens',
     title: 'Straddle Breakevens',
     intro:
-      'The two breakevens are K + totalPremium (up) and K − totalPremium (down). With K=100 and total 7 they sit at 93 and 107 — you must move MORE than the premium to profit.',
+      'Your two breakevens (the prices where you switch from losing to winning) are strike + total premium (up) and strike − total premium (down). With K=100 and total 7, that is 107 and 93. Think of the premium as a prepaid toll: the move has to pay back more than the toll before you profit.',
     scene: {
       kind: 'payoff',
       params: {
@@ -107,11 +107,11 @@ const modules: ModuleSpec[] = [
         draggableDot: true,
         dotStart: 107,
         sliders: [{ key: 'total', label: 'total premium', min: 2, max: 14, step: 0.5 }],
-        title: 'Breakevens = K ± total premium',
+        title: 'Breakevens = strike ± total premium',
       },
     },
     caption:
-      'Illustrative example. Breakevens = strike ± total premium. With cost 7 on a $100 stock you need a 7% move (to 93 or 107) just to reach zero — and more than that to win. Profit zones shade green, the loss interior red.',
+      'Illustrative example. Breakevens = strike ± total premium. With cost 7 on a $100 stock, you need a 7% move (to 93 or 107) just to break even — and a bit more to actually win. Green shades the profit zones; red is the losing interior.',
     cta: 'Got it',
   },
 
@@ -122,7 +122,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge',
     title: 'Find the Straddle Breakevens',
     intro:
-      'This ATM straddle has strike 100, a call premium of 4, and a put premium of 3 (total 7). Drag the two blue markers onto the prices where the V crosses zero.',
+      "This straddle sits at-the-money: strike 100, call premium 4, put premium 3 (total 7). The breakevens are the waterline — anywhere between them you're underwater (a loss). Drag the two blue markers to where the V rises back to zero.",
     scene: {
       kind: 'payoff',
       params: {
@@ -135,8 +135,8 @@ const modules: ModuleSpec[] = [
       },
     },
     challenge: {
-      prompt: 'Place the two breakevens where this V crosses zero.',
-      instructions: 'Drag each blue marker. Breakevens = strike ± TOTAL premium; the vertex is the max loss at K.',
+      prompt: 'Place the two breakevens where this V crosses back to zero.',
+      instructions: 'Drag each blue marker. Breakevens = strike ± TOTAL premium (not one leg); the bottom of the V is your max loss at the strike.',
       submitLabel: 'Check breakevens',
     },
     cta: 'Continue',
@@ -149,7 +149,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Long Strangle',
     title: 'The Long Strangle',
     intro:
-      'Long 1 OTM call (higher strike Kc) + long 1 OTM put (lower strike Kp). Cheaper than a straddle but needs a bigger move. Payoff is a flat-bottomed valley between the strikes. The straddle V is ghosted behind for contrast.',
+      "Buy one out-of-the-money call (at a higher strike Kc) and one OTM put (lower strike Kp) — both starting away from the current price. It's like a cheaper insurance plan with a bigger deductible: you pay less, but the move has to be bigger before it pays. The payoff is a flat-bottomed valley between the strikes; the straddle V is ghosted behind for contrast.",
     scene: {
       kind: 'payoff',
       params: {
@@ -163,11 +163,11 @@ const modules: ModuleSpec[] = [
         draggableDot: true,
         dotStart: 110,
         sliders: [{ key: 'spread', label: 'strike spread ±', min: 3, max: 12, step: 1 }],
-        title: 'Long strangle — flat-bottom valley (95–105 at −3)',
+        title: 'Long strangle — flat valley from 95 to 105 at −3',
       },
     },
     caption:
-      'Illustrative example. A strangle uses two OTM options, so it is cheaper (3 vs 7) — but its loss zone is a flat valley spanning 95–105. Cheaper to own, but the stock must travel farther to escape.',
+      'Illustrative example. Two OTM options make a strangle cheaper (3 vs 7), but the loss zone is a flat valley across 95–105. Less to pay up front — but the stock has to travel farther to escape it.',
     cta: 'Got it',
   },
 
@@ -178,7 +178,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Breakevens',
     title: 'Strangle Breakevens',
     intro:
-      'Breakevens are Kc + totalPremium (up) and Kp − totalPremium (down). With Kp=95, Kc=105, total 3 they sit at 108 and 92. Max loss = total premium, flat across the whole band between the strikes.',
+      "Breakevens are upper strike + total premium (up) and lower strike − total premium (down). With Kp=95, Kc=105, total 3, that's 108 and 92. Between the strikes is a wide 'nothing happens' zone — like a moat the stock must cross — where you just lose the 3 you paid, flat across the whole band.",
     scene: {
       kind: 'payoff',
       params: {
@@ -195,11 +195,11 @@ const modules: ModuleSpec[] = [
           { key: 'Kc', label: 'Kc', min: 101, max: 115, step: 1 },
           { key: 'total', label: 'total premium', min: 1, max: 10, step: 0.5 },
         ],
-        title: 'Breakevens = Kc + total (up) / Kp − total (down)',
+        title: 'Breakevens = upper strike + total (up) / lower strike − total (down)',
       },
     },
     caption:
-      'Illustrative example. Strangle breakevens push out from the strikes: 108 up, 92 down. Inside the strikes you simply lose the 3 you paid — the loss is flat across 95–105. Nearest breakeven is 8 from 100.',
+      'Illustrative example. The breakevens push out past the strikes: 108 up, 92 down. Anywhere inside, you simply lose the 3 you paid — a flat loss across 95–105. The nearest breakeven is 8 away from 100.',
     cta: 'Got it',
   },
 
@@ -210,7 +210,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge',
     title: 'Straddle vs Strangle: Cost vs Move',
     intro:
-      'A straddle at K=100 costs 7 (breakevens 93/107). A strangle with Kp=95, Kc=105 costs 3 (breakevens 92/108). The stock is expected to land at the dashed line — pick the structure that PROFITS there.',
+      "A straddle at K=100 costs 7 (breakevens 93/107). A strangle with Kp=95, Kc=105 costs 3 (breakevens 92/108). The bargain isn't always the winner — the cheaper trade needs a bigger move to pay. The stock is expected to land at the dashed line; pick the structure that PROFITS there.",
     scene: {
       kind: 'payoff',
       params: {
@@ -222,7 +222,7 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt: 'The stock lands at the dashed price. Which structure profits there?',
-      instructions: 'Tap Straddle or Strangle, then Submit. The cheaper structure needs the bigger move — breakeven distance, not cost, decides.',
+      instructions: 'Tap Straddle or Strangle, then Submit. The cheaper one needs the bigger move — what wins is breakeven distance, not the price tag.',
       submitLabel: 'Run the move',
     },
     cta: 'Continue',
@@ -235,17 +235,17 @@ const modules: ModuleSpec[] = [
     kicker: 'When to Use',
     title: 'When You’d Use Them: Earnings & Binary Events',
     intro:
-      'Long straddles/strangles are placed ahead of earnings or binary events (earnings, FDA decisions, court rulings) — when you expect a big move but not the direction. Pick an event and structure, then trigger the whip.',
+      "You buy these just before a binary event — a scheduled moment with two very different outcomes, like an earnings report, an FDA decision, or a court ruling. It's like a fireworks show: you know a bang is coming, you just can't call which way the sparks fly. Pick an event and structure, then trigger the move.",
     scene: {
       kind: 'event',
       params: {
         interactive: true,
-        title: 'Earnings event — the payoff wins on EITHER whip (if it clears a BE)',
+        title: 'Earnings event — you win on a move EITHER way (if it clears a breakeven)',
         caption:
-          'Illustrative example. These are event trades: a catalyst is coming and you expect a big move but cannot call the direction. A tiny move foreshadows the next module (IV crush).',
+          "Illustrative example. These are event trades: a catalyst is coming, you expect a big move, but you can't call the direction. Watch how a tiny move loses — a preview of the next module, IV crush.",
       },
     },
-    caption: 'You do not pick the direction — you pick that it MOVES (far enough to clear a breakeven).',
+    caption: "You're not picking the direction — you're betting it MOVES, far enough to clear a breakeven.",
     cta: 'Got it',
   },
 
@@ -256,7 +256,7 @@ const modules: ModuleSpec[] = [
     kicker: 'The Trap',
     title: 'The IV-Crush Trap',
     intro:
-      'IV is high (premiums fat) BEFORE the event and collapses right after (IV crush). A long straddle can LOSE even when the stock moves, if the realized move is smaller than the breakeven move. Tune the premium and the move and watch.',
+      'Before an event, implied volatility (IV — the expected move priced into options) runs high, so premiums are fat. Right after, IV collapses — that is IV crush. Picture umbrella prices surging before a forecast, then the storm fizzles: a long straddle can LOSE even when the stock moves, if the move falls short of your breakeven. Tune the premium and the move and watch.',
     scene: {
       kind: 'ivcrush',
       params: {
@@ -264,12 +264,12 @@ const modules: ModuleSpec[] = [
         premium: 7,
         move: 0.04,
         interactive: true,
-        title: 'High IV before → crush after · S=104 inside 93–107 ⇒ loss',
+        title: 'IV fat before → crushed after · S=104 inside 93–107 = a loss',
         caption:
-          'Illustrative example. You paid 7 of fat premium; the stock moved 4% to 104 and you still lost 3 because 104 is inside 93–107 — the 4-point move never cleared the 7-point breakeven move. The −3 is pure breakeven math; IV crush is the separate reason you cannot even sell out for time value. Clear a breakeven, not just move.',
+          "Illustrative example. You paid 7 of fat premium; the stock moved 4% to 104 and you STILL lost 3 — because 104 sits inside 93–107. The 4-point move never cleared the 7-point breakeven. That −3 is pure breakeven math; IV crush is the separate reason you can't even sell out for leftover time value. Clear a breakeven, not just move.",
       },
     },
-    caption: 'P&L at expiry = intrinsic_after − premium_paid. At 104 that is 4 − 7 = −3 (intrinsic only; no IV term).',
+    caption: 'P&L at expiry = value left (intrinsic) − premium paid. At 104 that is 4 − 7 = −3 (intrinsic only; no IV term).',
     cta: 'Got it',
   },
 
@@ -280,7 +280,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge',
     title: 'The Stock Moved — Did You Win?',
     intro:
-      'You own a straddle: K=100, total premium 7, breakevens 93/107. The marker starts at 104 (a +4% gap up). Drag it to a price where this straddle would actually PROFIT, then run the IV crush.',
+      "You own a straddle: K=100, total premium 7, breakevens 93/107. The marker starts at 104 — a +4% gap up that looks like a win but isn't. Close only counts in horseshoes: drag it to a price where this straddle actually PROFITS, then run the IV crush.",
     scene: {
       kind: 'ivcrush',
       params: {
@@ -288,12 +288,12 @@ const modules: ModuleSpec[] = [
         premium: 7,
         move: 0.04,
         challenge: true,
-        title: 'Straddle K=100, premium 7 · drag the landing price · IV crush',
+        title: 'Straddle K=100, premium 7 · drag where it lands · then IV crush',
       },
     },
     challenge: {
       prompt: 'Drag the marker to where the stock must land for this straddle to PROFIT.',
-      instructions: 'A move alone isn’t enough — profit needs to CLEAR a breakeven (below 93 or above 107). Submit applies the IV crush and reveals the P&L.',
+      instructions: "Moving isn't enough — profit needs to CLEAR a breakeven (below 93 or above 107). Submit runs the IV crush and reveals the P&L.",
       submitLabel: 'Run earnings + IV crush',
     },
     cta: 'Continue',
@@ -306,7 +306,7 @@ const modules: ModuleSpec[] = [
     kicker: 'The Other Side',
     title: 'The Other Side: Short Straddle & Short Strangle',
     intro:
-      'A short straddle/strangle is the mirror: SELL both legs, COLLECT the premium, and profit if the stock stays quiet inside the breakevens. The payoff flips into an inverted tent — large/undefined risk if the stock moves big.',
+      "Flip it around: a short straddle/strangle SELLS both options and COLLECTS the premium up front. Now you're the insurance company — you keep the premium if the stock stays quiet inside the breakevens, but one big move and you pay out. The payoff flips into an inverted tent, with large, undefined risk if it moves far.",
     scene: {
       kind: 'payoff',
       params: {
@@ -318,11 +318,11 @@ const modules: ModuleSpec[] = [
         showBreakevens: true,
         draggableDot: true,
         dotStart: 100,
-        title: 'Short straddle — inverted tent, peak +7 at K (collect 7)',
+        title: 'Short straddle — inverted tent, peak +7 at the strike (you collect 7)',
       },
     },
     caption:
-      'Illustrative example. Flip the trade and you flip the bet: a short straddle keeps the 7 you collected if the stock pins near 100 — but a big move now costs you, with unbounded risk to the upside. Quiet wins; wild ruins. Same breakevens (93/107), reversed.',
+      'Illustrative example. Flip the trade, flip the bet: a short straddle keeps the 7 you collected if the stock pins near 100 — but a big move now costs you, with unbounded risk to the upside. Quiet wins; wild ruins. Same breakevens (93/107), just reversed.',
     cta: 'Got it',
   },
 
@@ -333,7 +333,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge',
     title: 'Quiet or Wild? Pick the Right Trade',
     intro:
-      'IV is very rich heading into earnings, and you expect the stock to barely move — pinning near the 100 strike. Pick LONG VOL or SHORT VOL, then run it.',
+      'IV is very rich heading into earnings, and you expect the stock to barely move — pinning near the 100 strike. Match the trade to your forecast: if you truly expect calm, which side wins? Pick LONG VOL or SHORT VOL, then run it.',
     scene: {
       kind: 'payoff',
       params: {
@@ -348,7 +348,7 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt: 'You expect a pin near 100 with rich IV. Long vol or short vol?',
-      instructions: 'Long vol = BUY the straddle (needs a big move). Short vol = SELL it (keeps premium on a pin, but large risk). Submit runs the pin at 100.',
+      instructions: 'Long vol = BUY the straddle (needs a big move). Short vol = SELL it (keeps the premium on a pin, but carries large risk). Submit runs the pin at 100.',
       submitLabel: 'Run the pin',
     },
     cta: 'Continue',
@@ -361,10 +361,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Lab',
     title: 'Volatility Lab: Tune the Whole Trade',
     intro:
-      'The whole trade in one place. Toggle structure and long/short, set strikes, premium, and the realized price, and watch the breakevens decide. Try the presets — build a winner, then build one where the stock moves and you still lose.',
+      'The whole trade on one control panel. Toggle structure and long/short, set the strikes, premium, and where the stock lands, and watch the breakevens decide win from loss. Try the presets — build a winner, then build one where the stock moves and you still lose.',
     scene: { kind: 'lab', params: {} },
     caption:
-      'Illustrative example. Strikes, premium, and the realized move jointly decide P&L — the breakevens are the line between winning and losing.',
+      'Illustrative example. Strikes, premium, and the realized move together decide your P&L — the breakevens are the line between winning and losing.',
     cta: 'Done exploring',
   },
 
@@ -375,10 +375,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Capstone',
     title: 'Capstone & Recap: Trade an Earnings Event',
     intro:
-      'Recap, then trade: pick a structure and side, state your expectation, and run the earnings event. The scorecard grades your P&L against the breakevens and the IV crush — clear the breakeven, not just move.',
+      'Recap, then trade: pick a structure and side, state your expectation, and run the earnings event. Like a final exam, the scorecard grades your P&L against the breakevens and the IV crush — not on whether it moved, but on whether you cleared a breakeven.',
     scene: { kind: 'capstone', params: {} },
     caption:
-      'Illustrative example. You built it and ran the event — the breakevens, not the headline "it moved," decided the result. That is volatility trading: structure, breakevens, and IV crush together.',
+      'Illustrative example. You built it and ran the event — the breakevens, not the headline "it moved," decided the result. That is volatility trading: structure, breakevens, and IV crush, together.',
     cta: 'Finish',
   },
 ]

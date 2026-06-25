@@ -40,6 +40,15 @@ export default class BorrowFeeScene extends ModuleScene {
   private daysText!: Phaser.GameObjects.Text
   private feeBar!: Phaser.GameObjects.Graphics
 
+  // A "rental meter" dial — borrowing shares is like renting a tool, billed by the day.
+  // The arc + bead show the rental duration (days); the window shows the running bill.
+  private meterG!: Phaser.GameObjects.Graphics
+  private meterFeeText!: Phaser.GameObjects.Text
+  private meterDayText!: Phaser.GameObjects.Text
+  private meterCx = 650
+  private meterCy = 104
+  private meterR = 44
+
   protected build(): void {
     const p = this.params as BorrowFeeParams
     this.shares = p.shares ?? 100
@@ -58,9 +67,51 @@ export default class BorrowFeeScene extends ModuleScene {
     this.drawCollateralGauge()
     this.drawControls()
     this.drawReadouts()
+    this.buildMeter()
 
     this.refresh()
     this.emitReady()
+  }
+
+  // --- Daily rental meter ----------------------------------------------------
+  private buildMeter(): void {
+    this.label(this.meterCx, 40, 'Rental meter', { size: 12, bold: true, col: C.muted, align: 'center' })
+    this.meterG = this.add.graphics()
+    this.meterFeeText = this.label(this.meterCx, this.meterCy - 7, '', { size: 15, bold: true, col: C.amberInk, align: 'center' })
+    this.meterDayText = this.label(this.meterCx, this.meterCy + 13, '', { size: 11, col: C.muted, align: 'center' })
+    this.label(this.meterCx, 158, 'rented daily, like a tool', { size: 11, col: C.muted, align: 'center' })
+    // "Ticking" indicator at 12 o'clock — a soft pulse so the meter feels live
+    // (collapses to a static dot under reduced motion).
+    const tick = this.add.circle(this.meterCx, this.meterCy - (this.meterR - 4), 4, C.amber, 1)
+    this.loop({ targets: tick, alpha: 0.25, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+  }
+
+  private drawMeter(daily: number, cumFee: number): void {
+    const g = this.meterG
+    const R = this.meterR
+    g.clear()
+    // dial face
+    g.fillStyle(C.amberSoft, 1)
+    g.fillCircle(this.meterCx, this.meterCy, R)
+    // background ring
+    g.lineStyle(6, C.gray200, 1)
+    g.strokeCircle(this.meterCx, this.meterCy, R - 5)
+    // accrual arc ∝ holding days (the rental duration)
+    const startA = -Math.PI / 2
+    const sweep = (this.days / 90) * Math.PI * 2
+    if (sweep > 0.001) {
+      g.lineStyle(6, C.amber, 1)
+      g.beginPath()
+      g.arc(this.meterCx, this.meterCy, R - 5, startA, startA + sweep, false)
+      g.strokePath()
+    }
+    // bead riding the gauge at the current day (keeps the centre clear for the bill)
+    const endA = startA + sweep
+    g.fillStyle(C.amberDark, 1)
+    g.fillCircle(this.meterCx + Math.cos(endA) * (R - 5), this.meterCy + Math.sin(endA) * (R - 5), 5)
+
+    this.meterFeeText.setText(`$${cumFee.toFixed(2)}`)
+    this.meterDayText.setText(`${this.days}d @ $${daily.toFixed(2)}`)
   }
 
   // --- Collateral gauge: proceeds + extra margin = total collateral held ---
@@ -182,6 +233,8 @@ export default class BorrowFeeScene extends ModuleScene {
     this.feeText.setText(`$${daily.toFixed(2)}/day`)
     this.cumText.setText(`− $${cumFee.toFixed(2)}`)
     this.divText.setText(dividend > 0 ? `− $${dividend.toFixed(2)}` : '$0.00')
+
+    this.drawMeter(daily, cumFee)
 
     const netCol = net >= 0 ? C.green : C.red
     const sign = net >= 0 ? '+' : '−'

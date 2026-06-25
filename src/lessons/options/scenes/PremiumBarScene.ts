@@ -26,9 +26,13 @@ const SCALE = 13 // default px per $ of premium height (challenge/quiz)
 const BAR_TOP = 96 // bars never climb above this y (keeps them inside the canvas)
 
 /**
- * PremiumBarScene — premium = intrinsic (solid blue) + time value (light blue).
- * Module 5: drag S across the strike, toggle CALL/PUT, watch the split + moneyness.
- * Module 6: a masked single-block premium that SPLITS into 7/2 on reveal.
+ * PremiumBarScene — a premium is a ticket price: FACE VALUE (the real, intrinsic
+ * part, solid) + a SCALPER'S HYPE MARKUP (time value, translucent), split by a
+ * perforation line that slides live as the spot crosses the strike.
+ * Module 4 (interactive): drag S across K, toggle CALL/PUT, watch the split + moneyness.
+ * Module 5 (challenge): drag the divider to split a fixed premium yourself.
+ * Quiz mode: a masked premium that splits open on reveal.
+ * Intrinsic math is exact; time value is an illustrative, labelled curve.
  */
 export default class PremiumBarScene extends ModuleScene {
   private p!: Required<Omit<PremiumBarParams, 'quizIntrinsic' | 'quizTimeValue'>> & PremiumBarParams
@@ -42,6 +46,10 @@ export default class PremiumBarScene extends ModuleScene {
   private timeLabel!: Phaser.GameObjects.Text
   private totalLabel!: Phaser.GameObjects.Text
   private moneyTag!: Phaser.GameObjects.Container
+  // interactive-only metaphor labels
+  private faceName?: Phaser.GameObjects.Text
+  private hypeName?: Phaser.GameObjects.Text
+  private note?: Phaser.GameObjects.Text
   /** px per $ — computed so the tallest possible bar fits between BAR_TOP and AXIS_Y. */
   private sy = SCALE
 
@@ -69,8 +77,8 @@ export default class PremiumBarScene extends ModuleScene {
     const avail = AXIS_Y - BAR_TOP
     this.sy = worstTotal > 0 ? Math.min(SCALE, avail / worstTotal) : SCALE
 
-    this.label(40, 26, 'PREMIUM = INTRINSIC + TIME VALUE', { size: 16, col: C.ink, bold: true })
-    this.label(40, 48, '(time-value numbers illustrative; intrinsic math exact)', { size: 13, col: C.muted })
+    this.label(40, 26, 'PREMIUM = INTRINSIC + TIME VALUE', { size: this.fs(16), col: C.ink, bold: true })
+    this.label(40, 48, '(time-value numbers illustrative; intrinsic math exact)', { size: this.fs(13), col: C.muted })
 
     // axis baseline for the bar
     const g = this.add.graphics()
@@ -79,9 +87,9 @@ export default class PremiumBarScene extends ModuleScene {
 
     this.barIntrinsic = this.add.graphics()
     this.barTime = this.add.graphics()
-    this.intrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 13, col: C.blue, bold: true })
-    this.timeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 13, col: C.blue })
-    this.totalLabel = this.label(BAR_X + BAR_W / 2, AXIS_Y + 18, '', { size: 13, col: C.ink, bold: true, align: 'center' })
+    this.intrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: this.fs(13), col: C.blueDark, bold: true })
+    this.timeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: this.fs(13), col: C.blue })
+    this.totalLabel = this.label(BAR_X + BAR_W / 2, AXIS_Y + 18, '', { size: this.fs(13), col: C.ink, bold: true, align: 'center' })
 
     if (this.p.mode === 'quiz') this.buildQuiz()
     else if (this.p.mode === 'challenge') this.buildChallenge()
@@ -96,19 +104,26 @@ export default class PremiumBarScene extends ModuleScene {
     return Math.max(0.2, tv)
   }
 
+  /** Draw the stacked "ticket": face value (intrinsic, solid) + hype markup (time, translucent). */
   private drawBar(intr: number, tv: number, animate = false): void {
     this.barIntrinsic.clear()
     this.barTime.clear()
     const intrH = intr * this.sy
     const tvH = tv * this.sy
-    // intrinsic (solid blue) at bottom
+    const boundaryY = AXIS_Y - intrH
+    // face value (intrinsic) — solid blue at the bottom
     this.barIntrinsic.fillStyle(C.blue, 1)
-    this.barIntrinsic.fillRect(BAR_X, AXIS_Y - intrH, BAR_W, intrH)
-    // time value (light/translucent blue) on top
-    this.barTime.fillStyle(C.blue, 0.28)
-    this.barTime.fillRect(BAR_X, AXIS_Y - intrH - tvH, BAR_W, tvH)
+    this.barIntrinsic.fillRect(BAR_X, boundaryY, BAR_W, intrH)
+    // hype markup (time value) — light/translucent blue on top
+    this.barTime.fillStyle(C.blue, 0.26)
+    this.barTime.fillRect(BAR_X, boundaryY - tvH, BAR_W, tvH)
     this.barTime.lineStyle(1, C.blue, 0.5)
-    this.barTime.strokeRect(BAR_X, AXIS_Y - intrH - tvH, BAR_W, tvH)
+    this.barTime.strokeRect(BAR_X, boundaryY - tvH, BAR_W, tvH)
+    // perforation line where real value ends and hype begins (the live split)
+    if (intrH > 0.5 && tvH > 0.5) {
+      this.barTime.lineStyle(1.5, C.white, 0.95)
+      this.barTime.lineBetween(BAR_X, boundaryY, BAR_X + BAR_W, boundaryY)
+    }
 
     this.intrLabel.setText(`intrinsic ${intr.toFixed(2)}`)
     this.intrLabel.setY(AXIS_Y - intrH / 2)
@@ -118,13 +133,18 @@ export default class PremiumBarScene extends ModuleScene {
     if (animate) {
       this.barIntrinsic.setAlpha(0)
       this.barTime.setAlpha(0)
-      this.tweens.add({ targets: [this.barIntrinsic, this.barTime], alpha: 1, duration: 400 })
+      this.tweens.add({ targets: [this.barIntrinsic, this.barTime], alpha: 1, duration: this.dur(400) })
     }
   }
 
   // --- interactive: number line for S + CALL/PUT toggle ---------------------
   private buildInteractive(): void {
-    const lineY = 200
+    this.label(40, 70, "Like a concert ticket: face value (real) + a scalper's hype markup (time value).", {
+      size: this.fs(13),
+      col: C.inkSoft,
+    })
+
+    const lineY = 210
     const lx = 60
     const lw = 320
     const g = this.add.graphics()
@@ -134,15 +154,15 @@ export default class PremiumBarScene extends ModuleScene {
     const xK = lx + ((this.p.K - this.p.sMin) / (this.p.sMax - this.p.sMin)) * lw
     g.lineStyle(2, C.blue)
     g.lineBetween(xK, lineY - 14, xK, lineY + 14)
-    this.label(xK, lineY - 26, `K=${this.p.K}`, { size: 13, col: C.blue, bold: true, align: 'center' })
+    this.label(xK, lineY - 26, `K=${this.p.K}`, { size: this.fs(13), col: C.blue, bold: true, align: 'center' })
     // end labels
-    this.label(lx, lineY + 24, `${this.p.sMin}`, { size: 12, col: C.muted, align: 'center' })
-    this.label(lx + lw, lineY + 24, `${this.p.sMax}`, { size: 12, col: C.muted, align: 'center' })
+    this.label(lx, lineY + 24, `${this.p.sMin}`, { size: this.fs(12), col: C.muted, align: 'center' })
+    this.label(lx + lw, lineY + 24, `${this.p.sMax}`, { size: this.fs(12), col: C.muted, align: 'center' })
 
     // draggable S marker
     const dot = this.add.circle(0, lineY, 9, C.ink).setStrokeStyle(3, C.white)
     const sChip = this.add.graphics()
-    const sTxt = this.label(0, lineY + 28, '', { size: 13, col: C.ink, bold: true, align: 'center' })
+    const sTxt = this.label(0, lineY + 28, '', { size: this.fs(13), col: C.ink, bold: true, align: 'center' })
     const place = (S: number) => {
       const x = lx + ((S - this.p.sMin) / (this.p.sMax - this.p.sMin)) * lw
       dot.setX(x)
@@ -169,24 +189,55 @@ export default class PremiumBarScene extends ModuleScene {
       this.refresh()
     })
     place(this.S)
-    this.label(60, lineY + 52, '↔ drag S across the strike', { size: 13, col: C.muted })
+    this.label(60, lineY + 52, '↔ drag S across the strike', { size: this.fs(13), col: C.muted })
 
     // CALL/PUT toggle
-    this.toggle(120, 290, ['CALL', 'PUT'], 0, (i) => {
+    this.toggle(120, 300, ['CALL', 'PUT'], 0, (i) => {
       this.type = i === 0 ? 'call' : 'put'
       this.refresh()
     })
 
     // moneyness tag
-    this.moneyTag = this.makeTag(120, 340, 'ATM')
+    this.moneyTag = this.makeTag(120, 348, 'ATM')
+
+    // segment name labels (to the LEFT of the bar) + a live one-line explainer
+    this.faceName = this.label(BAR_X - 12, 0, 'face value (real)', {
+      size: this.fs(12),
+      col: C.blueDark,
+      bold: true,
+      align: 'right',
+    })
+    this.hypeName = this.label(BAR_X - 12, 0, 'scalper hype (time)', { size: this.fs(12), col: C.blue, align: 'right' })
+    this.note = this.label(60, 392, '', { size: this.fs(13), col: C.ink })
+
     this.refresh()
   }
 
   private refresh(): void {
     const intr = intrinsic(this.type, this.S, this.p.K)
-    this.drawBar(intr, this.timeValue())
+    const tv = this.timeValue()
+    this.drawBar(intr, tv)
     const m = moneyness(this.type, this.S, this.p.K)
     this.setTag(this.moneyTag, m)
+
+    // position the metaphor labels at each segment's midpoint
+    const intrH = intr * this.sy
+    const tvH = tv * this.sy
+    const boundaryY = AXIS_Y - intrH
+    if (this.faceName) {
+      // only meaningful when there's real (intrinsic) value; hide it when it's all hype
+      this.faceName.setY(AXIS_Y - intrH / 2).setAlpha(intr > 0.15 ? 1 : 0)
+    }
+    this.hypeName?.setY(boundaryY - tvH / 2)
+    if (this.note) {
+      const txt =
+        m === 'OTM'
+          ? "OTM — the price is ALL hype (time value); there's no real value yet."
+          : m === 'ATM'
+            ? 'ATM — right at the strike, so the price is almost all hype (time value).'
+            : 'ITM — part of the price is now real (face value), the rest is hype.'
+      this.note.setText(txt)
+    }
   }
 
   // --- challenge: DRAG the split point to divide the premium -----------------
@@ -206,9 +257,9 @@ export default class PremiumBarScene extends ModuleScene {
     this.intrLabel.setAlpha(0)
     this.timeLabel.setAlpha(0)
 
-    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.p.S}`, { size: 15, col: C.ink, bold: true })
+    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.p.S}`, { size: this.fs(15), col: C.ink, bold: true })
     this.label(60, 176, `The ${this.p.premium.toFixed(2)} premium — split it into real value vs time value.`, {
-      size: 13,
+      size: this.fs(13),
       col: C.muted,
     })
 
@@ -218,7 +269,7 @@ export default class PremiumBarScene extends ModuleScene {
     outline.lineStyle(1.5, C.blue)
     outline.strokeRect(BAR_X, AXIS_Y - totalH, BAR_W, totalH)
     this.label(BAR_X + BAR_W / 2, AXIS_Y + 18, `premium ${this.p.premium.toFixed(2)}`, {
-      size: 13,
+      size: this.fs(13),
       col: C.ink,
       bold: true,
       align: 'center',
@@ -226,8 +277,8 @@ export default class PremiumBarScene extends ModuleScene {
 
     // live segments + split handle
     this.splitLine = this.add.graphics()
-    this.splitIntrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 13, col: C.blue, bold: true })
-    this.splitTimeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: 13, col: C.blue })
+    this.splitIntrLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: this.fs(13), col: C.blueDark, bold: true })
+    this.splitTimeLabel = this.label(BAR_X + BAR_W + 12, 0, '', { size: this.fs(13), col: C.blue })
 
     this.splitHandle = this.add
       .circle(BAR_X + BAR_W / 2, 0, 9, C.ink)
@@ -244,7 +295,7 @@ export default class PremiumBarScene extends ModuleScene {
     })
     this.redrawSplit()
     this.label(60, 232, '↕ drag the divider: below = intrinsic (real), above = time value', {
-      size: 13,
+      size: this.fs(13),
       col: C.muted,
     })
     this.setCanSubmit(true)
@@ -264,7 +315,7 @@ export default class PremiumBarScene extends ModuleScene {
     this.barIntrinsic.fillStyle(C.blue, 1)
     this.barIntrinsic.fillRect(BAR_X, splitY, BAR_W, intrH)
     // time value (light blue) on top
-    this.barTime.fillStyle(C.blue, 0.28)
+    this.barTime.fillStyle(C.blue, 0.26)
     this.barTime.fillRect(BAR_X, AXIS_Y - totalH, BAR_W, tvH)
 
     this.splitLine.clear()
@@ -292,7 +343,7 @@ export default class PremiumBarScene extends ModuleScene {
     this.redrawSplit()
     this.splitHandle.setFillStyle(correct ? C.green : C.red)
     this.label(BAR_X - 16, AXIS_Y - trueIntr * this.sy - 6, `max(${this.p.S}−${this.p.K},0)=${trueIntr.toFixed(0)}`, {
-      size: 13,
+      size: this.fs(13),
       col: C.blue,
       bold: true,
       align: 'right',
@@ -346,8 +397,8 @@ export default class PremiumBarScene extends ModuleScene {
     this.timeLabel.setAlpha(0)
 
     // setup labels
-    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.S}`, { size: 15, col: C.ink, bold: true })
-    this.label(60, 176, 'How does the 9.00 premium split?', { size: 13, col: C.muted })
+    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.S}`, { size: this.fs(15), col: C.ink, bold: true })
+    this.label(60, 176, 'How does the 9.00 premium split?', { size: this.fs(13), col: C.muted })
   }
 
   protected onReveal(): void {
@@ -360,16 +411,16 @@ export default class PremiumBarScene extends ModuleScene {
         targets: this.mask,
         alpha: 0,
         y: -40,
-        duration: 500,
+        duration: this.dur(500),
         ease: 'Cubic.inOut',
         onComplete: () => this.mask?.destroy(),
       })
     }
-    this.tweens.add({ targets: [this.intrLabel, this.timeLabel], alpha: 1, duration: 400, delay: 200 })
+    this.tweens.add({ targets: [this.intrLabel, this.timeLabel], alpha: 1, duration: this.dur(400), delay: this.dur(200) })
     const intr = this.p.quizIntrinsic ?? 7
-    this.time.delayedCall(260, () => {
+    this.time.delayedCall(this.dur(260), () => {
       this.label(BAR_X - 16, AXIS_Y - intr * this.sy - 6, `max(${this.S}−${this.p.K},0)=${intr}`, {
-        size: 13,
+        size: this.fs(13),
         col: C.blue,
         bold: true,
         align: 'right',
@@ -395,7 +446,7 @@ export default class PremiumBarScene extends ModuleScene {
     }
     labels.forEach((lab, i) => {
       const t = this.add
-        .text(x + i * segW + segW / 2, y, lab, { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold' })
+        .text(x + i * segW + segW / 2, y, lab, { fontFamily: FONT, fontSize: '13px', fontStyle: 'bold' })
         .setOrigin(0.5)
         .setInteractive({ useHandCursor: true })
       t.on('pointerup', () => {

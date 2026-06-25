@@ -21,7 +21,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · NVDA · Bull Flag',
     title: 'Bull Flag',
     intro:
-      'Every chart in this lesson is real, unedited price history — actual tickers over actual dates, never synthetic. First, the Bull Flag: a sharp rally (the flagpole), a tight pullback (the flag), then a breakout that resumes the trend. Watch where to buy, target, and stop.',
+      'Every chart here is real, unedited price history — actual tickers on actual dates, never made up. First, the Bull Flag. Picture a runner sprinting hard (the flagpole — a sharp rally), pausing for breath (the flag — a small, tight pullback), then sprinting again. That restart is the breakout: price clears the flag and the climb resumes. Watch where to buy, target, and stop.',
     scene: {
       kind: 'candle',
       params: {
@@ -41,7 +41,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'BUY the June 13 breakout above the ~$40.5 flag top. Flagpole height ≈ $11.4 projects a target near $52; price ran to $48.09. STOP just below the $37.36 flag low.',
+      "BUY the June 13 breakout above the ~$40.5 flag top. The flagpole (that first sharp run) is ≈ $11.4 tall; add it to the breakout for a target near $52 — price ran to $48.09. Your STOP (where you exit if you're wrong) sits just below the $37.36 flag low.",
   },
   {
     id: 2,
@@ -49,7 +49,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · PLTR · Bull Flag',
     title: 'Trade this Bull Flag',
     intro:
-      'PLTR rocketed on a Feb earnings gap, then coiled in a tight flag under ~$25.5. The right half is hidden — set your trade and find out.',
+      'PLTR shot up on a February earnings jump, then drifted sideways in a tight flag (a small pause) just under ~$25.5. The right half of the chart is hidden — make your call and see how it played out.',
     scene: {
       kind: 'candle',
       params: {
@@ -65,9 +65,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd trade this Bull Flag long off the breakout, set your take-profit and stop — or stay out.",
+        "Going long means betting the price rises. If you'd buy this Bull Flag on the breakout above the flag, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -78,7 +78,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · AMD · Cup with Handle',
     title: 'Cup with Handle',
     intro:
-      'A rounded U-shaped cup, then a small shallow handle near the rim, then a breakout above resistance that resumes the uptrend.',
+      'Picture hiking down into a valley and back up to the same ridge — that smooth U is the cup. Just below the ridge you pause for a breather (the handle — a small, shallow dip). Then you step over the top: a breakout above resistance (the price ceiling that kept capping rallies), and the climb resumes.',
     scene: {
       kind: 'candle',
       params: {
@@ -100,7 +100,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'BUY the July 22 breakout above the ~$59 rim (close $61.79). TARGET = rim + cup depth (59.00 − 48.42 ≈ 10.58) ≈ $69.6, reached the next session. STOP just below the $52.26 handle low, around $52.',
+      'BUY the July 22 breakout above the ~$59 rim (close $61.79). For the target, measure how deep the cup is (rim 59.00 − bottom 48.42 ≈ 10.58) and add it to the rim ≈ $69.6 — reached the next session. STOP just below the $52.26 handle low, around $52.',
   },
   {
     id: 4,
@@ -108,7 +108,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · DIS · Cup with Handle',
     title: 'Trade this Cup with Handle',
     intro:
-      'Disney carved a rounded cup (rim ~187, bottom ~171) and recovered to the rim with a tight handle. The resolution is hidden — set your trade and find out.',
+      'Disney carved a rounded cup (rim ~187, bottom ~171) and climbed back to the rim, then paused in a tight handle. What happens next is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -124,9 +124,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd trade this Cup with Handle long off the rim breakout, set your take-profit and stop — or stay out.",
+        "If you'd buy this Cup with Handle (go long) when it breaks above the rim, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -137,7 +137,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · MSFT · Ascending Triangle',
     title: 'Ascending Triangle',
     intro:
-      'A flat horizontal ceiling tested by equal highs while pullback lows keep climbing — price coils, then breaks UP through resistance.',
+      "Imagine a crowd pressing toward a doorway that won't open (a flat price ceiling, called resistance). Each time they fall back, they regroup a little closer than before — those are higher lows (each dip bottoms higher than the last). The squeeze builds until the door bursts: price breaks UP through the ceiling.",
     scene: {
       kind: 'candle',
       params: {
@@ -159,7 +159,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'BUY the June 22 close (265.51), the first decisive close above the flat ~$263 ceiling. TARGET = breakout + triangle height (~263 − 238 = 25) ≈ $288, reached by July 23. STOP just below the last higher low at 254.42, around $253.',
+      'BUY the June 22 close (265.51) — the first firm close above the flat ~$263 ceiling. For the target, measure the triangle\'s height (~263 − 238 = 25) and add it to the breakout ≈ $288, reached by July 23. STOP just below the last higher low at 254.42, around $253.',
   },
   {
     id: 6,
@@ -167,7 +167,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · AMD · Ascending Triangle',
     title: 'Trade this Ascending Triangle',
     intro:
-      'AMD has stalled at a flat ~122-125 ceiling while its pullback lows keep climbing, coiling into the apex. The right half is hidden — set your trade and find out.',
+      'AMD keeps stalling at a flat ~122-125 ceiling, but each pullback bottoms higher than the last (higher lows), coiling toward the tip of the triangle. The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -184,9 +184,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd trade this Ascending Triangle long off the breakout, set your take-profit and stop — or stay out.",
+        "If you'd buy this Ascending Triangle (go long) when it breaks above the ceiling, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -197,7 +197,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · NFLX · Double Bottom',
     title: 'Double Bottom',
     intro:
-      'Two troughs at roughly the same price separated by a peak (the neckline), forming a W. Confirms when price closes ABOVE the neckline.',
+      'Picture a ball dropping to the floor, bouncing up, then falling to the exact same floor and bouncing again. That floor holding twice draws a W — two troughs (price lows) at about the same level. The bump between them sets the neckline (the high to beat). It is confirmed when price closes ABOVE that neckline.',
     scene: {
       kind: 'candle',
       params: {
@@ -217,7 +217,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'BUY on the confirmation close above the neckline (July 20 close 21.64), clearing the ~$20.5 peak between the two troughs. TARGET = neckline + (neckline − trough) = 20.5 + (20.5 − 16.4) ≈ $24.6, hit Aug 15 (high 25.20). STOP just below the second trough at ~$16.',
+      'BUY when price closes above the neckline to confirm (July 20 close 21.64), clearing the ~$20.5 peak between the two troughs. Target = neckline + its height above the trough = 20.5 + (20.5 − 16.4) ≈ $24.6, hit Aug 15 (high 25.20). STOP just below the second trough at ~$16.',
   },
   {
     id: 8,
@@ -225,7 +225,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · SNAP · Double Bottom',
     title: 'Trade this Double Bottom',
     intro:
-      'SNAP printed two bottoms near 27 with a neckline peak around 39.5, and is lifting off the second trough. The right half is hidden — set your trade and find out.',
+      'SNAP made two bottoms near 27 with a neckline (the peak between them) around 39.5, and it is now lifting off the second bottom. The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -242,9 +242,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd trade this Double Bottom long off the neckline breakout, set your take-profit and stop — or stay out.",
+        "If you'd buy this Double Bottom (go long) when it breaks above the neckline, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -255,7 +255,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · META · Inverted Head and Shoulders',
     title: 'Inverted Head and Shoulders',
     intro:
-      'A left shoulder, a lower head, then a higher right shoulder, with a neckline through the two intervening peaks. Confirms on a close ABOVE the neckline.',
+      'This marks a bottom. Sellers shove price down three times, but watch the lows: a dip (the left shoulder), then a deeper plunge (the head), then a shallower dip (the right shoulder). That last, weaker low says sellers are running out of steam. Draw a line across the two bumps between them — the neckline. A close ABOVE it confirms the turn up.',
     scene: {
       kind: 'candle',
       params: {
@@ -275,7 +275,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'BUY on the confirming close above the neckline (Jan 3 close 124.74), clearing the Dec 2 right-peak high of 124.04. TARGET = neckline + (neckline − head) = 124 + (124 − 88) ≈ $160, exceeded as price ran to a 197.16 high by Feb 2. STOP just below the right shoulder near $112.',
+      'BUY when price closes above the neckline to confirm (Jan 3 close 124.74), clearing the Dec 2 peak of 124.04. Target = neckline + its distance down to the head = 124 + (124 − 88) ≈ $160 — beaten as price ran to a 197.16 high by Feb 2. STOP just below the right shoulder near $112.',
   },
   {
     id: 10,
@@ -283,7 +283,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · NVDA · Inverted Head and Shoulders',
     title: 'Trade this Inverted Head and Shoulders',
     intro:
-      'NVDA formed an inverted H&S: left shoulder ~14.9, a lower head ~13.9, a right shoulder ~14.0, with a neckline near $15. Price sits just under it at 14.86. The right half is hidden — set your trade and find out.',
+      'NVDA shaped an inverted head and shoulders: left shoulder ~14.9, a deeper head ~13.9, a right shoulder ~14.0, with a neckline near $15. Price sits just under it at 14.86. The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -301,9 +301,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd trade this Inverted Head and Shoulders long off the neckline breakout, set your take-profit and stop — or stay out.",
+        "If you'd buy this Inverted Head and Shoulders (go long) when it breaks above the neckline, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -314,7 +314,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · BAC · Triple Bottom',
     title: 'Triple Bottom',
     intro:
-      'Three troughs at roughly the same level under a shared resistance ceiling. Confirms on a close ABOVE that resistance.',
+      'Sellers test the same floor three times and cannot crack it — three troughs (price lows) at about the same level, each one caught by buyers. Above sits a shared ceiling (resistance). Think of three failed swings of a battering ram; when the attackers give up, the defenders charge out. It is confirmed on a close ABOVE that resistance.',
     scene: {
       kind: 'candle',
       params: {
@@ -335,7 +335,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'BUY on the confirming close above the ~$28 resistance (Nov 14 close 29.22). Pattern depth = resistance (28) − trough zone (~25) = 3, so TARGET = 28 + 3 ≈ $31, reached by early December (Dec 14 high 33.94). STOP just below the triple-bottom lows at ~$24.70.',
+      'BUY when price closes above the ~$28 resistance to confirm (Nov 14 close 29.22). Pattern depth = resistance (28) − trough zone (~25) = 3, so target = 28 + 3 ≈ $31, reached by early December (Dec 14 high 33.94). STOP just below the triple-bottom lows at ~$24.70.',
   },
   {
     id: 12,
@@ -343,7 +343,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · DIS · Triple Bottom',
     title: 'Trade this Triple Bottom',
     intro:
-      'Disney printed three troughs near $79-82 under a ~$86 resistance ceiling. The right half is hidden — set your trade and find out.',
+      'Disney made three troughs (lows) near $79-82, all under a ~$86 ceiling (resistance). The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -360,9 +360,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd trade this Triple Bottom long off the resistance breakout, set your take-profit and stop — or stay out.",
+        "If you'd buy this Triple Bottom (go long) when it breaks above resistance, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -373,7 +373,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · NFLX · Bear Flag',
     title: 'Bear Flag',
     intro:
-      'A sharp drop (the down flagpole), a brief upward-drifting consolidation (the flag), then a breakdown BELOW the flag that resumes the downtrend.',
+      'Now the downside. Picture a boulder crashing downhill (the flagpole — a sharp drop), snagging on a ledge and drifting up a little (the flag — a brief pause), then breaking loose and tumbling on. When price breaks DOWN below the flag, the fall resumes — so you short it (sell first to profit if it drops).',
     scene: {
       kind: 'candle',
       params: {
@@ -394,7 +394,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'SHORT/SELL the June 10 breakdown close (18.29) below the ~$19.25 flag support. TARGET = breakdown − flagpole height (20.44 − 16.27 = 4.17) ≈ $15.08; price hit a 16.43 low. STOP just above the $20.74 flag high, around $21.',
+      'SHORT (sell to profit from a drop) the June 10 breakdown close (18.29) below the ~$19.25 flag support — the floor that had been holding price up. Target = breakdown − flagpole height (20.44 − 16.27 = 4.17) ≈ $15.08; price hit a 16.43 low. STOP just above the $20.74 flag high, around $21.',
   },
   {
     id: 14,
@@ -402,7 +402,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · TSLA · Bear Flag',
     title: 'Trade this Bear Flag',
     intro:
-      'Tesla dropped sharply (flagpole), then consolidated sideways and is pressing the flag near ~265. The right half is hidden — set your trade and find out.',
+      'Tesla dropped sharply (the flagpole), then drifted sideways and is now pressing the flag near ~265. The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -418,9 +418,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd short this Bear Flag on the breakdown, set your take-profit and stop — or stay out.",
+        "Shorting means betting the price falls. If you'd short this Bear Flag when it breaks below the flag, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -431,7 +431,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · ROKU · Inverted Cup with Handle',
     title: 'Inverted Cup with Handle',
     intro:
-      'A rounded n-shaped top, then a small upward retrace (the inverted handle near the rim), then a breakDOWN below the neckline.',
+      'Flip the cup upside down. Price arcs up and rounds over like cresting a hill on a bike — a smooth n-shaped top. Near the peak you get one small bump, a false summit (the handle). Then comes the long descent: price breaks DOWN below the neckline (the floor under the pattern), and you short it.',
     scene: {
       kind: 'candle',
       params: {
@@ -452,7 +452,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'SHORT/SELL the Nov 4 breakdown close (289.39) below the ~$294-302 rim support, confirming the inverted cup. STOP just above the $350.60 handle high, around $352. Cup height ≈ 486 − 302 ≈ 184 projects to ~118; price followed through to a $196.94 low (a ~32% decline).',
+      'SHORT the Nov 4 breakdown close (289.39) below the ~$294-302 rim support (the floor giving way), confirming the inverted cup. STOP just above the $350.60 handle high, around $352. Cup height ≈ 486 − 302 ≈ 184 projects down to ~118; price followed through to a $196.94 low (a ~32% drop).',
   },
   {
     id: 16,
@@ -460,7 +460,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · PYPL · Inverted Cup with Handle',
     title: 'Trade this Inverted Cup with Handle',
     intro:
-      'PayPal formed a rounded n-shaped top (peak ~310) and a small handle retrace to 273.27, sitting on the ~253 neckline. The resolution is hidden — set your trade and find out.',
+      'PayPal rounded over into an n-shaped top (peak ~310), gave a small handle bounce to 273.27, and now sits on the ~253 neckline (the floor). What happens next is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -477,9 +477,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd short this Inverted Cup with Handle on the neckline breakdown, set your take-profit and stop — or stay out.",
+        "If you'd short this Inverted Cup with Handle when it breaks below the neckline, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -490,7 +490,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · TSLA · Descending Triangle',
     title: 'Descending Triangle',
     intro:
-      'A flat horizontal support tested by equal lows while highs step lower — price coils, then breaks DOWN through the flat support.',
+      'The mirror of the ascending triangle. Price keeps bouncing off the same flat floor (support), but each rally peaks lower than the last — those are lower highs, like a ball that bounces a little weaker every time. Sellers lean harder until the floor caves: price breaks DOWN through support.',
     scene: {
       kind: 'candle',
       params: {
@@ -512,7 +512,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'SHORT/SELL the April 24-25 breakdown near 17.20 as price closes below the flat ~$17.2-17.5 support. TARGET = breakdown − triangle height (19.74 − 17.24 ≈ 2.5) ≈ $14.70, reached by mid-May. STOP just above the last lower high at 18.32, around $18.40. Price cascaded to an $11.80 low.',
+      'SHORT the April 24-25 breakdown near 17.20 as price closes below the flat ~$17.2-17.5 support. Target = breakdown − triangle height (19.74 − 17.24 ≈ 2.5) ≈ $14.70, reached by mid-May. STOP just above the last lower high at 18.32, around $18.40. Price cascaded to an $11.80 low.',
   },
   {
     id: 18,
@@ -520,7 +520,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · GE · Descending Triangle',
     title: 'Trade this Descending Triangle',
     intro:
-      'GE has coiled into a descending triangle: lower highs pressing on a flat ~$83 support, with price sitting on the floor. The right half is hidden — set your trade and find out.',
+      'GE has coiled into a descending triangle: each rally peaks lower (lower highs) while price keeps pressing a flat ~$83 floor (support). The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -537,9 +537,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd short this Descending Triangle on the breakdown, set your take-profit and stop — or stay out.",
+        "If you'd short this Descending Triangle when it breaks below the floor, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -550,7 +550,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · TSLA · Double Top',
     title: 'Double Top',
     intro:
-      'Two peaks at roughly the same price separated by a trough (the neckline). The reversal confirms on a close BELOW the neckline after the second peak.',
+      'Think of a high-jumper clearing the same bar twice but unable to go any higher — price hits a ceiling, pulls back, then stalls at that exact ceiling again. Two peaks at about the same level draw an M. The dip between them is the neckline (the floor to watch). The turn down confirms on a close BELOW that neckline.',
     scene: {
       kind: 'candle',
       params: {
@@ -570,7 +570,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'This is a bearish reversal, so SHORT/SELL on the decisive close below the ~$326 neckline (Jan 21 close 314.63). STOP just above the second peak at ~$402.67. TARGET = neckline − height (414.50 − 326.20 = 88.30) = $237.90; price reached a 233.33 low by Feb 24, exceeding the target.',
+      'This is a bearish reversal (an up-move flipping down), so SHORT on the firm close below the ~$326 neckline (Jan 21 close 314.63). STOP just above the second peak at ~$402.67. Target = neckline − pattern height (414.50 − 326.20 = 88.30) = $237.90; price reached a 233.33 low by Feb 24, beating the target.',
   },
   {
     id: 20,
@@ -578,7 +578,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · NFLX · Double Top',
     title: 'Trade this Double Top',
     intro:
-      'Netflix printed two peaks (~69 and ~70) separated by a ~64.5 trough, and is rolling over off the second peak. The right half is hidden — set your trade and find out.',
+      'Netflix made two peaks (~69 and ~70) with a ~64.5 trough (the neckline) between them, and it is now rolling over off the second peak. The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -595,9 +595,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd short this Double Top on the neckline breakdown, set your take-profit and stop — or stay out.",
+        "If you'd short this Double Top when it breaks below the neckline, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -608,7 +608,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · DIS · Head and Shoulders',
     title: 'Head and Shoulders',
     intro:
-      'A left shoulder, a higher head, then a lower right shoulder, with a neckline through the two troughs. Confirms on a close BELOW the neckline.',
+      'Watch three pushes higher that lose strength: a peak (the left shoulder), a taller peak (the head), then a weaker peak (the right shoulder) — like a thrower whose biggest heave is the middle one before tiring. The two dips between them set the neckline (the floor). A close BELOW it confirms the top is in.',
     scene: {
       kind: 'candle',
       params: {
@@ -628,7 +628,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'SHORT/SELL on the decisive close below the ~$182 neckline (May 14 close 173.70). TARGET = neckline − head height (203.02 − 182 = 21.02) ≈ $161. STOP just above the right shoulder at ~$192.50. Price slid to a 167.10 low by May 19, confirming the bearish resolution.',
+      'SHORT on the firm close below the ~$182 neckline (May 14 close 173.70). Target = neckline − the head\'s height above it (203.02 − 182 = 21.02) ≈ $161. STOP just above the right shoulder at ~$192.50. Price slid to a 167.10 low by May 19, confirming the downturn.',
   },
   {
     id: 22,
@@ -636,7 +636,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · META · Head and Shoulders',
     title: 'Trade this Head and Shoulders',
     intro:
-      'Meta carved an H&S top: left shoulder ~319, a higher head ~326, a lower right shoulder ~313, with a neckline near $290. The right half is hidden — set your trade and find out.',
+      'Meta carved a head and shoulders top: left shoulder ~319, a taller head ~326, a weaker right shoulder ~313, with a neckline near $290. The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -653,9 +653,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd short this Head and Shoulders on the neckline breakdown, set your take-profit and stop — or stay out.",
+        "If you'd short this Head and Shoulders when it breaks below the neckline, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 
@@ -666,7 +666,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · NFLX · Triple Top',
     title: 'Triple Top',
     intro:
-      'Three peaks at roughly the same level over a shared support shelf. The reversal confirms on a close BELOW that support.',
+      'Price bumps its head on the same ceiling three times and cannot break through — three peaks at about the same level. Underneath runs a shared floor (a support shelf). After the third rejection buyers give up, and the reversal confirms on a close BELOW that support.',
     scene: {
       kind: 'candle',
       params: {
@@ -687,7 +687,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'SHORT/SELL on the confirmed close below the ~$64.50 support (Dec 1 close 61.78). TARGET = support − pattern height (~70 peaks are ~5.5 above support) = ~$59, reached two sessions later (Dec 3 low 59.40). STOP just above the highest peak at ~$70.50.',
+      'SHORT on the confirmed close below the ~$64.50 support (Dec 1 close 61.78). Target = support − pattern height (the ~70 peaks sit ~5.5 above support) = ~$59, reached two sessions later (Dec 3 low 59.40). STOP just above the highest peak at ~$70.50.',
   },
   {
     id: 24,
@@ -695,7 +695,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Quiz · BABA · Triple Top',
     title: 'Trade this Triple Top',
     intro:
-      'Alibaba printed three tops near 310-319 and is now sitting on the ~$300 support shelf after the third peak failed. The right half is hidden — set your trade and find out.',
+      'Alibaba made three tops near 310-319 and is now sitting on the ~$300 support shelf (the floor) after the third peak failed. The right half is hidden — make your call and find out.',
     scene: {
       kind: 'candle',
       params: {
@@ -712,9 +712,9 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt:
-        "If you'd short this Triple Top on the support breakdown, set your take-profit and stop — or stay out.",
+        "If you'd short this Triple Top when it breaks below support, set your take-profit and stop — or stay out.",
       instructions:
-        'Drag your take-profit (green) and stop-loss (red), choose Take trade or Stay out, then Submit to reveal and simulate.',
+        "Drag your take-profit (green, where you'd lock in profit) and stop-loss (red, where you'd cut the loss), choose Take trade or Stay out, then Submit to reveal and simulate.",
     },
   },
 ]

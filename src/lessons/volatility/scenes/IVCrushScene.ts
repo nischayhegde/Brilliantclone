@@ -13,7 +13,7 @@ interface IVCrushParams {
   move?: number
   /** Interactive sliders (module 10). */
   interactive?: boolean
-  /** Quiz mask + reveal (module 11). */
+  /** Quiz mask + reveal (module 11, legacy support). */
   quiz?: boolean
   /**
    * CHALLENGE mode (module 11) — the learner drags the post-event landing price on the
@@ -25,13 +25,19 @@ interface IVCrushParams {
 }
 
 /**
- * IV-CRUSH scene (modules 10, 11). Premium inflates pre-event (fat "IV balloon" of
- * extrinsic value), then the extrinsic portion deflates to ~0 at the event leaving
- * only intrinsic value. The realized move is small (e.g. +4% to 104), INSIDE the
- * breakevens, so P&L = intrinsic_after − premium_paid is a LOSS even though the stock
- * moved — the lesson's core point.
+ * IV-CRUSH scene (modules 10, 11). The metaphor: an umbrella gets SURGE-PRICED before a
+ * forecast storm (high IV → fat premium, almost all of it extrinsic "surge" value). Then
+ * the storm fizzles — the event passes and IV collapses (IV crush), so the surge value
+ * evaporates and the option is worth only its hard intrinsic value. Because the realized
+ * move is small (e.g. +4% to 104, INSIDE the breakevens), you can be "right it moved a
+ * little" and STILL lose:
  *
  *   P&L (at expiry) = max(S−K,0) + max(K−S,0) − premium   (intrinsic only; no IV term)
+ *
+ * Left half: a premium bar showing what you PAID (a dashed reference line) vs what it's
+ * WORTH after the crush — the amber "surge" drains away, leaving only green intrinsic, and
+ * the red gap up to the paid line IS the loss. Right half: the straddle payoff V with the
+ * landing dot and the breakevens, so "moved but stayed inside the breakevens" is visible.
  */
 export default class IVCrushScene extends ModuleScene {
   private p!: IVCrushParams
@@ -39,8 +45,7 @@ export default class IVCrushScene extends ModuleScene {
   private K = 100
   private move = 0.04
 
-  // mini payoff-V panel (right) — trimmed so the live sliders fit inside the canvas
-  // (the old layout pushed the slider band to y≈438, below the 460-tall canvas).
+  // mini payoff-V panel (right) — trimmed so the live sliders fit inside the canvas.
   private vx = 462
   private vy = 52
   private vw = 268
@@ -48,16 +53,25 @@ export default class IVCrushScene extends ModuleScene {
   private vMin = 86
   private vMax = 114
 
-  // premium bar (left)
-  private barX = 120
-  private barBottom = 230
-  private barW = 56
-  private pxPerUnit = 13
+  // premium "umbrella price" bar (left)
+  private barX = 70
+  private barW = 52
+  private barBottom = 244
+  private pxPerUnit = 11
 
-  private balloon!: Phaser.GameObjects.Arc
-  private balloonLabel!: Phaser.GameObjects.Text
-  private extrinsicG!: Phaser.GameObjects.Graphics
-  private intrinsicG!: Phaser.GameObjects.Graphics
+  // left-panel elements
+  private header!: Phaser.GameObjects.Text
+  private barG!: Phaser.GameObjects.Graphics
+  private paidG!: Phaser.GameObjects.Graphics
+  private paidChip!: Phaser.GameObjects.Graphics
+  private paidLabel!: Phaser.GameObjects.Text
+  private surgeLabel!: Phaser.GameObjects.Text
+  private resultTag!: Phaser.GameObjects.Text
+  /** Animated 1→0 fraction of the extrinsic ("surge") value still present. */
+  private surgeFrac = 1
+  private crushed = false
+
+  // right payoff V
   private vG!: Phaser.GameObjects.Graphics
   /** Persistent V-axis tick labels (K + the two breakevens), created once & repositioned. */
   private vAxisLabels: Phaser.GameObjects.Text[] = []
@@ -67,7 +81,6 @@ export default class IVCrushScene extends ModuleScene {
   private badgePanel!: Phaser.GameObjects.Graphics
   private maskG?: Phaser.GameObjects.Container
   private revealed = false
-  private popped = false
 
   // --- challenge state (module 11) ---
   private graded = false
@@ -85,52 +98,59 @@ export default class IVCrushScene extends ModuleScene {
 
     if (this.p.title) this.label(20, 16, this.p.title, { size: this.fs(15, 14, 18), bold: true, col: C.ink })
 
-    // --- premium bar scaffolding (left, framed to fill the left half) ---
-    const cx = this.barX + this.barW / 2
-    this.panel(30, 32, 250, this.barBottom + 24, { fill: C.surface, stroke: C.hairline, radius: 12 })
-    this.label(cx, this.barBottom + 14, 'premium', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
-    // colour key — intrinsic (real value, survives) vs extrinsic (IV/time, gets crushed)
-    this.legendSwatch(46, this.barBottom + 32, C.green, 'intrinsic (real)')
-    this.legendSwatch(46, this.barBottom + 50, C.amber, 'extrinsic (IV/time)')
-    this.extrinsicG = this.add.graphics()
-    this.intrinsicG = this.add.graphics()
-    // The "IV balloon" = the fat extrinsic value (amber = the volatile energy that pops).
-    this.balloon = this.add.circle(cx, this.barBottom - 80, 46, C.amberSoft).setStrokeStyle(2, C.amber)
-    this.balloon.setAlpha(0.85)
-    this.balloonLabel = this.label(cx, this.barBottom - 142, 'high IV — fat premium', {
+    // --- left panel: the umbrella's price (premium) before vs after the storm ---
+    this.panel(28, 36, 256, 252, { fill: C.surface, stroke: C.hairline, radius: 12 })
+    // Narrative header that flips when the storm fizzles (the surge gets crushed).
+    this.header = this.label(156, 50, 'Umbrella surge-priced before the event', {
       size: this.fs(12, 12, 15), col: C.amberInk, align: 'center', bold: true,
     })
+    this.header.setWordWrapWidth(244)
 
-    // --- payoff V panel (right) ---
+    // colour key — intrinsic (real value, survives) vs extrinsic (the IV "surge", crushed)
+    this.legendSwatch(44, 258, C.green, 'intrinsic — real value (survives)')
+    this.legendSwatch(44, 274, C.amber, 'extrinsic — IV surge (crushed)')
+
+    this.barG = this.add.graphics()
+    this.paidG = this.add.graphics()
+    // "you paid" reference line: a manual chip (kept legible even when it rides over the
+    // bar at lab extremes) + the label, both repositioned each drawPaidLine().
+    this.paidChip = this.add.graphics()
+    this.paidLabel = this.label(48, 0, '', { size: this.fs(12, 12, 15), col: C.ink, bold: true })
+    // callout pointing at the amber surge band (sits beside the bar, over the clean panel)
+    this.surgeLabel = this.label(132, 0, 'IV surge', { size: this.fs(12, 12, 15), col: C.amberInk, bold: true })
+    // post-crush result tag (paid → worth = P&L), beside the bar over the clean panel
+    this.resultTag = this.label(132, 0, '', { size: this.fs(12, 12, 15), col: C.red, bold: true, align: 'left' }).setVisible(false)
+
+    // --- right: payoff V panel ---
     this.drawVPanel()
     this.vG = this.add.graphics()
     this.dot = this.add.circle(0, 0, 9, C.red).setStrokeStyle(3, C.white).setVisible(false)
 
     // --- ledger + badge (clean strip below the panels) ---
-    this.ledger = this.label(20, 304, '', { size: this.fs(12, 12, 15), col: C.ink, bold: true })
+    this.ledger = this.label(20, 308, '', { size: this.fs(12, 12, 15), col: C.ink, bold: true })
     this.badgePanel = this.add.graphics()
     this.badge = this.add.text(0, 0, '', { fontFamily: FONT, fontSize: `${this.fs(13, 12, 16)}px`, color: hex(C.red), fontStyle: 'bold' }).setOrigin(0, 0.5)
 
-    this.drawPremiumBar(false)
+    this.drawBar()
+    this.drawPaidLine()
     this.drawV()
 
     if (this.p.challenge) {
+      // Pre-submit: show the fat, surge-priced premium intact — that's what you paid.
       this.setupChallenge()
     } else if (this.p.quiz) {
       this.drawQuizMask()
     } else {
+      // Module 10 (interactive) and the plain teach demo both play the crush on load:
+      // fat surge-priced premium → storm fizzles → drained to intrinsic, dot lands inside
+      // the breakevens. Interactive sliders then re-tune the post-crush state live.
       if (this.p.interactive) this.buildSliders()
       if (this.reduceMotion) {
-        // Show the finished post-crush state immediately — never gate the dot/ledger
-        // behind a timed pop that won't run under reduced motion or a hidden tab.
-        this.balloon.setVisible(false)
-        this.balloonLabel.setVisible(false)
-        this.popped = true
-        this.drawPremiumBar(true)
+        this.applyCrushFinal()
         this.placeDot()
         this.updateLedger()
       } else {
-        this.time.delayedCall(700, () => this.popBalloon())
+        this.time.delayedCall(700, () => this.crushSurge())
         this.time.delayedCall(1500, () => this.landDot())
       }
     }
@@ -161,62 +181,104 @@ export default class IVCrushScene extends ModuleScene {
     return this.intrinsicTotal - this.premium
   }
 
-  // --- premium bar ----------------------------------------------------------
-  private drawPremiumBar(crushed: boolean): void {
-    this.extrinsicG.clear()
-    this.intrinsicG.clear()
+  // --- premium "umbrella price" bar -----------------------------------------
+  /** Draw the bar: green intrinsic (real value) + amber extrinsic ("surge") × surgeFrac. */
+  private drawBar(): void {
+    this.barG.clear()
     const intrinsicH = this.intrinsicTotal * this.pxPerUnit
-    const extrinsicH = crushed ? 0 : (this.premium - this.intrinsicTotal) * this.pxPerUnit
+    const extrinsicFull = Math.max(0, this.premium - this.intrinsicTotal)
+    const extrinsicH = extrinsicFull * this.pxPerUnit * this.surgeFrac
     // intrinsic (green, solid, bottom) — the real value that survives the crush
-    this.intrinsicG.fillStyle(C.green, 0.9)
-    this.intrinsicG.fillRect(this.barX, this.barBottom - intrinsicH, this.barW, intrinsicH)
-    // extrinsic (amber, translucent, on top) — the IV / time value that gets crushed
+    this.barG.fillStyle(C.green, 0.9)
+    this.barG.fillRect(this.barX, this.barBottom - intrinsicH, this.barW, intrinsicH)
+    // extrinsic (amber, translucent, on top) — the IV "surge" that gets crushed
     if (extrinsicH > 0) {
-      this.extrinsicG.fillStyle(C.amber, 0.45)
-      this.extrinsicG.fillRect(this.barX, this.barBottom - intrinsicH - extrinsicH, this.barW, extrinsicH)
+      this.barG.fillStyle(C.amber, 0.45)
+      this.barG.fillRect(this.barX, this.barBottom - intrinsicH - extrinsicH, this.barW, extrinsicH)
+      // keep the surge callout riding the middle of the amber band (pre-crush only)
+      if (!this.crushed) {
+        this.surgeLabel.setVisible(true).setPosition(this.barX + this.barW + 12, this.barBottom - intrinsicH - extrinsicH / 2)
+      }
     }
   }
 
-  private popBalloon(): void {
-    if (this.popped) return
-    this.popped = true
-    this.balloonLabel.setText('IV crush!').setColor(hex(C.red))
-    if (this.reduceMotion) {
-      this.balloon.setVisible(false)
-      this.balloonLabel.setVisible(false)
-      this.drawPremiumBar(true)
+  /** The dashed "you paid" reference line across the panel + its (chipped) label. */
+  private drawPaidLine(): void {
+    this.paidG.clear()
+    const yPaid = this.barBottom - this.premium * this.pxPerUnit
+    this.paidG.lineStyle(1.5, C.ink, 0.9)
+    for (let x = 44; x < 272; x += 8) this.paidG.lineBetween(x, yPaid, Math.min(x + 5, 272), yPaid)
+    this.paidLabel.setText(`paid ${fmt(this.premium)}`).setPosition(48, yPaid - 11)
+    const padX = 5
+    const padY = 2
+    this.paidChip.clear()
+    this.paidChip.fillStyle(C.surface, 0.92)
+    this.paidChip.fillRoundedRect(
+      this.paidLabel.x - padX,
+      this.paidLabel.y - this.paidLabel.height / 2 - padY,
+      this.paidLabel.width + padX * 2,
+      this.paidLabel.height + padY * 2,
+      5,
+    )
+    this.children.moveBelow(this.paidChip, this.paidLabel)
+  }
+
+  /**
+   * Post-crush: shade the gap between what it's WORTH (intrinsic top) and what you PAID
+   * (the dashed line). Red = a loss (worth < paid); green = a surplus (worth > paid).
+   */
+  private updateResultTag(): void {
+    if (!this.crushed) {
+      this.resultTag.setVisible(false)
       return
     }
-    // particle-ish burst (amber, matching the extrinsic value escaping)
-    for (let i = 0; i < 10; i++) {
-      const ang = (i / 10) * Math.PI * 2
-      const dotp = this.add.circle(this.balloon.x, this.balloon.y, 4, C.amber, 0.8)
-      this.tweens.add({
-        targets: dotp,
-        x: this.balloon.x + Math.cos(ang) * 56,
-        y: this.balloon.y + Math.sin(ang) * 56,
-        alpha: 0,
-        duration: 500,
-        ease: 'Cubic.out',
-        onComplete: () => dotp.destroy(),
-      })
+    const yPaid = this.barBottom - this.premium * this.pxPerUnit
+    const yWorth = this.barBottom - this.intrinsicTotal * this.pxPerUnit
+    const profit = this.pnl >= 0
+    const top = Math.min(yPaid, yWorth)
+    const h = Math.abs(yPaid - yWorth)
+    // shade the shortfall/surplus band over the bar
+    this.barG.fillStyle(profit ? C.green : C.red, 0.22)
+    this.barG.fillRect(this.barX, top, this.barW, Math.max(1, h))
+    this.resultTag
+      .setVisible(true)
+      .setText(`paid ${fmt(this.premium)} → worth ${fmt(this.intrinsicTotal)} = ${fmtSigned(this.pnl)}`)
+      .setColor(hex(profit ? C.greenText : C.red))
+      .setPosition(this.barX + this.barW + 12, (top + (top + h)) / 2)
+  }
+
+  /** Animate the amber "surge" draining to zero (the storm fizzles → IV crush). */
+  private crushSurge(): void {
+    if (this.crushed) return
+    this.crushed = true
+    this.header.setText('Storm fizzled — IV crushed').setColor(hex(C.red))
+    this.surgeLabel.setVisible(false)
+    if (this.reduceMotion) {
+      this.applyCrushFinal()
+      return
     }
-    this.tweens.add({ targets: this.balloon, scale: 0, alpha: 0, duration: 400, ease: 'Cubic.in' })
-    this.tweens.add({ targets: this.balloonLabel, alpha: 0, duration: 400 })
-    // deflate the extrinsic portion of the bar
     this.tweens.addCounter({
-      from: 1, to: 0, duration: 600,
+      from: 1, to: 0, duration: this.dur(600), ease: 'Cubic.in',
       onUpdate: (tw) => {
-        const f = tw.getValue() ?? 0
-        this.extrinsicG.clear()
-        const intrinsicH = this.intrinsicTotal * this.pxPerUnit
-        const extrinsicH = (this.premium - this.intrinsicTotal) * this.pxPerUnit * f
-        if (extrinsicH > 0) {
-          this.extrinsicG.fillStyle(C.amber, 0.45)
-          this.extrinsicG.fillRect(this.barX, this.barBottom - intrinsicH - extrinsicH, this.barW, extrinsicH)
-        }
+        this.surgeFrac = tw.getValue() ?? 0
+        this.drawBar()
+      },
+      onComplete: () => {
+        this.surgeFrac = 0
+        this.drawBar()
+        this.updateResultTag()
       },
     })
+  }
+
+  /** Snap the bar to its fully crushed state (no animation). */
+  private applyCrushFinal(): void {
+    this.crushed = true
+    this.surgeFrac = 0
+    this.header.setText('Storm fizzled — IV crushed').setColor(hex(C.red))
+    this.surgeLabel.setVisible(false)
+    this.drawBar()
+    this.updateResultTag()
   }
 
   // --- payoff V -------------------------------------------------------------
@@ -258,7 +320,7 @@ export default class IVCrushScene extends ModuleScene {
         t.setText(lab).setPosition(x, this.vy + this.vh + 10)
       }
     })
-    // V curve + red interior shading
+    // V curve + red interior shading (the "still a loss" zone between breakevens)
     this.vG.fillStyle(C.red, 0.12)
     this.vG.fillRect(this.vxFor(be.lower), this.vy, this.vxFor(be.upper) - this.vxFor(be.lower), this.vh)
     this.vG.lineStyle(3, C.green, 1)
@@ -274,7 +336,7 @@ export default class IVCrushScene extends ModuleScene {
   }
 
   private landDot(): void {
-    this.drawPremiumBar(true)
+    if (!this.crushed) this.crushSurge()
     const S = Phaser.Math.Clamp(this.S, this.vMin, this.vMax)
     const x = this.vxFor(S)
     const y = this.vyFor(Math.max(-12, Math.min(12, this.pnl)))
@@ -283,7 +345,7 @@ export default class IVCrushScene extends ModuleScene {
       this.dot.setVisible(true).setPosition(x, y)
     } else {
       this.dot.setVisible(true).setPosition(this.vxFor(this.K), this.vyFor(-this.premium))
-      this.tweens.add({ targets: this.dot, x, y, duration: 600, ease: 'Cubic.out' })
+      this.tweens.add({ targets: this.dot, x, y, duration: this.dur(600), ease: 'Cubic.out' })
     }
     this.updateLedger()
   }
@@ -302,7 +364,7 @@ export default class IVCrushScene extends ModuleScene {
     const cleared = this.S < this.K - this.premium || this.S > this.K + this.premium
     const text = cleared ? 'cleared BE → profit' : 'moved but lost — inside breakevens'
     const col = cleared ? C.greenText : C.red
-    const badgeY = 332
+    const badgeY = 336
     this.badge.setText(text).setColor(hex(col))
     this.badge.setPosition(24, badgeY)
     this.badgePanel.clear()
@@ -321,8 +383,10 @@ export default class IVCrushScene extends ModuleScene {
       premText.setText(`pre-event IV (premium): ${fmt(this.premium)}`)
       moveText.setText(`realized move: ${fmtSigned(this.move * 100)}% → S ${fmt(this.S)}`)
       this.drawV()
-      // bar shown post-crush (intrinsic only); update dot + ledger live
-      this.drawPremiumBar(true)
+      this.drawPaidLine()
+      // bar shown post-crush (intrinsic only); update dot + ledger + result live
+      this.drawBar()
+      this.updateResultTag()
       this.placeDot()
       this.updateLedger()
     }
@@ -333,7 +397,7 @@ export default class IVCrushScene extends ModuleScene {
     moveText.setText(`realized move: ${fmtSigned(this.move * 100)}% → S ${fmt(this.S)}`)
   }
 
-  // --- quiz (module 11) -----------------------------------------------------
+  // --- quiz (module 11, legacy) ---------------------------------------------
   private drawQuizMask(): void {
     // mask the post-event candle + P&L region (premium bar deflation + dot + ledger)
     const g = this.add.graphics()
@@ -353,10 +417,10 @@ export default class IVCrushScene extends ModuleScene {
     if (this.revealed) return
     this.revealed = true
     if (this.maskG) {
-      this.tweens.add({ targets: this.maskG, alpha: 0, duration: 420, onComplete: () => this.maskG?.destroy() })
+      this.tweens.add({ targets: this.maskG, alpha: 0, duration: this.dur(420), onComplete: () => this.maskG?.destroy() })
     }
-    this.time.delayedCall(220, () => {
-      this.popBalloon()
+    this.time.delayedCall(this.dur(220), () => {
+      this.crushSurge()
       this.landDot()
       // "moved but lost" stamp
       const stamp = this.label(this.vx + this.vw / 2, this.vy + 40, 'MOVED, STILL LOST', {
@@ -364,7 +428,7 @@ export default class IVCrushScene extends ModuleScene {
       })
       if (!this.reduceMotion) {
         stamp.setAlpha(0)
-        this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: 400, ease: 'Cubic.out' })
+        this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: this.dur(400), ease: 'Cubic.out' })
       }
     })
   }
@@ -379,7 +443,7 @@ export default class IVCrushScene extends ModuleScene {
 
   /**
    * Module 11 CHALLENGE — the learner drags a "where does it land?" marker along the
-   * V panel; Submit pops the IV balloon, lands the dot, and grades whether the chosen
+   * V panel; Submit crushes the surge, lands the dot, and grades whether the chosen
    * price actually PROFITS (cleared a breakeven) — not merely "moved". The marker starts
    * at 104 (the tempting "it moved 4%, so I won" trap, which loses).
    */
@@ -443,7 +507,7 @@ export default class IVCrushScene extends ModuleScene {
     // hint in the clear band below the panels/ledger/badge (the prompt + how-to also
     // live in the footer; this is just an in-canvas nudge by the draggable marker).
     // Removed on grade so the stale "drag … then run" instruction doesn't linger.
-    this.hintLabel = this.label(20, 386, 'drag the amber marker on the V → then run earnings + IV crush', {
+    this.hintLabel = this.label(20, 388, 'drag the amber marker on the V → then run earnings + IV crush', {
       size: this.fs(12, 12, 15), col: C.amberInk, bold: true,
     })
     this.setCanSubmit(true)
@@ -456,8 +520,8 @@ export default class IVCrushScene extends ModuleScene {
     this.hintLabel?.setVisible(false)
     this.challengeRedraw()
 
-    // Apply the IV crush + land the dot at the chosen price.
-    this.popBalloon()
+    // Crush the surge (IV crush) + land the dot at the chosen price.
+    this.crushSurge()
     this.landDot()
 
     const be = { lower: this.K - this.premium, upper: this.K + this.premium }
@@ -469,7 +533,7 @@ export default class IVCrushScene extends ModuleScene {
     })
     if (!this.reduceMotion) {
       stamp.setAlpha(0)
-      this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: 400, ease: 'Cubic.out' })
+      this.tweens.add({ targets: stamp, alpha: 1, scale: 1.1, duration: this.dur(400), ease: 'Cubic.out' })
     }
 
     const title = correct

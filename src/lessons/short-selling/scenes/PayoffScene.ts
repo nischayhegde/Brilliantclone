@@ -40,6 +40,13 @@ export default class PayoffScene extends ModuleScene {
   private readoutLong!: Phaser.GameObjects.Text
   private priceReadout!: Phaser.GameObjects.Text
 
+  // "Bet against a balloon" metaphor (right column). Drag price DOWN and it deflates
+  // to empty — your gain caps at +100%. Drag price UP and it inflates without limit —
+  // your loss inflates right along with it. Same asymmetry as the payoff lines, felt.
+  private balloon!: Phaser.GameObjects.Container
+  private balloonBody!: Phaser.GameObjects.Graphics
+  private balloonCY = 178
+
   protected build(): void {
     const p = this.params as PayoffParams
     this.entry = p.entry ?? 30
@@ -60,11 +67,16 @@ export default class PayoffScene extends ModuleScene {
     this.drawAxes()
 
     // Right-side legend / readouts
-    this.label(584, 78, 'Future price', { size: 12, bold: true, col: C.ink })
-    this.priceReadout = this.label(584, 100, '', { size: 15, bold: true, col: C.blue })
-    // Below the zero-P&L line so the readouts never collide with the right-edge "0%".
-    this.readoutShort = this.label(584, 166, '', { size: 13, bold: true, col: C.red })
-    this.readoutLong = this.label(584, 190, '', { size: 13, bold: true, col: C.green })
+    this.label(584, 58, 'Future price', { size: 12, bold: true, col: C.ink })
+    this.priceReadout = this.label(584, 80, '', { size: 18, bold: true, col: C.blue })
+
+    // The balloon you're betting against sits between two fixed truths: it can inflate
+    // forever (loss has no cap) but only deflate to empty (gain caps at +100%).
+    this.buildBalloon()
+
+    // Below the balloon so the readouts never collide with it or the right-edge "0%".
+    this.readoutShort = this.label(584, 286, '', { size: 13, bold: true, col: C.red })
+    this.readoutLong = this.label(584, 310, '', { size: 13, bold: true, col: C.green })
 
     if (this.mode === 'teach') {
       // Sequenced draw-in of both lines + callouts, then interactive cursor.
@@ -230,12 +242,56 @@ export default class PayoffScene extends ModuleScene {
     this.refreshReadout()
   }
 
+  // --- Balloon metaphor ------------------------------------------------------
+  private buildBalloon(): void {
+    const cx = 672
+    this.balloon = this.add.container(cx, this.balloonCY)
+    this.balloonBody = this.add.graphics()
+    this.balloon.add(this.balloonBody)
+
+    // The two fixed truths that frame the balloon: up = unbounded loss, down = capped.
+    this.fadeIn(
+      this.label(cx, 118, '↑ inflates: loss has no cap', { size: 11, bold: true, col: C.red, align: 'center', bg: true }),
+      200,
+    )
+    this.fadeIn(
+      this.label(cx, 242, '↓ empty = +100% (capped)', { size: 11, bold: true, col: C.green, align: 'center', bg: true }),
+      300,
+    )
+
+    this.drawBalloon(this.cursorX)
+    this.fadeIn(this.balloon, 150)
+    // Gentle ambient "breathing" so the balloon feels alive (no-op under reduced motion).
+    this.loop({ targets: this.balloon, scaleX: 1.04, scaleY: 1.04, duration: 2400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' })
+  }
+
+  /** Size + tint the balloon for the current future price (drives the metaphor). */
+  private drawBalloon(price: number): void {
+    if (!this.balloonBody) return
+    const t = Math.max(0, Math.min(1, price / this.priceMax))
+    const r = 5 + t * 32 // deflated (~5px) at $0 → swollen (~37px) at priceMax
+    const losing = price > this.entry
+    const col = losing ? C.red : C.green
+    const g = this.balloonBody
+    g.clear()
+    // Balloon body (a touch taller than wide).
+    g.fillStyle(col, 0.85)
+    g.fillEllipse(0, 0, r * 1.7, r * 2)
+    // Soft highlight for a little dimensional life.
+    g.fillStyle(C.white, 0.28)
+    g.fillEllipse(-r * 0.32, -r * 0.42, r * 0.55, r * 0.8)
+    // Knot at the bottom.
+    g.fillStyle(col, 0.85)
+    g.fillTriangle(-3.5, r, 3.5, r, 0, r + 6)
+  }
+
   private refreshReadout(): void {
     const price = this.cursorX
     const sPct = this.shortPct(price)
     const lPct = this.longPct(price)
     const sDollar = (this.entry - price) * this.shares
     const lDollar = (price - this.entry) * this.shares
+    this.drawBalloon(price)
     this.priceReadout.setText(`$${price.toFixed(0)}`)
     this.readoutShort.setText(`Short: ${(sPct * 100).toFixed(0)}%  (${sDollar >= 0 ? '+' : '−'}$${Math.abs(sDollar).toFixed(0)})`)
     this.readoutShort.setColor(hex(color(sPct >= 0 ? C.green : C.red)))

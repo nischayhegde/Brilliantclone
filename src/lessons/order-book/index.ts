@@ -38,7 +38,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Order book',
     title: 'What Happens When You Hit "Buy"?',
     intro:
-      'Press Buy — and watch where your order actually goes. A trade is not magic: somewhere a buyer and a seller meet inside a two-sided book. Tap the rungs to discover who is who.',
+      "Press Buy — and follow where your order actually goes. A trade isn't magic: your buy has to meet a seller. Picture two facing lists — what buyers will pay, and what sellers will take. That's the order book. Tap the rungs to meet both sides.",
     scene: {
       kind: 'intro',
       params: {
@@ -55,7 +55,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'You pressed Buy — and met a seller resting at 100.02. Between the best buyer (100.01) and best seller (100.02) sits a 1-cent gap: the spread. The rest of the lesson is this picture.',
+      'You pressed Buy and met a seller waiting at 100.02. The best buyer sits at 100.01, the best seller at 100.02 — a 1-cent gap between them. That gap is the spread, and the whole lesson lives in this picture.',
   },
 
   // 2 — TEACH bid/ask/spread/mid --------------------------------------------
@@ -65,10 +65,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Vocabulary',
     title: 'Bid, Ask, Spread, Mid',
     intro:
-      'Four words and one inviolable rule. BID = the highest price a buyer will pay. ASK = the lowest a seller will accept. SPREAD = ask − bid. MID = (bid + ask) / 2. And bid < ask, always.',
+      "Think of a ticket booth: it buys from you cheap and sells to you dear. BID is the most a buyer will pay. ASK is the least a seller will take. The gap between them, ask − bid, is the SPREAD — the booth's cut. MID is the fair middle, (bid + ask) / 2. And bid is always below ask.",
     scene: { kind: 'topOfBook', params: { bid: 100.0, ask: 100.02 } },
     caption:
-      'Spread = ask − bid = 100.02 − 100.00 = 0.02. Mid = (100.00 + 100.02)/2 = 100.01. Drag the handles — but you can never make the buyer pay more than the seller asks.',
+      'Spread = ask − bid = 100.02 − 100.00 = 0.02. Mid = (100.00 + 100.02)/2 = 100.01 — the fair middle. Drag the handles, but you can never make a buyer pay more than a seller asks.',
   },
 
   // 3 — CHALLENGE set the quote ----------------------------------------------
@@ -78,7 +78,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge',
     title: 'Set the Quote',
     intro:
-      'Build a valid market quote. Drag the green BID and the red ASK handles so the book is valid (bid < ask) AND the spread is exactly the target. Two checks, every time.',
+      "Now build a valid quote yourself. A buyer's top price has to sit below a seller's floor — otherwise they'd just trade on the spot. Drag the green BID and red ASK so the book is valid (bid below ask) and the spread hits the target exactly.",
     scene: {
       kind: 'quoteCards',
       params: {
@@ -91,11 +91,11 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt: 'Make a valid book with a 4-cent spread.',
-      instructions: 'Drag the BID and ASK handles. Goal: bid < ask and ask − bid = 0.04.',
+      instructions: 'Drag the BID and ASK handles. Goal: bid below ask, and ask − bid = 0.04.',
       submitLabel: 'Lock the quote',
     },
     caption:
-      'Two checks every time: bid < ask? (valid) and ask − bid = ? (the spread). Cross the book and it becomes impossible — a buyer paying ≥ the ask would simply trade.',
+      'Two checks every time: is bid below ask (valid?), and does ask − bid equal the target (the spread)? Cross them — a buyer willing to pay the ask — and there is no gap left, because that buyer would simply trade.',
   },
 
   // 4 — TEACH the ladder & top of book --------------------------------------
@@ -105,7 +105,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Structure',
     title: 'The Ladder & the Top of Book',
     intro:
-      'The book is a ladder of price levels — asks above the spread, bids below — each with a SIZE in shares. The two rungs hugging the gap are the top of book. Toggle cumulative depth to read running totals; hover a rung for its notional.',
+      'The book is a ladder of prices — sellers (asks) stacked above the gap, buyers (bids) below — and each rung holds a SIZE in shares. The two rungs hugging the gap are the top of book: the best buyer and best seller. Toggle cumulative depth for running totals; hover a rung for its notional (its dollar value, shares × price).',
     scene: {
       kind: 'ladder',
       params: {
@@ -124,7 +124,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'Every rung is a price with a size. Reading down the asks: 400 @ 100.02, then 500 @ 100.03 (900 cumulative), then 800 @ 100.05 (1,700)… The two rungs hugging the blue gap are the top of book. (Simulated depth.)',
+      'Each rung is a price holding a number of shares. Reading down the asks: 400 @ 100.02, then 500 @ 100.03 (900 so far), then 800 @ 100.05 (1,700)… The two rungs hugging the blue gap are the top of book. (Simulated depth.)',
   },
 
   // 5 — TEACH limit orders rest ---------------------------------------------
@@ -134,7 +134,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Order types',
     title: 'Limit Orders Rest in the Book',
     intro:
-      'A LIMIT order adds liquidity: it rests at your chosen price until matched. You control the price — not whether or when it fills. Drag the blue tile onto a bid rung and see where you land in the queue.',
+      "A LIMIT order is like leaving a note: \"I'll pay exactly this price,\" then waiting your turn in line. It rests in the book until someone trades with it — that's adding liquidity (resting shares others can trade against). You set the price, not whether or when it fills. Drag the blue tile onto a bid rung to see your place in the queue.",
     scene: {
       kind: 'limitOrder',
       params: {
@@ -151,7 +151,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'A limit order is a resting offer: you name the price (100.00) and wait your turn — there are already 900 shares ahead of you at 100.00. Guaranteed your price, never guaranteed a fill. You just added liquidity.',
+      'Your note rests at 100.00 — but 900 shares are already in line ahead of you at that price, so they fill first. A limit guarantees your price, never a fill. You just added liquidity: shares sitting in the book for others to trade against.',
   },
 
   // 6 — TEACH market orders cross -------------------------------------------
@@ -161,7 +161,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Order types',
     title: 'Market Orders Cross the Spread',
     intro:
-      'A MARKET order removes liquidity: it crosses the spread and executes immediately against the best opposing level. You control the fill — not the price. Toggle LIMIT vs MARKET and fire the same order.',
+      'A MARKET order is grabbing whatever is on the shelf right now, at today\'s price. It crosses the spread and fills instantly against the best opposing rung — so it removes liquidity (it takes resting shares away). You control getting filled, not the price you pay. Toggle LIMIT vs MARKET and fire the same order.',
     scene: {
       kind: 'marketOrder',
       params: {
@@ -178,7 +178,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'A market order crosses the spread and fills now — here it lifts the 100.02 offer and prints 400 @ 100.02. You got immediacy; the price was simply whatever was resting.',
+      'A market order crosses the spread and fills now — here it grabs the 100.02 offer and prints 400 @ 100.02. You got it done instantly; the price was simply whatever happened to be on the shelf.',
   },
 
   // 7 — INTERACTIVE matching engine -----------------------------------------
@@ -188,7 +188,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Matching engine',
     title: 'Matching Engine: Price-Time Priority',
     intro:
-      'Orders match by price first, then time (FIFO). Swap the arrival order of the two same-price orders, then fire the market buy and watch who fills first — and in what sequence.',
+      'Think of a deli counter with take-a-number tickets. The best price gets served first; if two orders share a price, whoever lined up earliest wins (that is FIFO — first in, first out). Swap the arrival times of the two same-price orders, then fire the market buy and watch the serving order.',
     scene: {
       kind: 'matching',
       params: {
@@ -201,7 +201,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'Two rules, in order: price first (20.00 before 20.01), then time (A before B at 20.00). A 300-share market buy prints A → B → C — exactly that sequence.',
+      'Two rules, in order: best price first (20.00 before 20.01), then earliest arrival (A before B at 20.00). A 300-share market buy serves A → B → C — exactly that line.',
   },
 
   // 8 — CHALLENGE who gets filled --------------------------------------------
@@ -211,7 +211,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge',
     title: 'Who Gets Filled?',
     intro:
-      'A small book. X and Y rest at 20.00; Z rests at 20.01. A market buy for 100 shares is about to arrive. Use the matching rule: price first, then time.',
+      "Your turn to call it. X and Y rest at 20.00; Z rests at 20.01. A market buy for 100 shares is about to land. Use the matching rule: best price first, then whoever's waited longest.",
     scene: {
       kind: 'whoFills',
       params: {
@@ -228,7 +228,7 @@ const modules: ModuleSpec[] = [
       submitLabel: 'Run the match',
     },
     caption:
-      'Price, then time. Best price (20.00) clears before 20.01; within 20.00, the 9:30:01 order beats the 9:30:05 order. X fills first.',
+      'Price, then time. The best price (20.00) clears before 20.01; among the orders at 20.00, the 9:30:01 order has waited longer than the 9:30:05 one. So X fills first.',
   },
 
   // 9 — TEACH walking the book & slippage -----------------------------------
@@ -238,7 +238,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Cost',
     title: 'Walking the Book & Slippage',
     intro:
-      'A market buy larger than the best-ask size eats successive ask levels, filling at a worse AVERAGE than the touch — that gap is slippage. Drag the size slider to re-walk the book live.',
+      'Picture buying every seat to a show: the cheap seats sell out, so you climb to pricier rows, and your average seat costs more than the cheapest. A big market buy does the same — it eats the next ask rungs, filling at a worse AVERAGE than the touch (the best price). That gap is slippage. Drag the size slider to re-walk the book.',
     scene: {
       kind: 'walkBook',
       params: {
@@ -252,7 +252,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      '1,000 shares but only 500 at the 100.02 touch — the rest fills at 100.05. Blended avg = 100.035, which is 0.015 above the touch: $15 of slippage, paid for taking size in one gulp. (Simulated depth; math exact.)',
+      '1,000 shares, but only 500 seats at the 100.02 touch — the rest climb to 100.05. Blended average = 100.035, which is 0.015 above the touch: $15 of slippage, the price of taking size in one gulp. (Simulated depth; math exact.)',
   },
 
   // 10 — CHALLENGE fill the order -------------------------------------------
@@ -262,7 +262,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge',
     title: 'Fill the Order',
     intro:
-      'The touch holds 400 @ 100.00; behind it sits 600 @ 100.05. Size up a market buy with the slider, then sweep the book and read your realized average against the touch.',
+      'The front price holds 400 @ 100.00; behind it sits 600 @ 100.05. It is like a discount bin: once you buy more than the cheap bin holds, the extra comes at the higher price — and your average drifts up. Size a market buy with the slider, sweep the book, and read your average against the touch.',
     scene: {
       kind: 'avgFillQuiz',
       params: {
@@ -276,11 +276,11 @@ const modules: ModuleSpec[] = [
     },
     challenge: {
       prompt: 'Fill a 700-share market buy — what average price do you pay?',
-      instructions: 'Drag the slider to set the order size, then sweep. Notice your average vs the 100.00 touch.',
+      instructions: 'Drag the slider to size the order, then sweep. Watch your average drift above the 100.00 touch.',
       submitLabel: 'Sweep the book',
     },
     caption:
-      'Weighted average, not the touch and not the top. At 700 shares: (400×100.00 + 300×100.05)/700 ≈ 100.021 — above the 100.00 touch. Size past the touch and you always pay more than the best price.',
+      'You pay a weighted average — not the touch, not the top. At 700 shares: (400×100.00 + 300×100.05)/700 ≈ 100.021, above the 100.00 touch. Buy past the cheap rung and your average always lands above the best price.',
   },
 
   // 11 — TEACH the spread is a cost -----------------------------------------
@@ -290,7 +290,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Cost',
     title: 'The Spread Is a Cost',
     intro:
-      'Crossing the spread costs ~half the spread vs mid on each side; a round-trip (buy at market, then sell at market) pays the full spread. Flip between the two anchors and the size slider to see the cost as a % of price.',
+      "Crossing the spread isn't free — it's the booth taking its cut. Buying, you pay a bit over the fair mid; selling, you give a bit back. Do both (a round-trip) and you've paid the full spread. Flip between the two anchors and the size slider to see the cost as a % of price.",
     scene: {
       kind: 'spreadCost',
       params: {
@@ -302,7 +302,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'Cross to buy: pay ½ spread vs mid. Cross to sell: pay it again. Round-trip = the full spread. On a $400 stock a penny spread (400.00 / 400.01) is ≈0.0025% — noise. On a $5 stock a dime spread is ≈2% — you start 2% in the hole.',
+      "Think of the booth's cut: buying, you pay a little over the fair mid; selling, you give a little back. Do both (a round-trip) and you've paid the whole spread. On a $400 stock a 1¢ spread is ≈0.0025% — basically free. On a $5 stock a 10¢ spread is ≈2% — you start the trade already 2% behind.",
   },
 
   // 12 — INTERACTIVE deep vs thin -------------------------------------------
@@ -312,7 +312,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Liquidity',
     title: 'Deep vs Thin: Two Books',
     intro:
-      'One shared slider fires the same market order into both books. Watch the deep (AAPL-like) book swallow it whole while the thin micro-cap gets gouged across several rungs. Depth absorbs size.',
+      'Depth is a lake versus a puddle. Drop the same rock — one big order — and the lake barely ripples, but the puddle splashes everywhere. One shared slider fires the same order into both books: the deep (AAPL-like) book swallows it whole; the thin micro-cap gets gouged across several rungs. Depth is what absorbs size.',
     scene: {
       kind: 'twoBooks',
       params: {
@@ -332,7 +332,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'Same 1,000-share order. The deep book swallows it whole at the touch — 0% slippage. The thin book makes you walk from 5.00 up through 6.50 — a blended 6.09 average, +21.8% above the touch ($1,090 of slippage). Depth is what absorbs size.',
+      'Same 1,000-share order. The lake (deep book) swallows it whole at the touch — 0% slippage. The puddle (thin book) makes you climb from 5.00 up to 6.50 — a blended 6.09 average, +21.8% above the touch ($1,090 of slippage). Depth is what absorbs size.',
   },
 
   // 13 — TEACH bid-ask bounce -----------------------------------------------
@@ -342,10 +342,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Nuance',
     title: 'Bid-Ask Bounce & the Moving Touch',
     intro:
-      'As orders post and cancel, the touch flickers and prints alternate between bid and ask — the "bounce" — even with no real price change. Toggle the churn off to flatten the tape. (The touch you see is the NBBO: the best quote across all venues.)',
+      'Watch the last price flicker between two shelf-tags even though nothing really changed. As orders post and cancel, prints alternate between the bid and the ask — that is the "bounce" — with no real move in value. Toggle the churn off to flatten the tape. (The touch you see is the NBBO: the best bid and ask across all exchanges.)',
     scene: { kind: 'bounce', params: { bid: 100.0, ask: 100.01 } },
     caption:
-      'Buys print at 100.01, sells print at 100.00, back and forth — a 1-cent sawtooth — while the mid never moves. That wiggle is the bid-ask bounce, not a price change.',
+      'Buys print at 100.01, sells at 100.00, back and forth — a 1-cent sawtooth — while the mid never budges. That flicker is the bid-ask bounce, not a real price change.',
   },
 
   // 14 — CHALLENGE limit vs market ------------------------------------------
@@ -355,7 +355,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge',
     title: 'Limit or Market? Place the Order',
     intro:
-      'You must buy 200 shares of this thin small-cap. You refuse to pay above 5.05, and you can wait. The touch holds only 100 shares; the next rung is 5.40. Pick the right tool — then place it.',
+      "You need 200 shares of this thin small-cap. You won't pay above 5.05, and you can wait. The front price holds only 100 shares; the next rung jumps to 5.40. So: leave a note and wait (limit), or grab now and overpay (market)? Pick the tool, then place it.",
     scene: {
       kind: 'orderTypeQuiz',
       params: {
@@ -375,7 +375,7 @@ const modules: ModuleSpec[] = [
       submitLabel: 'Place the order',
     },
     caption:
-      '200 shares, thin book, a hard 5.05 limit, and patience → limit order. A 200-share market order fills 100 @ 5.00 then walks to 5.40 — a 5.20 blended average (+4%) that breaks your rule. Limit controls price; market controls fill.',
+      '200 shares, a thin book, a hard 5.05 ceiling, and time to wait → leave a note (limit). A 200-share market order fills 100 @ 5.00 then jumps to 5.40 — a 5.20 blended average (+4%) that breaks your rule. Limit controls your price; market only controls getting filled.',
   },
 
   // 15 — CAPSTONE trade the tape --------------------------------------------
@@ -385,7 +385,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Capstone',
     title: 'Capstone: Trade the Tape',
     intro:
-      'Everything at once. Fill a 1,000-share buy across a live, churning book at minimum cost — rest limits at the bid to capture the spread, clip the rest at market. Beat the all-market baseline, then answer the check on your own run.',
+      'Everything at once. Fill a 1,000-share buy across a live, churning book for the lowest cost you can. Leave notes at the bid to earn the spread (rest limits), then grab the rest at market. Beat the all-market baseline, then answer the check on your own run.',
     scene: {
       kind: 'capstone',
       params: {
@@ -403,7 +403,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'You just read a live book, paid the spread, walked it, and beat it. Spread = ask − bid; mid is the fair middle; limits rest (control price), markets cross (control fill); the engine fills best price, then earliest; size walks the book into slippage; and depth decides whether your order is a whisper (AAPL-tight) or a shout (small-cap-wide).',
+      'You just read a live book, paid the spread, walked it, and beat it. Spread = ask − bid; mid is the fair middle; limits rest (you control price), markets cross (you control the fill); the deli rule fills best price first, then earliest; size climbs into slippage; and depth decides whether your order is a whisper (AAPL-tight) or a shout (small-cap-wide).',
   },
 ]
 

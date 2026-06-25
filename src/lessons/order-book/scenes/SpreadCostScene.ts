@@ -19,11 +19,13 @@ const DEFAULT_ANCHORS: Anchor[] = [
 ]
 
 /**
- * MODULE 11 — TEACH "The Spread Is a Cost". A token buys at the ask and immediately
- * sells at the bid; a cost meter tallies ½ spread + ½ spread = the full spread, then
- * converts to % of mid. The learner flips between two anchors (AAPL-like penny spread
- * vs a $5 dime-spread micro-cap) and a share-size slider; readouts show per-side cost
- * vs mid, round-trip $ cost, and spread-as-% — diverging ~800× between the anchors.
+ * MODULE 11 — TEACH "The Spread Is a Cost". Metaphor: a ticket booth. The booth SELLS to
+ * you a little above the fair mid (the ask) and BUYS from you a little below it (the bid).
+ * A "you" token does a round-trip — buy from the booth, then sell back — and a cost meter
+ * tallies ½ spread + ½ spread = the booth's full cut (the whole spread), then shows it as
+ * a % of mid. The learner flips between two anchors (penny-spread mega-cap vs a $5
+ * dime-spread small-cap) and a share slider; the % diverges ~800× between the anchors.
+ * Math is exact; only the framing/animation changed.
  */
 export default class SpreadCostScene extends ModuleScene {
   private anchors: Anchor[] = []
@@ -37,6 +39,8 @@ export default class SpreadCostScene extends ModuleScene {
   private token!: Phaser.GameObjects.Arc
   private meterFill!: Phaser.GameObjects.Graphics
   private anchorBtns: Phaser.GameObjects.Container[] = []
+  private buyTag!: Phaser.GameObjects.Text
+  private sellTag!: Phaser.GameObjects.Text
 
   private readonly axisX = 150
   private readonly yAsk = 110
@@ -49,24 +53,36 @@ export default class SpreadCostScene extends ModuleScene {
     this.shares = p.startShares ?? 1000
     this.setAnchor(0)
 
-    this.label(this.W / 2, 30, 'Buy at the ask, sell at the bid — a round-trip pays the full spread', {
-      size: 13,
+    this.label(this.W / 2, 30, 'The booth sells to you high and buys from you low — a round-trip pays its full cut', {
+      size: this.fs(13),
       col: C.muted,
       align: 'center',
     })
-    this.label(12, this.H - 14, 'Simulated quote; math exact', { size: 11, col: C.blue }).setAlpha(0.8)
+    this.label(12, this.H - 14, 'Simulated quote; math exact', { size: this.fs(11, 11, 13), col: C.blue }).setAlpha(0.8)
 
     this.drawAxis()
     this.buildMeter()
     this.buildPanel()
     this.buildControls()
 
-    this.token = this.add.circle(this.axisX, this.yMid, 9, C.green).setStrokeStyle(2, C.white)
+    // Floating leg annotations: each side of the round-trip pays half the spread.
+    this.buyTag = this.label(this.axisX + 26, (this.yAsk + this.yMid) / 2, 'BUY: pay +½ spread', {
+      size: this.fs(12),
+      col: C.red,
+      bold: true,
+      bg: true,
+    }).setVisible(false)
+    this.sellTag = this.label(this.axisX + 26, (this.yMid + this.yBid) / 2, 'SELL: take −½ spread', {
+      size: this.fs(12),
+      col: C.greenText,
+      bold: true,
+      bg: true,
+    }).setVisible(false)
+
+    this.token = this.add.circle(this.axisX, this.yMid, 9, C.amber).setStrokeStyle(2, C.white)
+    this.label(this.axisX, this.yMid + 16, 'you', { size: this.fs(11, 11, 13), col: C.amberInk, align: 'center' })
     this.refresh()
-    this.time.delayedCall(500, () => {
-      this.playRoundTrip()
-      this.emitReady()
-    })
+    this.startRoundTrip(true)
   }
 
   private setAnchor(i: number): void {
@@ -82,26 +98,26 @@ export default class SpreadCostScene extends ModuleScene {
     const g = this.add.graphics()
     g.lineStyle(2, C.hairline, 1)
     g.lineBetween(this.axisX, this.yAsk - 20, this.axisX, this.yBid + 20)
-    // ask / mid / bid markers
+    // ask / mid / bid markers — each tagged with the booth's role on that side.
     const mark = (y: number, col: number, txt: string, name: string) => {
       this.add.circle(this.axisX, y, 5, col)
-      const t = this.label(this.axisX + 14, y, txt, { size: 13, col, bold: true })
+      const t = this.label(this.axisX + 14, y, txt, { size: this.fs(13), col, bold: true })
       t.setName(name)
     }
     mark(this.yAsk, C.red, '', 'askLbl')
     mark(this.yMid, C.blue, '', 'midLbl')
     mark(this.yBid, C.green, '', 'bidLbl')
 
-    // blue caliper for the spread
+    // blue caliper for the spread (booth's cut), with the ½ tick at mid.
     const cal = this.add.graphics()
     cal.lineStyle(2, C.blue, 1)
     const calX = this.axisX - 30
     cal.lineBetween(calX, this.yAsk, calX, this.yBid)
     cal.lineBetween(calX - 6, this.yAsk, calX + 6, this.yAsk)
     cal.lineBetween(calX - 6, this.yBid, calX + 6, this.yBid)
-    // half markers
     cal.lineStyle(1, C.blue, 0.5)
     cal.lineBetween(calX - 4, this.yMid, calX + 4, this.yMid)
+    this.label(calX - 8, this.yMid, 'spread', { size: this.fs(11, 11, 13), col: C.blue, align: 'right' })
   }
 
   private buildMeter(): void {
@@ -109,7 +125,7 @@ export default class SpreadCostScene extends ModuleScene {
     const my = 90
     const mw = 250
     const mh = 30
-    this.label(mx, my - 18, 'Round-trip cost meter', { size: 12, col: C.muted })
+    this.label(mx, my - 18, "Booth's cut (round-trip cost)", { size: this.fs(12), col: C.muted })
     const frame = this.add.graphics()
     frame.lineStyle(2, C.ink, 1)
     frame.strokeRoundedRect(mx, my, mw, mh, 6)
@@ -117,8 +133,8 @@ export default class SpreadCostScene extends ModuleScene {
     // half-spread tick at midpoint
     frame.lineStyle(1, C.muted, 1)
     frame.lineBetween(mx + mw / 2, my, mx + mw / 2, my + mh)
-    this.label(mx + mw / 2, my + mh + 13, '½ spread', { size: 12, col: C.muted, align: 'center' })
-    this.label(mx + mw, my + mh + 13, 'full spread', { size: 12, col: C.muted, align: 'right' })
+    this.label(mx + mw / 2, my + mh + 13, '½ (one side)', { size: this.fs(12), col: C.muted, align: 'center' })
+    this.label(mx + mw, my + mh + 13, 'full spread', { size: this.fs(12), col: C.muted, align: 'right' })
   }
 
   private drawMeter(fraction: number): void {
@@ -136,12 +152,12 @@ export default class SpreadCostScene extends ModuleScene {
     const py = 160
     this.panel(px, py, 270, 175, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
     const mk = (key: string, y: number, lbl: string) => {
-      this.label(px + 16, py + y, lbl, { size: 12, col: C.muted })
-      this.readouts[key] = this.label(px + 254, py + y, '—', { size: 13, col: C.ink, bold: true, align: 'right' })
+      this.label(px + 16, py + y, lbl, { size: this.fs(12), col: C.muted })
+      this.readouts[key] = this.label(px + 254, py + y, '—', { size: this.fs(13), col: C.ink, bold: true, align: 'right' })
     }
-    this.readouts.header = this.label(px + 16, py + 20, '', { size: 12, col: C.blue, bold: true })
+    this.readouts.header = this.label(px + 16, py + 20, '', { size: this.fs(12), col: C.blue, bold: true })
     mk('spread', 48, 'Spread')
-    mk('half', 74, '½-spread / side')
+    mk('half', 74, 'Each side (½ spread)')
     mk('rt', 100, 'Round-trip / sh')
     mk('rtTotal', 126, 'Round-trip cost')
     mk('pct', 152, 'Spread % of mid')
@@ -149,20 +165,20 @@ export default class SpreadCostScene extends ModuleScene {
 
   private buildControls(): void {
     // anchor toggle
-    this.label(150, 300, 'Anchor:', { size: 12, col: C.muted, align: 'center' })
+    this.label(150, 300, 'Anchor:', { size: this.fs(12), col: C.muted, align: 'center' })
     this.anchors.forEach((a, i) => {
       const c = this.button(150, 326 + i * 38, a.name, () => {
         this.setAnchor(i)
         this.refresh()
         this.restyleAnchors()
-        this.playRoundTrip()
+        this.startRoundTrip(false)
       }, { w: 240, h: 30, fill: C.gray200, textCol: C.muted })
       this.anchorBtns.push(c)
     })
     this.restyleAnchors()
 
     // share size slider
-    this.label(this.W / 2 + 180, 382, 'Shares', { size: 12, col: C.muted, align: 'center' })
+    this.label(this.W / 2 + 180, 382, 'Shares', { size: this.fs(12), col: C.muted, align: 'center' })
     this.slider(450, 405, 280, 100, 5000, this.shares, (v) => {
       this.shares = Math.round(v / 100) * 100
       this.refresh()
@@ -182,9 +198,9 @@ export default class SpreadCostScene extends ModuleScene {
   }
 
   private refresh(): void {
-    ;(this.children.getByName('askLbl') as Phaser.GameObjects.Text).setText(`ASK ${fmtPrice(this.ask)}`)
-    ;(this.children.getByName('bidLbl') as Phaser.GameObjects.Text).setText(`BID ${fmtPrice(this.bid)}`)
-    ;(this.children.getByName('midLbl') as Phaser.GameObjects.Text).setText(`MID ${this.fmtMid(this.mid)}`)
+    ;(this.children.getByName('askLbl') as Phaser.GameObjects.Text).setText(`ASK ${fmtPrice(this.ask)}  ·  booth sells`)
+    ;(this.children.getByName('bidLbl') as Phaser.GameObjects.Text).setText(`BID ${fmtPrice(this.bid)}  ·  booth buys`)
+    ;(this.children.getByName('midLbl') as Phaser.GameObjects.Text).setText(`MID ${this.fmtMid(this.mid)}  ·  fair`)
 
     const spread = this.spread
     const half = spread / 2
@@ -207,26 +223,52 @@ export default class SpreadCostScene extends ModuleScene {
     return Math.abs(m * 100 - Math.round(m * 100)) > 1e-6 ? m.toFixed(3) : m.toFixed(2)
   }
 
-  private playRoundTrip(): void {
-    // token: mid -> ask (buy), then mid -> bid (sell); meter fills half then full
+  private startRoundTrip(emitWhenDone: boolean): void {
+    // token: mid -> ask (buy from booth), then -> bid (sell back); meter fills half then
+    // full. Ease-out only; collapses to the finished state under reduced motion.
     this.token.setPosition(this.axisX, this.yMid)
+    this.buyTag.setVisible(false)
+    this.sellTag.setVisible(false)
+
+    if (this.reduceMotion) {
+      this.token.setPosition(this.axisX, this.yMid)
+      this.buyTag.setVisible(true)
+      this.sellTag.setVisible(true)
+      this.drawMeter(1)
+      if (emitWhenDone) this.emitReady()
+      return
+    }
+
     this.drawMeter(0)
     this.tweens.add({
       targets: this.token,
       y: this.yAsk,
-      duration: 500,
+      duration: this.dur(520),
       ease: 'Cubic.out',
       onComplete: () => {
         this.drawMeter(0.5)
+        this.buyTag.setVisible(true)
+        this.fadeIn(this.buyTag, 0, 4)
         this.tweens.add({
           targets: this.token,
           y: this.yBid,
-          duration: 700,
-          delay: 250,
-          ease: 'Cubic.inOut',
+          duration: this.dur(720),
+          delay: this.dur(260),
+          ease: 'Quad.out',
           onComplete: () => {
             this.drawMeter(1)
-            this.tweens.add({ targets: this.token, y: this.yMid, duration: 300, delay: 200 })
+            this.sellTag.setVisible(true)
+            this.fadeIn(this.sellTag, 0, 4)
+            this.tweens.add({
+              targets: this.token,
+              y: this.yMid,
+              duration: this.dur(320),
+              delay: this.dur(220),
+              ease: 'Cubic.out',
+              onComplete: () => {
+                if (emitWhenDone) this.emitReady()
+              },
+            })
           },
         })
       },
