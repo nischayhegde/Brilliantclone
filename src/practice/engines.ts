@@ -1,5 +1,13 @@
 import type { Candle } from '../data/candles'
-import type { Decision, OptionsDecision, ScenarioOutcome, ScenarioSpec, Track } from './types'
+import type {
+  ChartsDecision,
+  Decision,
+  MarketMakingDecision,
+  OptionsDecision,
+  ScenarioOutcome,
+  ScenarioSpec,
+  Track,
+} from './types'
 import { loadCandles } from './corpus'
 import { findContract, loadChain, type ChainSnapshot } from './chain'
 import { resolveChartTrade } from './resolve/charts'
@@ -14,6 +22,44 @@ export interface TrackEngine<Data> {
   resolve: (spec: ScenarioSpec, data: Data, decision: Decision) => ScenarioOutcome
 }
 
+interface OptionsData {
+  snapshot: ChainSnapshot
+  underlying: Candle[]
+}
+
+function assertNever(x: never): never {
+  throw new Error(`Unhandled scenario track: ${String(x)}`)
+}
+
+/**
+ * The single track dispatch. `Decision` is a structural union with no runtime tag, so we
+ * narrow it using the spec's authoritative `track` discriminant in an EXHAUSTIVE switch
+ * (the `assertNever` default makes the compiler enforce that every track is handled, and
+ * each branch asserts to the precise member type the resolver expects — no `as never`).
+ */
+export function resolveScenario(spec: ScenarioSpec, data: unknown, decision: Decision): ScenarioOutcome {
+  switch (spec.track) {
+    case 'charts':
+      return resolveChartTrade(data as Candle[], decision as ChartsDecision, spec.dataRef)
+    case 'options': {
+      const { snapshot, underlying } = data as OptionsData
+      const d = decision as OptionsDecision
+      // IV is REAL: looked up per leg from the snapshot (used only for the labelled
+      // closed-early model estimate; held-to-expiry P&L never uses it).
+      const ivByLeg = d.legs.map(
+        (leg) => findContract(snapshot, leg.expiry, leg.K, leg.type === 'call' ? 'C' : 'P')?.iv ?? 0.3,
+      )
+      return resolveOptionsPosition(underlying, spec.dataRef.decisionDate ?? snapshot.meta.date, d, { ivByLeg })
+    }
+    case 'market-making': {
+      const { mids, sigma } = data as BookStats
+      return simulateMarketMaking(decision as MarketMakingDecision, { mids, sigma })
+    }
+    default:
+      return assertNever(spec.track)
+  }
+}
+
 const chartsEngine: TrackEngine<Candle[]> = {
   sceneKind: 'chart-trade',
   loadData: (spec) => loadCandles(spec.dataRef),
@@ -21,12 +67,7 @@ const chartsEngine: TrackEngine<Candle[]> = {
     const splitIndex = spec.dataRef.splitIndex ?? Math.floor(candles.length * 0.6)
     return { candles, splitIndex, entry: candles[splitIndex].c, constraints: spec.constraints }
   },
-  resolve: (spec, candles, decision) => resolveChartTrade(candles, decision as never, spec.dataRef),
-}
-
-interface OptionsData {
-  snapshot: ChainSnapshot
-  underlying: Candle[]
+  resolve: resolveScenario,
 }
 
 const optionsEngine: TrackEngine<OptionsData> = {
@@ -37,20 +78,7 @@ const optionsEngine: TrackEngine<OptionsData> = {
     return { snapshot, underlying }
   },
   sceneParams: (spec, data) => ({ snapshot: data.snapshot, constraints: spec.constraints }),
-  resolve: (spec, data, decision) => {
-    const d = decision as OptionsDecision
-    // IV is REAL: looked up per leg from the snapshot (used only for the labelled
-    // closed-early model estimate; held-to-expiry P&L never uses it).
-    const ivByLeg = d.legs.map(
-      (leg) => findContract(data.snapshot, leg.expiry, leg.K, leg.type === 'call' ? 'C' : 'P')?.iv ?? 0.3,
-    )
-    return resolveOptionsPosition(
-      data.underlying,
-      spec.dataRef.decisionDate ?? data.snapshot.meta.date,
-      d,
-      { ivByLeg },
-    )
-  },
+  resolve: resolveScenario,
 }
 
 /**
@@ -69,8 +97,7 @@ const marketMakingEngine: TrackEngine<BookStats> = {
     mid0: data.mid0,
     constraints: spec.constraints,
   }),
-  resolve: (_spec, data, decision) =>
-    simulateMarketMaking(decision as never, { mids: data.mids, sigma: data.sigma }),
+  resolve: resolveScenario,
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
