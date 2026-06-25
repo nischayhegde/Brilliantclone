@@ -19,9 +19,13 @@ export function resolveChartTrade(
   const split = ref.splitIndex ?? Math.floor(candles.length * 0.6)
   const end = Math.min(ref.revealToIndex ?? candles.length, candles.length)
   const netMove = candles[end - 1].c - candles[split].c
+  // Pre-decision reference: the close at the decision split (the price the learner saw).
+  // This is a SETUP fact (known before resolution), safe for process grading — unlike
+  // `netMove`, which is realized and must never drive a process dimension.
+  const entryRef = candles[split].c
 
   if (!decision.took) {
-    return { pnl: 0, facts: { took: false, hit: 'none', netMove } }
+    return { pnl: 0, facts: { took: false, hit: 'none', netMove, entryRef } }
   }
 
   const long = decision.direction !== 'short'
@@ -71,5 +75,5 @@ export function resolveChartTrade(
   const perShare = long ? exitFilled - entry : entry - exitFilled
   const pnl = Math.round((perShare * shares - frictions.feePerShare * shares * 2) * 100) / 100
 
-  return { pnl, facts: { took: true, hit, exit: Math.round(exit * 100) / 100, exitIndex, netMove } }
+  return { pnl, facts: { took: true, hit, exit: Math.round(exit * 100) / 100, exitIndex, netMove, entryRef } }
 }

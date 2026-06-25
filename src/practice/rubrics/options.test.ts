@@ -43,4 +43,33 @@ describe('optionsRubricV1', () => {
     const r = optionsRubricV1(spec(), d, out(-400))
     expect(r.dimensions.find((x) => x.id === 'strike-expiry')!.score).toBeLessThan(0.5)
   })
+
+  it('the thesis dimension is process-only: identical whether the trade won or lost', () => {
+    const d: OptionsDecision = {
+      legs: [
+        { type: 'put', side: 'short', K: 180, expiry: '2021-03-19', premium: 4.33, contracts: 1, deltaAtEntry: -0.34, dteAtEntry: 30 },
+        { type: 'put', side: 'long', K: 175, expiry: '2021-03-19', premium: 2.93, contracts: 1, dteAtEntry: 30 },
+      ],
+      managed: 'hold',
+    }
+    const thesisOf = (pnl: number) => optionsRubricV1(spec(), d, out(pnl)).dimensions.find((x) => x.id === 'thesis')!.score
+    expect(thesisOf(500)).toBe(thesisOf(-500))
+  })
+
+  it('INVARIANT: a well-processed LOSING trade scores >= a poorly-processed WINNING trade', () => {
+    const wellLost: OptionsDecision = {
+      legs: [
+        { type: 'put', side: 'short', K: 180, expiry: '2021-03-19', premium: 4.33, contracts: 1, deltaAtEntry: -0.34, dteAtEntry: 30 },
+        { type: 'put', side: 'long', K: 175, expiry: '2021-03-19', premium: 2.93, contracts: 1, dteAtEntry: 30 },
+      ],
+      managed: 'closed-early',
+    }
+    const lossScore = optionsRubricV1(spec(), wellLost, out(-200))
+    const recklessWon: OptionsDecision = {
+      legs: [{ type: 'call', side: 'short', K: 200, expiry: '2021-03-19', premium: 3, contracts: 1, deltaAtEntry: 0.3, dteAtEntry: 30 }],
+      managed: 'hold',
+    }
+    const winScore = optionsRubricV1(spec(), recklessWon, out(300))
+    expect(lossScore.total).toBeGreaterThanOrEqual(winScore.total)
+  })
 })

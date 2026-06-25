@@ -19,8 +19,27 @@ export const optionsRubricV1: Rubric = (spec, decisionRaw, outcome) => {
   const budget = (maxRiskPct / 100) * accountBalance
   const sizing = Number.isFinite(maxLoss) ? clamp01(1 - (maxLoss - budget) / (2 * budget)) : 0
 
-  // thesis: did the position profit (proxy: realized P&L sign) — weak but real for v1.
-  const thesis = outcome.pnl > 0 ? 0.9 : outcome.pnl === 0 ? 0.5 : 0.3
+  // thesis: a COHERENT, defined-risk STRUCTURE with sane strikes/expiry relative to the
+  // chain — derived from the decision + spec + pre-decision chain facts. NEVER from realized
+  // P&L (a losing-but-coherent structure must not score below a lucky undefined-risk win).
+  const spot = Number(outcome.facts.spotAtEntry ?? 0)
+  const thesisChecks: number[] = []
+  // 1. A recognizable defined-risk structure (finite combined max loss).
+  thesisChecks.push(Number.isFinite(maxLoss) ? 1 : 0)
+  // 2. Strikes relate to spot sensibly — within ~50% of spot (only when spot is known).
+  if (spot > 0 && d.legs.length) {
+    const nearSpot = d.legs.filter((l) => Math.abs(l.K - spot) / spot <= 0.5).length
+    thesisChecks.push(nearSpot / d.legs.length)
+  }
+  // 3. Expiry within a sane scenario horizon: real, not already expired, not multi-year.
+  if (d.legs.length) {
+    const horizonOk = d.legs.filter((l) => {
+      const dte = l.dteAtEntry ?? 30
+      return dte > 0 && dte <= 365
+    }).length
+    thesisChecks.push(horizonOk / d.legs.length)
+  }
+  const thesis = thesisChecks.length ? thesisChecks.reduce((s, x) => s + x, 0) / thesisChecks.length : 0
 
   // R:R: maxGain/maxLoss sanity (premium sellers accept <1; cap reward).
   const maxGainApprox = d.legs.reduce((s, l) => s + (l.side === 'short' ? l.premium : 0) * 100 * l.contracts, 0)
@@ -47,7 +66,7 @@ export const optionsRubricV1: Rubric = (spec, decisionRaw, outcome) => {
   const management = d.managed === 'closed-early' ? 1 : d.managed === 'rolled' ? 0.8 : 0.6
 
   const dimensions: DimensionScore[] = [
-    { id: 'thesis', label: 'Thesis fit', weight: 2, score: thesis, note: `Realized ${outcome.pnl >= 0 ? 'gain' : 'loss'}; thesis ${thesis >= 0.7 ? 'played out' : 'did not'}.` },
+    { id: 'thesis', label: 'Thesis fit', weight: 2, score: thesis, note: thesis >= 0.7 ? 'Coherent defined-risk structure with sane strikes/expiry.' : 'Structure is loose — undefined risk, off-spot strikes, or an unsound horizon.' },
     { id: 'sizing', label: 'Size by max loss', weight: 2, score: sizing, note: Number.isFinite(maxLoss) ? `Max loss $${Math.round(maxLoss)} vs $${Math.round(budget)} budget.` : 'Undefined max loss — cannot size.' },
     { id: 'defined-risk', label: 'Defined max loss', weight: 2, score: definedRisk, note: definedRisk ? 'Loss is capped.' : 'Naked leg — unbounded loss.' },
     { id: 'rr', label: 'Reward : risk', weight: 1, score: rr, note: `Credit/Debit vs max loss.` },

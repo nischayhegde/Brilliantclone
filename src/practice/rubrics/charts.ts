@@ -3,23 +3,41 @@ import { weightedTotal } from './index'
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
 
+/** Entry within this fraction of the decision-point (reveal) price reads as "sane". */
+const ENTRY_BAND = 0.02
+
 export const chartsRubricV1: Rubric = (spec, decisionRaw, outcome) => {
   const d = decisionRaw as ChartsDecision
   const { accountBalance, maxRiskPct, minRewardRisk = 1.5 } = spec.constraints
-  const netMove = Number(outcome.facts.netMove ?? 0)
   const entry = d.entry ?? 0
+  const long = d.direction !== 'short'
+  // Pre-decision reveal price (the close at the split). This is a SETUP fact, not the
+  // realized move — grading `read` from it keeps the dimension P&L-free (Inv 3).
+  const entryRef = Number(outcome.facts.entryRef ?? 0)
 
-  // read: direction agreed with the realized move, or a justified skip.
+  // read: a COHERENT directional PLAN consistent with the scenario setup — derived purely
+  // from the decision + spec + the pre-decision reveal price. NEVER from the realized
+  // move/P&L (a lucky win must not out-score a well-reasoned, unlucky loss).
   let read: number
   let readNote: string
   if (!d.took) {
-    const moveFrac = entry ? Math.abs(netMove) / entry : Math.abs(netMove) / 100
-    read = moveFrac <= 0.01 ? 0.9 : moveFrac <= 0.03 ? 0.55 : 0.2
-    readNote = read >= 0.7 ? 'Sat out a choppy, low-edge move — disciplined.' : 'A tradable move was available; skipping left edge on the table.'
+    // Sitting out commits no risk; with no realized signal permitted, score it neutrally.
+    read = 0.6
+    readNote = 'Chose to sit out — no setup committed, no risk taken.'
   } else {
-    const agreed = (d.direction !== 'short' && netMove > 0) || (d.direction === 'short' && netMove < 0)
-    read = agreed ? 1 : 0.2
-    readNote = agreed ? 'Direction matched the realized move.' : 'Direction fought the realized move.'
+    const checks: boolean[] = [
+      // Stop on the correct side of entry for the chosen direction.
+      d.stop !== undefined && (long ? d.stop < entry : d.stop > entry),
+      // Target set beyond entry in the trade direction.
+      d.target !== undefined && (long ? d.target > entry : d.target < entry),
+    ]
+    // Entry within a sane band of the reveal price (only when the reveal price is known).
+    if (entryRef > 0 && entry > 0) checks.push(Math.abs(entry - entryRef) / entryRef <= ENTRY_BAND)
+    const passed = checks.filter(Boolean).length
+    read = checks.length ? passed / checks.length : 0
+    readNote = read >= 0.7
+      ? 'Coherent plan: direction, stop, and target line up with the setup.'
+      : 'Incoherent plan — stop/target/entry do not line up with the chosen direction.'
   }
 
   // sizing: dollar risk vs the budget.
@@ -34,7 +52,6 @@ export const chartsRubricV1: Rubric = (spec, decisionRaw, outcome) => {
   }
 
   // stop: present and on the correct side of entry.
-  const long = d.direction !== 'short'
   const stopOk = d.took && d.stop !== undefined && (long ? d.stop < entry : d.stop > entry)
   const stop = d.took ? (stopOk ? 1 : 0) : 1
   const stopNote = !d.took ? 'No trade — no stop needed.' : stopOk ? 'Stop defined on the correct side of entry.' : 'No (or wrong-side) stop — undefined risk.'
@@ -53,12 +70,13 @@ export const chartsRubricV1: Rubric = (spec, decisionRaw, outcome) => {
     rrNote = 'Missing target or stop — R:R undefined.'
   }
 
-  // management.
+  // management: plan adherence only — held the plan vs deviated by exiting early. Graded
+  // on the ACTION, never on whether that exit happened to be profitable (Inv 3).
   let management = 1
   let mgmtNote = 'Held the plan to resolution.'
   if (d.took && d.managedExitIndex !== undefined) {
-    management = outcome.pnl >= 0 ? 0.7 : 0.4
-    mgmtNote = outcome.pnl >= 0 ? 'Managed out early, protecting an open gain.' : 'Early exit cut the loss but deviated from plan.'
+    management = 0.6
+    mgmtNote = 'Exited early — a deviation from the defined plan.'
   }
 
   const dimensions: DimensionScore[] = [

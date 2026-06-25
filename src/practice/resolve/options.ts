@@ -58,6 +58,9 @@ export function resolveOptionsPosition(
   opts: { ivByLeg?: number[]; r?: number } = {},
 ): ScenarioOutcome {
   const r = opts.r ?? 0.01
+  // Pre-decision spot (underlying close at the decision date). A SETUP fact known before
+  // resolution — safe for grading strike sanity; never the realized expiry price.
+  const spotAtEntry = underlyingCloseOn(underlying, snapshotDate) ?? closeNear(underlying, snapshotDate) ?? 0
 
   if (decision.managed === 'closed-early') {
     let pnl = 0
@@ -71,7 +74,7 @@ export function resolveOptionsPosition(
       const perContract = (leg.side === 'long' ? value - leg.premium : leg.premium - value) * MULTIPLIER
       pnl += perContract * leg.contracts
     })
-    return { pnl: Math.round(pnl * 100) / 100, facts: { modelEstimate: true, managed: 'closed-early' } }
+    return { pnl: Math.round(pnl * 100) / 100, facts: { modelEstimate: true, managed: 'closed-early', spotAtEntry } }
   }
 
   // hold / rolled → exact expiry intrinsic at the (latest) expiry close.
@@ -82,5 +85,5 @@ export function resolveOptionsPosition(
     const l: Leg = { type: leg.type, side: leg.side, K: leg.K, premium: leg.premium }
     pnl += legPnL(l, S) * MULTIPLIER * leg.contracts
   }
-  return { pnl: Math.round(pnl * 100) / 100, facts: { modelEstimate: false, sExpiry: S, managed: decision.managed ?? 'hold' } }
+  return { pnl: Math.round(pnl * 100) / 100, facts: { modelEstimate: false, sExpiry: S, managed: decision.managed ?? 'hold', spotAtEntry } }
 }
