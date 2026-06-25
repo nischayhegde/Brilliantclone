@@ -23,6 +23,10 @@ export interface OptionLegDecision {
   /** Real premium per share from the chain snapshot (never learner/LLM invented). */
   premium: number
   contracts: number
+  /** Snapshot delta of this contract at entry (from the chain; grading only). */
+  deltaAtEntry?: number
+  /** Days-to-expiry at entry (from the snapshot date; grading only). */
+  dteAtEntry?: number
 }
 
 export interface OptionsDecision {
