@@ -8,6 +8,12 @@ export interface NudgeContext {
   hasUndefinedRiskLeg: boolean
   /** Trades taken in the recent window (overtrading signal). */
   tradesInWindow: number
+  /** Market-making: the learner's in-progress quote (bidWidth/askWidth/quoteSize/maxInventory). */
+  decision?: Record<string, unknown>
+  /** Market-making: realized volatility of the name (price units), for spread-vs-vol nudges. */
+  sigma?: number
+  /** Market-making: current mid for cap-notional sizing checks. */
+  finalMid?: number
 }
 
 export interface Nudge {
@@ -38,6 +44,26 @@ export const NUDGES: Record<string, Nudge> = {
     id: 'overtrading',
     copy: 'Several trades in quick succession. Overtrading is the #1 account killer.',
     triggered: (c) => c.tradesInWindow >= 4,
+  },
+  'spread-too-tight': {
+    id: 'spread-too-tight',
+    copy: 'Your spread is much tighter than this name’s volatility — you’ll get picked off (adverse selection). Widen it.',
+    triggered: (ctx) => {
+      const d = ctx.decision as { bidWidth?: number; askWidth?: number } | undefined
+      const sigma = ctx.sigma
+      if (sigma == null || !d || d.bidWidth == null || d.askWidth == null) return false
+      return (d.bidWidth + d.askWidth) / 2 < 0.25 * sigma
+    },
+  },
+  'inventory-runaway': {
+    id: 'inventory-runaway',
+    copy: 'Your inventory cap is huge relative to your account — one trend and you’re carrying risk you can’t cover.',
+    triggered: (ctx) => {
+      const d = ctx.decision as { maxInventory?: number } | undefined
+      const mid = ctx.finalMid ?? 100
+      if (!d || d.maxInventory == null) return false
+      return d.maxInventory * mid > ctx.constraints.accountBalance * 2
+    },
   },
 }
 

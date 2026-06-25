@@ -35,3 +35,19 @@ describe('evaluateNudges', () => {
     expect(evaluateNudges(['no-stop', 'sizing', 'nope'], ctx)).toEqual(['sizing', 'no-stop'])
   })
 })
+
+describe('market-making nudges', () => {
+  const mmBase = { constraints: { accountBalance: 10000, maxRiskPct: 5 } } as never
+  it('fires spread-too-tight when half-spread is far below realized vol', () => {
+    const ctx = { ...mmBase, decision: { bidWidth: 0.05, askWidth: 0.05, quoteSize: 100, maxInventory: 200 }, sigma: 1 } as never
+    expect(NUDGES['spread-too-tight'].triggered(ctx)).toBe(true)
+  })
+  it('fires inventory-runaway when the cap notional dwarfs the account', () => {
+    const ctx = { ...mmBase, decision: { bidWidth: 1, askWidth: 1, quoteSize: 100, maxInventory: 100000 }, finalMid: 100 } as never
+    expect(NUDGES['inventory-runaway'].triggered(ctx)).toBe(true)
+  })
+  it('returns fired ids via evaluateNudges', () => {
+    const ctx = { ...mmBase, decision: { bidWidth: 0.05, askWidth: 0.05, quoteSize: 100, maxInventory: 200 }, sigma: 1 } as never
+    expect(evaluateNudges(['spread-too-tight'], ctx)).toContain('spread-too-tight')
+  })
+})
