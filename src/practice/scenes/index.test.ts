@@ -14,6 +14,7 @@ vi.mock('phaser', () => {
 })
 
 const { PRACTICE_SCENES, resolvePracticeScene } = await import('./index')
+const { MarketMakeScene } = await import('./MarketMakeScene')
 
 describe('practice scene registry', () => {
   it('registers the chart-trade scene as a constructable class', () => {
@@ -24,5 +25,18 @@ describe('practice scene registry', () => {
 
   it('registers the options-build scene', () => {
     expect(typeof PRACTICE_SCENES['options-build']).toBe('function')
+  })
+
+  it('MarketMakeScene constructs with its key and exposes lifecycle hooks', () => {
+    const s = new MarketMakeScene()
+    expect(MarketMakeScene.KEY).toBe('market-make')
+    expect(typeof s.create).toBe('function')
+    expect(typeof s.init).toBe('function')
+  })
+
+  it('registers the market-make scene in PRACTICE_SCENES', () => {
+    expect(Object.keys(PRACTICE_SCENES)).toContain('market-make')
+    expect(typeof PRACTICE_SCENES['market-make']).toBe('function')
+    expect(resolvePracticeScene('market-make')).toBeTruthy()
   })
 })
