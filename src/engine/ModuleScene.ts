@@ -93,6 +93,15 @@ export abstract class ModuleScene extends Phaser.Scene {
     this.bus.emit({ type: 'readout', key, value })
   }
 
+  /** Practice: emit the learner's structured decision (payload is cast by the player). */
+  protected emitDecision(payload: Record<string, unknown>): void {
+    this.bus.emit({ type: 'decision', payload })
+  }
+  /** Practice: fire a decision-point nudge by id. */
+  protected emitNudge(id: string): void {
+    this.bus.emit({ type: 'nudge', id })
+  }
+
   get W(): number {
     return DESIGN.width
   }

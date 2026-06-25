@@ -21,6 +21,11 @@ export type SceneEvent =
   | { type: 'canSubmit'; value: boolean }
   // scene -> React: the graded outcome (shown as a banner + explanation).
   | { type: 'result'; correct: boolean; title: string; detail: string }
+  // --- Practice mode ---
+  // scene -> React: the learner's structured decision (cast to a Decision by the player).
+  | { type: 'decision'; payload: Record<string, unknown> }
+  // scene -> React: a decision-point nudge id fired live as the learner sets up.
+  | { type: 'nudge'; id: string }
 
 type Handler = (e: SceneEvent) => void
 
