@@ -1,23 +1,29 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { LessonProgressProvider } from './state/LessonProgressContext'
+import { PracticeProvider } from './state/PracticeContext'
 import ProtectedRoute from './auth/ProtectedRoute'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import LessonPage from './pages/LessonPage'
 import CongratsPage from './pages/CongratsPage'
+import PracticePage from './pages/PracticePage'
 
 export default function App() {
   return (
     <LessonProgressProvider>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/lesson/:lessonId/:moduleId" element={<LessonPage />} />
-          <Route path="/congrats/:lessonId" element={<CongratsPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <PracticeProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/lesson/:lessonId/:moduleId" element={<LessonPage />} />
+            <Route path="/congrats/:lessonId" element={<CongratsPage />} />
+            <Route path="/practice" element={<PracticePage />} />
+            <Route path="/practice/:track" element={<PracticePage />} />
+          </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </PracticeProvider>
     </LessonProgressProvider>
   )
 }
