@@ -21,16 +21,31 @@ export function buildCoachPrompt(req: CoachRequest): string {
   ].filter(Boolean).join('\n')
 }
 
-/** Reject prose that predicts/advises or cites a number outside the whitelist. */
+/** Any numeral token: optional $, optional thousands, optional decimals, optional trailing %. */
+const NUMBER_TOKEN = /\$?\s?\d[\d,]*(?:\.\d+)?\s?%?/g
+
+/**
+ * Reject prose that predicts/advises or cites ANY number — `$`-prefixed, bare, or a
+ * percentage — outside the whitelist of real facts. The whitelist is the whitelisted facts
+ * plus the score scaffolding we hand the coach (its score, the pass bar, the 0–100 scale, and
+ * the per-dimension percentages it is shown), so ordinary debrief prose is never over-rejected.
+ */
 export function sanitizeCoachText(text: string, req: CoachRequest): { ok: boolean; reason?: string } {
   for (const re of DISALLOWED_CLAIM_PATTERNS) if (re.test(text)) return { ok: false, reason: `disallowed claim: ${re}` }
-  const allowed = new Set(
-    Object.values(req.allowedFacts).filter((v) => typeof v === 'number').map((v) => Math.abs(v as number)),
-  )
-  const nums = text.match(/\$\s?\d[\d,]*(\.\d+)?/g) ?? []
-  for (const tok of nums) {
-    const n = Math.abs(parseFloat(tok.replace(/[$,\s]/g, '')))
-    if (![...allowed].some((a) => Math.abs(a - n) < 0.5)) return { ok: false, reason: `number $${n} not in whitelist` }
+
+  const allowed = new Set<number>()
+  for (const v of Object.values(req.allowedFacts)) if (typeof v === 'number') allowed.add(Math.abs(v))
+  allowed.add(Math.abs(req.score.total))
+  allowed.add(Math.abs(req.spec.objective.passScore))
+  allowed.add(100) // the score scale ("xx/100")
+  for (const d of req.score.dimensions) allowed.add(Math.round(d.score * 100))
+  const isAllowed = (n: number) => [...allowed].some((a) => Math.abs(a - n) < 0.5)
+
+  for (const tok of text.match(NUMBER_TOKEN) ?? []) {
+    const isPct = tok.includes('%')
+    const n = Math.abs(parseFloat(tok.replace(/[$,\s%]/g, '')))
+    if (Number.isNaN(n)) continue
+    if (!isAllowed(n)) return { ok: false, reason: `${isPct ? 'percentage' : 'number'} ${n}${isPct ? '%' : ''} not in whitelist` }
   }
   return { ok: true }
 }

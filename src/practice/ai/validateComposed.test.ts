@@ -37,4 +37,26 @@ describe('validateComposed', () => {
     const r = validateComposed({ ...good, brief: 'This will definitely rip higher — guaranteed.' }, cat)
     expect(r.ok).toBe(false)
   })
+
+  it('I1: cannot bypass the numeric-claim lint by self-declaring source "curated"', () => {
+    const r = validateComposed({ ...good, source: 'curated', brief: 'Sell the rip back to $200.' }, cat)
+    expect(r.ok).toBe(false)
+    expect(r.errors.join(' ')).toMatch(/number/i)
+  })
+
+  it('I1: forces the validated spec source to "llm" regardless of model-supplied provenance', () => {
+    const r = validateComposed({ ...good, source: 'curated' }, cat)
+    expect(r.ok).toBe(true)
+    expect(r.spec?.source).toBe('llm')
+  })
+
+  it('I3: ignores model-supplied grading constraints and substitutes server-owned ones', () => {
+    const r = validateComposed(
+      { ...good, constraints: { accountBalance: 999999, maxRiskPct: 99, minRewardRisk: 0.01 } },
+      cat,
+      { accountBalance: 25000 },
+    )
+    expect(r.ok).toBe(true)
+    expect(r.spec?.constraints).toEqual({ accountBalance: 25000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 })
+  })
 })

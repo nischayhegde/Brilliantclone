@@ -1,4 +1,4 @@
-import type { ScenarioSpec } from '../types'
+import type { RiskConstraints, ScenarioSpec, Track } from '../types'
 import type { DataCatalog } from './types'
 import { validateSpec } from '../validator'
 import { CANDLES } from '../../data/candles'
@@ -6,16 +6,44 @@ import { CANDLES } from '../../data/candles'
 /** Price-like number in prose, e.g. "$182.50", "182.5", "200" near $ — LLM briefs must avoid these. */
 const NUMERIC_CLAIM = /\$\s?\d[\d,]*(\.\d+)?|\b\d{2,}(\.\d+)?\b/
 
+/** Fallback paper balance used to size grading constraints when none is supplied. */
+const DEFAULT_ACCOUNT_BALANCE = 10000
+
 export interface ComposedResult {
   ok: boolean
   spec?: ScenarioSpec
   errors: string[]
 }
 
-export function validateComposed(raw: unknown, catalog: DataCatalog): ComposedResult {
+/**
+ * Grading constraints are OWNED BY US, never read from model output. We rebuild them from
+ * the (trusted) track + real account balance so a model cannot widen risk limits, lower the
+ * reward:risk bar, or otherwise game the deterministic grader through free-form fields (I3).
+ * These mirror the values the composer prompt requests, so a well-behaved model is unaffected.
+ */
+export function serverConstraints(track: Track, accountBalance: number): RiskConstraints {
+  if (track === 'options') return { accountBalance, maxRiskPct: 5, requireDefinedRisk: true }
+  // charts + market-making trade an underlying: expect a defined stop and an R:R floor.
+  return { accountBalance, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 }
+}
+
+export function validateComposed(
+  raw: unknown,
+  catalog: DataCatalog,
+  opts: { accountBalance?: number } = {},
+): ComposedResult {
   const errors: string[] = []
-  const spec = raw as ScenarioSpec
-  if (!spec || typeof spec !== 'object') return { ok: false, errors: ['composed value is not an object'] }
+  if (!raw || typeof raw !== 'object') return { ok: false, errors: ['composed value is not an object'] }
+
+  // Normalize: `source` (provenance) and `constraints` (grading limits) are set BY US, not
+  // by the model. We strip any model-supplied provenance — composed specs are ALWAYS 'llm',
+  // so the numeric-claim lint can never be bypassed by self-declaring 'curated' (I1) — and we
+  // overwrite grading constraints with server-owned ones (I3).
+  const spec: ScenarioSpec = {
+    ...(raw as ScenarioSpec),
+    source: 'llm',
+    constraints: serverConstraints(catalog.track, opts.accountBalance ?? DEFAULT_ACCOUNT_BALANCE),
+  }
 
   // Allow-list: the model may reference ONLY catalog members.
   const dr = spec.dataRef ?? {}
@@ -24,11 +52,10 @@ export function validateComposed(raw: unknown, catalog: DataCatalog): ComposedRe
   if (dr.chainAsset && !catalog.chainAssets.includes(dr.chainAsset)) errors.push(`chainAsset "${dr.chainAsset}" not in catalog`)
   if (spec.rubricId && !catalog.rubricIds.includes(spec.rubricId)) errors.push(`rubricId "${spec.rubricId}" not in catalog`)
 
-  // Numeric-claim lint (LLM source only): no invented price numbers in prose.
-  if (spec.source === 'llm') {
-    if (NUMERIC_CLAIM.test(spec.brief ?? '')) errors.push('brief contains a numeric claim (LLM may not invent numbers)')
-    if (NUMERIC_CLAIM.test(spec.title ?? '')) errors.push('title contains a numeric claim')
-  }
+  // Numeric-claim lint: composed specs are LLM output (source forced above), so this ALWAYS
+  // runs — no invented price numbers in prose.
+  if (NUMERIC_CLAIM.test(spec.brief ?? '')) errors.push('brief contains a numeric claim (LLM may not invent numbers)')
+  if (NUMERIC_CLAIM.test(spec.title ?? '')) errors.push('title contains a numeric claim')
 
   // Base deterministic validator with catalog-aware resolvers.
   const base = validateSpec(spec, {

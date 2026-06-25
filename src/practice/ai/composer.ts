@@ -23,7 +23,8 @@ export async function composeScenario(
     try {
       const reply = await model.generate(prompt, { temperature: opts.temperature ?? 0.8 })
       const raw = parseComposerJson(reply)
-      const res = validateComposed(raw, req.catalog)
+      // Pass the trusted account balance so grading constraints are server-owned (I3).
+      const res = validateComposed(raw, req.catalog, { accountBalance: req.accountBalance })
       if (res.ok && res.spec) return { spec: res.spec, source: 'llm', attempts: attempt }
     } catch {
       // fall through to next attempt / curated fallback
