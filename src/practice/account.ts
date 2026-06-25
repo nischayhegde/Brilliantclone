@@ -39,13 +39,29 @@ export function isRuined(a: PracticeAccount): boolean {
   return a.balance <= RUIN_FLOOR
 }
 
-type AccountAction = { type: 'APPLY_RESULT'; track: Track; score: number; pnl: number }
+/** Skill margin a tier must lose before it demotes (prevents tier thrash). */
+export const HYSTERESIS = 6
+
+/** Tier given the previous tier + new skill, with downward hysteresis. */
+export function nextTier(prevTier: number, skill: number): number {
+  const raw = tierFor(skill)
+  if (raw >= prevTier) return raw // promotions are immediate
+  // Demote only if skill has fallen a full HYSTERESIS below the previous tier's floor.
+  const prevFloor = TIER_THRESHOLDS[prevTier - 1] ?? 0
+  if (skill < prevFloor - HYSTERESIS) return Math.max(1, raw)
+  return prevTier
+}
+
+type AccountAction =
+  | { type: 'APPLY_RESULT'; track: Track; score: number; pnl: number }
+  | { type: 'RESET_AND_REFLECT'; track?: Track }
 
 /**
  * Pure: applies a completed scenario's outcome. Balance += P&L (may go negative —
  * the < $1,000 reset is an M4 concern). Skill is an EMA of process scores; the
- * track's tier follows from the new skill. M0 raises tier with skill; M4 adds the
- * down-hysteresis + ruin reset action.
+ * track's tier follows from the new skill via `nextTier` (immediate promotions,
+ * hysteresis on demotions). `RESET_AND_REFLECT` refills to the starting balance,
+ * drops every track one tier (min 1), and counts a ruin event — preserving skill.
  */
 export function accountReducer(state: PracticeAccount, action: AccountAction): PracticeAccount {
   switch (action.type) {
@@ -57,7 +73,20 @@ export function accountReducer(state: PracticeAccount, action: AccountAction): P
         ...state,
         balance: Math.round((state.balance + pnl) * 100) / 100,
         skill: { ...state.skill, [track]: nextSkill },
-        tier: { ...state.tier, [track]: tierFor(nextSkill) },
+        tier: { ...state.tier, [track]: nextTier(state.tier[track], nextSkill) },
+      }
+    }
+    case 'RESET_AND_REFLECT': {
+      const drop = (t: number) => Math.max(1, t - 1)
+      return {
+        ...state,
+        balance: STARTING_BALANCE,
+        tier: {
+          charts: drop(state.tier.charts),
+          options: drop(state.tier.options),
+          'market-making': drop(state.tier['market-making']),
+        },
+        ruinEvents: state.ruinEvents + 1,
       }
     }
     default:

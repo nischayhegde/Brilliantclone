@@ -3,6 +3,7 @@ import {
   initialAccount,
   accountReducer,
   tierFor,
+  nextTier,
   isRuined,
   STARTING_BALANCE,
   RUIN_FLOOR,
@@ -66,5 +67,48 @@ describe('isRuined', () => {
   it('is true only at or below the $1,000 floor', () => {
     expect(isRuined({ ...initialAccount(), balance: RUIN_FLOOR })).toBe(true)
     expect(isRuined({ ...initialAccount(), balance: RUIN_FLOOR + 1 })).toBe(false)
+  })
+})
+
+describe('nextTier hysteresis', () => {
+  it('raises a tier as soon as skill crosses the next threshold', () => {
+    // TIER_THRESHOLDS = [0,35,55,72,88]; at skill 56 tier should be 3.
+    expect(nextTier(2, 56)).toBe(3)
+  })
+  it('does NOT drop a tier until skill falls a full hysteresis band below the current floor', () => {
+    // At tier 3 (floor 55): skill 53 is within HYSTERESIS(6) of 55 → stay at 3.
+    expect(nextTier(3, 53)).toBe(3)
+    // skill 48 (< 55-6=49) → drop to 2.
+    expect(nextTier(3, 48)).toBe(2)
+  })
+  it('never drops below tier 1', () => {
+    expect(nextTier(1, -100)).toBe(1)
+  })
+})
+
+describe('accountReducer APPLY_RESULT uses hysteresis tiers', () => {
+  it('keeps a hard-won tier through a single mediocre score (no thrash)', () => {
+    let a = initialAccount()
+    for (let i = 0; i < 20; i++) a = accountReducer(a, { type: 'APPLY_RESULT', track: 'charts', score: 95, pnl: 0 })
+    const tierBefore = a.tier.charts
+    a = accountReducer(a, { type: 'APPLY_RESULT', track: 'charts', score: 60, pnl: 0 })
+    expect(a.tier.charts).toBe(tierBefore) // one dip doesn't demote
+  })
+})
+
+describe('accountReducer RESET_AND_REFLECT', () => {
+  it('refills to $10k, drops every track tier by one (min 1), and counts a ruin event', () => {
+    let a = initialAccount()
+    a = { ...a, balance: 800, tier: { charts: 3, options: 2, 'market-making': 1 } }
+    const r = accountReducer(a, { type: 'RESET_AND_REFLECT' })
+    expect(r.balance).toBe(10000)
+    expect(r.tier).toEqual({ charts: 2, options: 1, 'market-making': 1 })
+    expect(r.ruinEvents).toBe(1)
+  })
+  it('preserves rolling skill (the competence signal survives a blowup)', () => {
+    let a = initialAccount()
+    a = { ...a, balance: 500, skill: { charts: 70, options: 40, 'market-making': 0 } }
+    const r = accountReducer(a, { type: 'RESET_AND_REFLECT' })
+    expect(r.skill.charts).toBe(70)
   })
 })
