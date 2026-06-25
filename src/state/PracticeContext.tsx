@@ -6,8 +6,9 @@ import {
   loadRecentRuns,
   persistPracticeState,
 } from '../services/practiceService'
-import { accountReducer, initialAccount, type PracticeAccount } from '../practice/account'
+import { accountReducer, initialAccount, isRuined, type PracticeAccount } from '../practice/account'
 import { getScenario, scenariosFor } from '../practice/scenarioRegistry'
+import { summarizeRuin, type RuinSummary } from '../practice/reflect'
 import type { PracticeRun, ScenarioSpec, Track } from '../practice/types'
 import { getModelClient } from '../services/aiModel'
 import { composeScenario, type ComposeResult } from '../practice/ai/composer'
@@ -31,6 +32,12 @@ interface PracticeValue {
   aiEnabled: boolean
   /** Apply a graded run: update balance/skill/tier, persist, append to history. */
   applyResult: (run: PracticeRun) => void
+  /** True after a ruin event (balance ≤ floor); the UI must route into the coached reset. */
+  pendingRuin: boolean
+  /** Diagnosis of the most recent ruin, drawn from real history (null until ruined). */
+  ruinSummary: RuinSummary | null
+  /** Coached reset: refill to $10k, drop one tier per track, count the ruin, clear the gate. */
+  resetAndReflect: () => void
 }
 
 const Ctx = createContext<PracticeValue | undefined>(undefined)
@@ -40,7 +47,12 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [account, setAccount] = useState<PracticeAccount>(initialAccount())
   const [recentRuns, setRecentRuns] = useState<PracticeRun[]>([])
+  const [pendingRuin, setPendingRuin] = useState(false)
+  const [ruinSummary, setRuinSummary] = useState<RuinSummary | null>(null)
   const accountRef = useRef<PracticeAccount>(initialAccount())
+  // Mirror of recentRuns so applyResult can diagnose ruin from current history without
+  // re-subscribing the callback (avoids a stale closure when balance hits the floor).
+  const recentRunsRef = useRef<PracticeRun[]>([])
   // Specs produced by nextScenario (LLM-composed or curated) so the player can resolve
   // them by id even though LLM specs never live in the static scenario registry.
   const composedById = useRef<Map<string, ScenarioSpec>>(new Map())
@@ -50,6 +62,9 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     accountRef.current = initialAccount()
     setAccount(initialAccount())
     setRecentRuns([])
+    recentRunsRef.current = []
+    setPendingRuin(false)
+    setRuinSummary(null)
     if (!user) {
       setLoading(false)
       return
@@ -61,6 +76,7 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
         accountRef.current = account
         setAccount(account)
         setRecentRuns(runs)
+        recentRunsRef.current = runs
         setLoading(false)
       })
       .catch((err) => {
@@ -123,7 +139,14 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
       })
       accountRef.current = next
       setAccount(next)
-      setRecentRuns((prev) => [run, ...prev].slice(0, 20))
+      const updatedRuns = [run, ...recentRunsRef.current].slice(0, 20)
+      recentRunsRef.current = updatedRuns
+      setRecentRuns(updatedRuns)
+      // Ruin → gate into the coached reset with a diagnosis from real history.
+      if (isRuined(next)) {
+        setPendingRuin(true)
+        setRuinSummary(summarizeRuin(updatedRuns))
+      }
       // Optimistic: persistence failures never block play.
       persistPracticeState(user.uid, next).catch((e) => console.error('persist account', e))
       appendPracticeRun(user.uid, run).catch((e) => console.error('append run', e))
@@ -131,9 +154,31 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     [user],
   )
 
+  const resetAndReflect = useCallback(() => {
+    if (!user) return
+    const next = accountReducer(accountRef.current, { type: 'RESET_AND_REFLECT' })
+    accountRef.current = next
+    setAccount(next)
+    setPendingRuin(false)
+    setRuinSummary(null)
+    persistPracticeState(user.uid, next).catch((e) => console.error('persist reset', e))
+  }, [user])
+
   return (
     <Ctx.Provider
-      value={{ loading, account, recentRuns, nextScenario, getComposedScenario, primeScenarios, aiEnabled, applyResult }}
+      value={{
+        loading,
+        account,
+        recentRuns,
+        nextScenario,
+        getComposedScenario,
+        primeScenarios,
+        aiEnabled,
+        applyResult,
+        pendingRuin,
+        ruinSummary,
+        resetAndReflect,
+      }}
     >
       {children}
     </Ctx.Provider>
