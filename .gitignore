@@ -20,3 +20,7 @@ firestore-debug.log
 
 # Claude harness
 .claude/
+
+# Bulk market data — served from Firebase Hosting (public/ -> dist/), kept out of git.
+# Regenerate locally with: node scripts/ingest-ohlc.mjs && node scripts/ingest-options.mjs
+/public/data/
