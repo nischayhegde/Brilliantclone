@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useLessonProgress } from '../state/LessonProgressContext'
+import { warmLlmEndpoint } from '../services/aiModel'
 import StreakBadge from './StreakBadge'
 import { Logo } from './icons'
 
@@ -18,6 +19,8 @@ export default function TopNav() {
           </Link>
           <Link
             to="/practice"
+            onMouseEnter={warmLlmEndpoint}
+            onFocus={warmLlmEndpoint}
             className="inline-flex items-center gap-1.5 rounded-full bg-brand-amber-soft px-3.5 py-1.5 text-sm font-bold text-brand-amber-ink transition duration-200 ease-out hover:bg-brand-amber-dark hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber/40"
           >
             <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">

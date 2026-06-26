@@ -4,6 +4,7 @@ import type { PriceLineId, WidgetOutput } from '../types'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { makeChartScale, type ChartScale } from './chartScale'
 import { ChartFrame, provenanceText, svgPoint, tickerFromKey } from './ChartBase'
+import { timeframeFromAsset, timeframeLabel } from '../../chartContext'
 import { useResolvedCandles } from './context'
 import { rewardRisk, fmtRR } from './rewardRisk'
 import { WidgetCard, WidgetHint } from './ui'
@@ -115,6 +116,7 @@ export default function PriceLines({ widget, onChange }: WidgetProps) {
 
   const rr = rewardRisk(undefined, prices.entry, prices.stop, prices.target)
   const ticker = tickerFromKey(ref?.candlesKey ?? ref?.ohlcAsset)
+  const tf = timeframeLabel(timeframeFromAsset(ref?.ohlcAsset))
 
   return (
     <WidgetCard label="Price levels">
@@ -122,7 +124,7 @@ export default function PriceLines({ widget, onChange }: WidgetProps) {
         scale={scale}
         candles={candles}
         ariaLabel="Candlestick chart with draggable price levels"
-        provenance={provenanceText(candles, ticker)}
+        provenance={provenanceText(candles, ticker, tf)}
         svgRef={svgRef}
         onPointerMove={onSvgMove}
         onPointerUp={endDrag}

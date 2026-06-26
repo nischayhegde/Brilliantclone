@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { SCENARIOS, allTracks, getScenario, scenariosFor } from './scenarioRegistry'
+import { SCENARIOS, allTracks, getScenario, proceduralSpec, scenariosFor } from './scenarioRegistry'
 import { validateSpec } from './validator'
 import { validateLayout, layoutFitsTrack } from './genui/schema'
 import { WIDGET_REGISTRY, WIDGET_KINDS } from './genui/registry'
@@ -100,5 +100,59 @@ describe('curated layout showcase (the offline / cold-start surface)', () => {
       expect(union.has('narrative'), `${track} layouts should open with a narrative`).toBe(true)
       expect(union.size, `${track} layouts are not varied enough (${[...union].join(', ')})`).toBeGreaterThanOrEqual(5)
     }
+  })
+})
+
+/** Tiny deterministic PRNG so the generator's invariants are reproducibly testable. */
+function mulberry32(seed: number): () => number {
+  return () => {
+    seed |= 0
+    seed = (seed + 0x6d2b79f5) | 0
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+  }
+}
+
+describe('procedural scenarios (near-infinite variety)', () => {
+  it('charts: generated specs are valid, windowed, and in-bounds across tiers', () => {
+    const rng = mulberry32(1)
+    for (let i = 0; i < 60; i++) {
+      const tier = (i % 3) + 1
+      const s = proceduralSpec('charts', tier, rng)
+      const r = validateSpec(s)
+      expect(r.ok, `${s.id}: ${r.errors.join('; ')}`).toBe(true)
+      expect(s.track).toBe('charts')
+      expect(s.tier).toBe(tier)
+      const { candlesKey, startIndex, splitIndex, revealToIndex } = s.dataRef
+      const len = CANDLES[candlesKey!].length
+      expect(startIndex! >= 0 && startIndex! + revealToIndex! <= len, `${s.id} window out of bounds`).toBe(true)
+      expect(splitIndex! >= 1 && splitIndex! < revealToIndex!, `${s.id} split out of window`).toBe(true)
+      expect((s.layout ?? []).length).toBeGreaterThan(0)
+    }
+  })
+
+  it('market-making: generated specs are valid and windowed', () => {
+    const rng = mulberry32(7)
+    for (let i = 0; i < 30; i++) {
+      const tier = (i % 3) + 1
+      const s = proceduralSpec('market-making', tier, rng)
+      const r = validateSpec(s)
+      expect(r.ok, `${s.id}: ${r.errors.join('; ')}`).toBe(true)
+      expect(s.track).toBe('market-making')
+      const { candlesKey, startIndex, revealToIndex } = s.dataRef
+      const len = CANDLES[candlesKey!].length
+      expect(startIndex! >= 0 && startIndex! + revealToIndex! <= len, `${s.id} window out of bounds`).toBe(true)
+    }
+  })
+
+  it('yields a large variety of distinct setups, not a fixed handful', () => {
+    const seen = new Set<string>()
+    for (let i = 0; i < 200; i++) {
+      const s = proceduralSpec('charts', 1)
+      seen.add(`${s.dataRef.candlesKey}:${s.dataRef.startIndex}:${s.dataRef.revealToIndex}`)
+    }
+    // The old curated pool offered ~4 charts setups per tier; procedural must vastly exceed that.
+    expect(seen.size).toBeGreaterThan(50)
   })
 })

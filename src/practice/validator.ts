@@ -38,7 +38,7 @@ export function validateSpec(
   const assetExists = opts.assetExists ?? ((p: string) => ASSET_RE.test(p))
 
   // Rule 1: data refs resolve; indices in range.
-  const { candlesKey, ohlcAsset, chainAsset, splitIndex, revealToIndex } = spec.dataRef
+  const { candlesKey, ohlcAsset, chainAsset, startIndex, splitIndex, revealToIndex } = spec.dataRef
   let series: unknown[] | undefined
   if (candlesKey) {
     series = resolveCandles(candlesKey)
@@ -51,8 +51,15 @@ export function validateSpec(
 
   if (series) {
     const n = series.length
-    if (splitIndex !== undefined && (splitIndex < 1 || splitIndex >= n))
-      errors.push(`dataRef.splitIndex ${splitIndex} out of range [1, ${n - 1}]`)
+    // `splitIndex`/`revealToIndex` are relative to the windowed slice; the slice can be at
+    // most the whole series, so the window length (`revealToIndex`, defaulting to the rest of
+    // the series after `startIndex`) bounds them.
+    const start = startIndex ?? 0
+    const windowLen = revealToIndex ?? n - start
+    if (startIndex !== undefined && (start < 0 || start + windowLen > n))
+      errors.push(`dataRef.startIndex ${start} + window ${windowLen} exceeds series length ${n}`)
+    if (splitIndex !== undefined && (splitIndex < 1 || splitIndex >= windowLen))
+      errors.push(`dataRef.splitIndex ${splitIndex} out of range [1, ${windowLen - 1}]`)
     if (revealToIndex !== undefined && (revealToIndex <= (splitIndex ?? 0) || revealToIndex > n))
       errors.push(`dataRef.revealToIndex ${revealToIndex} must be > splitIndex and <= ${n}`)
   }

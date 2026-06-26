@@ -333,7 +333,14 @@ SCENARIOS.push(
  * Tier scales the lesson — quiet range → choppier vol → a trend where inventory/adverse
  * selection bites — never the P&L odds. Every entry must pass validateSpec.
  */
-function marketMakingSpec(id: string, tier: number, candlesKey: string, title: string, brief: string): ScenarioSpec {
+function marketMakingSpec(
+  id: string,
+  tier: number,
+  candlesKey: string,
+  title: string,
+  brief: string,
+  over: Partial<ScenarioSpec> = {},
+): ScenarioSpec {
   return {
     id,
     track: 'market-making',
@@ -349,6 +356,7 @@ function marketMakingSpec(id: string, tier: number, candlesKey: string, title: s
     illustrativeFlags: ['orderFlow'],
     source: 'curated',
     layout: marketMakingLayout(tier),
+    ...over,
   }
 }
 
@@ -372,6 +380,64 @@ SCENARIOS.push(
 )
 
 export const allTracks: Track[] = ['charts', 'options', 'market-making']
+
+// ── Procedural variety (charts + market-making) ──────────────────────────────
+// The offline / cold-start / LLM-fallback engine of NEAR-INFINITE scenarios: a random
+// real instrument × a random sub-window × tier framing. Because every series can be
+// sliced into many distinct windows (and there are dozens of series), the learner never
+// runs out — even with the LLM cold or disabled. Options stays on its curated chain pool
+// (variety there needs more snapshots / the LLM, which picks across the full corpus).
+
+/** A window needs enough bars to carve a readable setup + a resolution tail. */
+const PROC_MIN_BARS = 30
+/** Bundled series long enough to window. Computed once. */
+const PROC_KEYS: string[] = Object.keys(CANDLES).filter((k) => K(k) >= PROC_MIN_BARS)
+
+const pick = <T,>(arr: T[], rng: () => number): T => arr[Math.floor(rng() * arr.length)]
+const rid = (rng: () => number): string => Math.floor(rng() * 1e9).toString(36)
+
+/** Choose a random in-bounds sub-window [start, start+windowLen) of a `len`-bar series. */
+function pickWindow(len: number, rng: () => number): { start: number; windowLen: number } {
+  const maxW = Math.min(len, 160)
+  const minW = Math.min(len, 60)
+  const windowLen = maxW <= minW ? maxW : minW + Math.floor(rng() * (maxW - minW + 1))
+  const start = len <= windowLen ? 0 : Math.floor(rng() * (len - windowLen + 1))
+  return { start, windowLen }
+}
+
+const MM_TITLES = ['Make the market', 'Quote both sides', 'Earn the spread', 'Hold a two-sided market']
+const MM_BRIEF =
+  'Post a two-sided market over a real session. Earn the spread while keeping inventory under control as price moves.'
+
+/**
+ * Build a fresh procedural scenario for charts / market-making over a random real window.
+ * Deterministic given `rng` (seedable for tests); defaults to `Math.random` for live play.
+ */
+export function proceduralSpec(
+  track: 'charts' | 'market-making',
+  tier: number,
+  rng: () => number = Math.random,
+): ScenarioSpec {
+  if (!PROC_KEYS.length) {
+    // Degenerate corpus (shouldn't happen): fall back to a curated spec for the track.
+    const pool = scenariosFor(track, tier).length ? scenariosFor(track, tier) : scenariosFor(track)
+    return pool[0]
+  }
+  const candlesKey = pick(PROC_KEYS, rng)
+  const len = K(candlesKey)
+  const { start, windowLen } = pickWindow(len, rng)
+
+  if (track === 'market-making') {
+    return marketMakingSpec(`proc-mm-t${tier}-${rid(rng)}`, tier, candlesKey, pick(MM_TITLES, rng), MM_BRIEF, {
+      dataRef: { candlesKey, startIndex: start, revealToIndex: windowLen },
+    })
+  }
+
+  const split = Math.min(windowLen - 2, Math.max(2, Math.floor(windowLen * (0.55 + rng() * 0.12))))
+  return chartsSpec(`proc-charts-t${tier}-${rid(rng)}`, tier, candlesKey, {
+    dataRef: { candlesKey, startIndex: start, splitIndex: split, revealToIndex: windowLen },
+  })
+}
 
 export function getScenario(id: string): ScenarioSpec | undefined {
   return SCENARIOS.find((s) => s.id === id)

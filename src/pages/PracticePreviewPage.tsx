@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Spinner from '../components/ui/Spinner'
 import PracticePage from './PracticePage'
 import ScenarioPlayer from '../practice/ScenarioPlayer'
-import { allTracks, scenariosFor } from '../practice/scenarioRegistry'
+import { allTracks, proceduralSpec, scenariosFor } from '../practice/scenarioRegistry'
 import { getEngine } from '../practice/engines'
 import type { Track } from '../practice/types'
 
@@ -36,7 +36,19 @@ const TIERS = [1, 2, 3] as const
  */
 function PreviewPlayer({ track }: { track: Track }) {
   const [tier, setTier] = useState<number>(1)
-  const spec = useMemo(() => scenariosFor(track, tier)[0] ?? scenariosFor(track)[0], [track, tier])
+  // Procedural mode exercises the near-infinite offline engine; `gen` reseeds it on demand.
+  const procedural = track === 'charts' || track === 'market-making'
+  const [proc, setProc] = useState(false)
+  const [gen, setGen] = useState(0)
+  const spec = useMemo(
+    () =>
+      proc && procedural
+        ? proceduralSpec(track as 'charts' | 'market-making', tier)
+        : (scenariosFor(track, tier)[0] ?? scenariosFor(track)[0]),
+    // `gen` is an intentional reseed trigger for the procedural branch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [track, tier, proc, procedural, gen],
+  )
   // Tag loaded data with the spec id it belongs to, so we never hand ScenarioPlayer the
   // PREVIOUS spec's data shape for a frame while a new spec's data is still loading (the
   // tracks resolve to different data shapes — that mismatch would crash on render).
@@ -74,6 +86,29 @@ function PreviewPlayer({ track }: { track: Track }) {
             {t}
           </button>
         ))}
+        {procedural && (
+          <>
+            <button
+              type="button"
+              onClick={() => setProc((v) => !v)}
+              aria-pressed={proc}
+              className={`ml-2 rounded-lg px-3 py-1 text-sm font-semibold transition ${
+                proc ? 'bg-brand-amber text-white' : 'border border-hairline bg-paper text-ink-soft hover:border-ink/30'
+              }`}
+            >
+              Procedural ∞
+            </button>
+            {proc && (
+              <button
+                type="button"
+                onClick={() => setGen((g) => g + 1)}
+                className="rounded-lg border border-hairline bg-paper px-3 py-1 text-sm font-semibold text-ink-soft transition hover:border-ink/30"
+              >
+                New scenario
+              </button>
+            )}
+          </>
+        )}
         {spec && <span className="ml-2 text-xs font-medium text-muted">spec: {spec.id}</span>}
       </div>
 

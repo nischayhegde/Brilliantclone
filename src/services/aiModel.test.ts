@@ -90,4 +90,29 @@ describe('getComposeFn / getGradeFn (Render LLM endpoint transports)', () => {
     const { getGradeFn } = await import('./aiModel')
     await expect(getGradeFn()!({ track: 'charts', passScore: 70 } as never)).rejects.toThrow('Not signed in')
   })
+
+  it('warmLlmEndpoint pings /healthz unauthenticated, then throttles repeat calls', async () => {
+    vi.stubEnv('VITE_LLM_API_URL', API)
+    const fetchMock = mockFetch({ ok: true, json: { ok: true } })
+
+    const { warmLlmEndpoint } = await import('./aiModel')
+    warmLlmEndpoint()
+    warmLlmEndpoint() // throttled — should not fire a second request
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toBe(`${API}/healthz`)
+    expect(init.method).toBe('GET')
+    expect(init.headers).toBeUndefined() // no bearer token, no rate-limit slot
+  })
+
+  it('warmLlmEndpoint is a no-op when AI is disabled', async () => {
+    vi.stubEnv('VITE_LLM_API_URL', '')
+    const fetchMock = mockFetch({ ok: true, json: {} })
+
+    const { warmLlmEndpoint } = await import('./aiModel')
+    warmLlmEndpoint()
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

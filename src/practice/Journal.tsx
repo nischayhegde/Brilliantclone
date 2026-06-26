@@ -63,7 +63,7 @@ export default function Journal({ onSubmit }: { onSubmit: (e: { rationale: strin
 
       <div className="flex flex-col gap-2">
         <label htmlFor="journal-rationale" className="text-sm font-semibold text-ink">
-          Why did you take (or skip) this?
+          Explain your reasoning behind this trade
         </label>
         <input
           id="journal-rationale"

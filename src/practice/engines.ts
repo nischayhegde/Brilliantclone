@@ -8,7 +8,7 @@ import type {
   ScenarioSpec,
   Track,
 } from './types'
-import { loadCandles } from './corpus'
+import { loadCandles, loadOhlcWindow } from './corpus'
 import { findContract, loadChain, type ChainSnapshot } from './chain'
 import { resolveChartTrade } from './resolve/charts'
 import { resolveOptionsPosition } from './resolve/options'
@@ -62,7 +62,7 @@ export function resolveScenario(spec: ScenarioSpec, data: unknown, decision: Dec
 
 const chartsEngine: TrackEngine<Candle[]> = {
   sceneKind: 'chart-trade',
-  loadData: (spec) => loadCandles(spec.dataRef),
+  loadData: async (spec) => (await loadOhlcWindow(spec.dataRef)).candles,
   sceneParams: (spec, candles) => {
     const splitIndex = spec.dataRef.splitIndex ?? Math.floor(candles.length * 0.6)
     return { candles, splitIndex, entry: candles[splitIndex].c, constraints: spec.constraints }
@@ -89,7 +89,7 @@ const optionsEngine: TrackEngine<OptionsData> = {
  */
 const marketMakingEngine: TrackEngine<BookStats> = {
   sceneKind: 'market-make',
-  loadData: async (spec) => bookStatsFromCandles(await loadCandles(spec.dataRef)),
+  loadData: async (spec) => bookStatsFromCandles((await loadOhlcWindow(spec.dataRef)).candles),
   sceneParams: (spec, data) => ({
     sceneKey: 'MarketMakeScene',
     mids: data.mids,

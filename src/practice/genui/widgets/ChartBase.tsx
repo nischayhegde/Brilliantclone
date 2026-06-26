@@ -6,9 +6,8 @@
  */
 import type { ReactNode, PointerEvent as ReactPointerEvent, RefObject } from 'react'
 import type { Candle } from '../../../data/candles'
+import { fmtDay } from '../../chartContext'
 import type { ChartScale } from './chartScale'
-
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** Infer a stock symbol from a candles key, e.g. 'asctri_quiz_AMD' → 'AMD'. */
 export function tickerFromKey(key?: string): string | undefined {
@@ -22,25 +21,22 @@ export function tickerFromKey(key?: string): string | undefined {
   return /^[a-z]{1,6}$/.test(first) ? first.toUpperCase() : undefined
 }
 
-/** Human date span of the candle slice (UTC), e.g. "Nov 2021 – Feb 2022". */
+/** Exact UTC date span of the candle slice, e.g. "12 Nov 2021 – 18 Feb 2022". */
 export function fmtDateRange(candles: Candle[]): string {
   if (candles.length === 0) return ''
-  const d0 = new Date(candles[0].t * 1000)
-  const d1 = new Date(candles[candles.length - 1].t * 1000)
-  const m0 = MON[d0.getUTCMonth()]
-  const m1 = MON[d1.getUTCMonth()]
-  const y0 = d0.getUTCFullYear()
-  const y1 = d1.getUTCFullYear()
-  if (y0 !== y1) return `${m0} ${y0} – ${m1} ${y1}`
-  return m0 === m1 ? `${m0} ${y0}` : `${m0}–${m1} ${y0}`
+  const start = fmtDay(candles[0].t)
+  const end = fmtDay(candles[candles.length - 1].t)
+  return start === end ? start : `${start} – ${end}`
 }
 
-export function provenanceText(candles: Candle[], ticker?: string): string {
+/** Chart caption: "Real market data · AMD · Daily · 12 Nov 2021 – 18 Feb 2022". */
+export function provenanceText(candles: Candle[], ticker?: string, timeframeLabel?: string): string {
+  const parts = ['Real market data']
+  if (ticker) parts.push(ticker)
+  if (timeframeLabel) parts.push(timeframeLabel)
   const range = fmtDateRange(candles)
-  const lead = 'Real market data'
-  if (ticker && range) return `${lead} · ${ticker} · ${range}`
-  if (range) return `${lead} · ${range}`
-  return lead
+  if (range) parts.push(range)
+  return parts.join(' · ')
 }
 
 /** Convert a pointer event to viewBox coordinates (null when CTM is unavailable, e.g. jsdom). */

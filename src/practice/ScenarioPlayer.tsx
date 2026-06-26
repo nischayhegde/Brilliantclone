@@ -8,6 +8,7 @@ import { illustrativeLabel } from './copy'
 import { evScenarioStarted, evDecision, evNudge, evCompleted } from './analytics'
 import { nudgesForRun } from './runNudges'
 import Journal from './Journal'
+import ScenarioContext from './ScenarioContext'
 import ScenarioDebrief from './ScenarioDebrief'
 import WidgetHost from './genui/WidgetHost'
 import {
@@ -22,7 +23,7 @@ import { getGradeFn } from '../services/aiModel'
 import type { Candle } from '../data/candles'
 import type { ChainSnapshot } from './chain'
 import type { BookStats } from './bookStats'
-import type { ProcessSignals, ScenarioLayout } from './genui/types'
+import type { ProcessSignals, ScenarioLayout, WidgetDataRef } from './genui/types'
 import type { Decision, Feeling, ScenarioOutcome, ScenarioSpec } from './types'
 
 type Phase = 'setup' | 'journal' | 'resolved'
@@ -69,8 +70,11 @@ function SetupData({ spec, data, children }: { spec: ScenarioSpec; data: unknown
     )
   }
   const candles = spec.track === 'market-making' ? midsToCandles((data as BookStats).mids) : (data as Candle[])
+  // Pass the spec's dataRef for charts so the chart caption can name the instrument + timeframe.
+  // Market-making draws a synthetic mid path (index-based timestamps), so it gets no dataRef.
+  const dataRef = spec.track === 'charts' ? (spec.dataRef as WidgetDataRef) : undefined
   return (
-    <ChartDataProvider candles={candles}>
+    <ChartDataProvider candles={candles} dataRef={dataRef}>
       <LegsProvider>{children}</LegsProvider>
     </ChartDataProvider>
   )
@@ -242,15 +246,18 @@ export default function ScenarioPlayer({ spec, data }: { spec: ScenarioSpec; dat
 
       <div aria-live="polite" className="flex w-full flex-col gap-6">
         {phase === 'setup' && (
-          <SetupData spec={spec} data={data}>
-            <WidgetHost
-              track={spec.track}
-              layout={layout}
-              components={WIDGET_COMPONENTS}
-              onSubmit={onLayoutSubmit}
-              submitLabel="Submit decision"
-            />
-          </SetupData>
+          <>
+            {(spec.track === 'charts' || spec.track === 'market-making') && <ScenarioContext spec={spec} />}
+            <SetupData spec={spec} data={data}>
+              <WidgetHost
+                track={spec.track}
+                layout={layout}
+                components={WIDGET_COMPONENTS}
+                onSubmit={onLayoutSubmit}
+                submitLabel="Submit decision"
+              />
+            </SetupData>
+          </>
         )}
 
         {phase === 'journal' && (

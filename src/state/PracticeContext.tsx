@@ -102,11 +102,18 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     const compose = async (track: Track): Promise<ComposeResult> => {
       const tier = accountRef.current.tier[track]
       const accountBalance = accountRef.current.balance
-      if (!composeFn) return composeScenario({ track, tier, accountBalance, catalog: curatedCatalog(track) }, null)
-      // buildCatalog reads the full ingested manifests (cached after the first call); the
-      // server validates the composed layout against this allow-list.
-      const catalog = await buildCatalog(track)
-      return composeScenario({ track, tier, accountBalance, catalog }, composeFn)
+      if (composeFn) {
+        try {
+          // buildCatalog reads the full ingested manifests (cached after the first call); the
+          // server validates the composed layout against this allow-list.
+          const catalog = await buildCatalog(track)
+          return await composeScenario({ track, tier, accountBalance, catalog }, composeFn)
+        } catch {
+          // A missing/late corpus manifest (or any compose failure) must never strand the
+          // learner — fall through to the procedural/curated source below.
+        }
+      }
+      return composeScenario({ track, tier, accountBalance, catalog: curatedCatalog(track) }, null)
     }
     return makeScenarioQueue(compose)
   }, [])

@@ -26,18 +26,48 @@ export type GradeFn = (req: GradeRequest) => Promise<GradeApiResponse>
 /** Base URL of the Render LLM service (no trailing slash); unset → AI disabled. */
 const API_BASE = (import.meta.env.VITE_LLM_API_URL ?? '').replace(/\/$/, '')
 
-/** POST `body` to `path` with the current user's Firebase ID token; throws on non-2xx. */
-async function authedPost<T>(path: string, body: unknown): Promise<T> {
+/**
+ * Per-call ceiling for a model request. The Render free instance spins down after idle, so a
+ * cold request can hang ~30–60s; this bound aborts well before that and lets the composer/grader
+ * fall back to a curated/deterministic result instantly instead of leaving the user on a spinner.
+ * It sits comfortably above warm GPT-5.5 latency, so it only bites on a cold start (or a stall).
+ */
+const MODEL_CALL_TIMEOUT_MS = 22_000
+
+/** POST `body` to `path` with the current user's Firebase ID token; throws on non-2xx/abort. */
+async function authedPost<T>(path: string, body: unknown, timeoutMs = MODEL_CALL_TIMEOUT_MS): Promise<T> {
   const user = auth.currentUser
   if (!user) throw new Error('Not signed in')
   const token = await user.getIdToken()
-  const res = await fetch(`${API_BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) throw new Error(`LLM endpoint ${path} failed: ${res.status}`)
-  return (await res.json()) as T
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!res.ok) throw new Error(`LLM endpoint ${path} failed: ${res.status}`)
+    return (await res.json()) as T
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * Fire-and-forget warm-up: nudge the Render dyno awake before the user actually composes, so the
+ * cold-start delay overlaps with the time they spend reading the page rather than blocking a click.
+ * Hits the unauthenticated `/healthz` (no token, no rate-limit slot), throttled so repeated
+ * hovers/mounts don't spam it. No-op when AI is disabled. Safe to call on hover, focus, or mount.
+ */
+let lastWarmAt = 0
+export function warmLlmEndpoint(): void {
+  if (!API_BASE) return
+  const now = Date.now()
+  if (now - lastWarmAt < 60_000) return
+  lastWarmAt = now
+  fetch(`${API_BASE}/healthz`, { method: 'GET', cache: 'no-store' }).catch(() => {})
 }
 
 let cachedCompose: ComposeFn | null | undefined

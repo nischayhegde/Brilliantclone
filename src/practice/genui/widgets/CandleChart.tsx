@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { WidgetProps } from '../WidgetHost'
 import { makeChartScale } from './chartScale'
 import { ChartFrame, provenanceText, tickerFromKey } from './ChartBase'
+import { timeframeFromAsset, timeframeLabel } from '../../chartContext'
 import { useResolvedCandles } from './context'
 import { WidgetCard } from './ui'
 
@@ -23,9 +24,15 @@ export default function CandleChart({ widget }: WidgetProps) {
   }
 
   const ticker = tickerFromKey(ref?.candlesKey ?? configRef?.candlesKey ?? ref?.ohlcAsset ?? configRef?.ohlcAsset)
+  const tf = timeframeLabel(timeframeFromAsset(ref?.ohlcAsset ?? configRef?.ohlcAsset))
   return (
     <WidgetCard label="Price chart">
-      <ChartFrame scale={scale} candles={candles} ariaLabel="Candlestick price chart" provenance={provenanceText(candles, ticker)} />
+      <ChartFrame
+        scale={scale}
+        candles={candles}
+        ariaLabel="Candlestick price chart"
+        provenance={provenanceText(candles, ticker, tf)}
+      />
     </WidgetCard>
   )
 }

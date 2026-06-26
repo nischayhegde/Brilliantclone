@@ -2,7 +2,7 @@ import type { ScenarioSpec } from '../types'
 import type { ComposeRequest } from './types'
 import { defaultLayoutFor } from '../genui/defaultLayout'
 import { layoutFitsTrack, validateLayout } from '../genui/schema'
-import { scenariosFor } from '../scenarioRegistry'
+import { proceduralSpec, scenariosFor } from '../scenarioRegistry'
 
 /** The server callable response (mirrors functions `composeScenario`). */
 export type ComposeApiResponse = { spec: ScenarioSpec } | { fallback: true }
@@ -61,7 +61,13 @@ export async function composeScenario(
   return { spec: ensureLayout(pickCurated(req)), source: 'curated', attempts: 1 }
 }
 
+/**
+ * The non-LLM scenario source. Charts + market-making are PROCEDURAL (random real instrument ×
+ * random window × tier) so the learner gets near-infinite variety even with the model cold or
+ * disabled. Options draws from the curated chain-snapshot pool (no procedural windowing there).
+ */
 function pickCurated(req: ComposeRequest): ScenarioSpec {
+  if (req.track === 'charts' || req.track === 'market-making') return proceduralSpec(req.track, req.tier)
   const atTier = scenariosFor(req.track, req.tier)
   const pool = atTier.length ? atTier : scenariosFor(req.track)
   if (!pool.length) throw new Error(`No curated fallback for track ${req.track}`)

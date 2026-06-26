@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import TopNav from '../components/TopNav'
+import { warmLlmEndpoint } from '../services/aiModel'
 import LessonCard from '../components/LessonCard'
 import Spinner from '../components/ui/Spinner'
 import { FlameIcon, TrophyIcon } from '../components/icons'
@@ -10,6 +12,12 @@ import type { LessonSpec } from '../engine/types'
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { loading, bestStreak, stats, resetLesson } = useLessonProgress()
+
+  // Pre-warm the Render LLM dyno on arrival so it's awake by the time the learner heads to
+  // Practice — the cold start overlaps with reading the dashboard instead of blocking a click.
+  useEffect(() => {
+    warmLlmEndpoint()
+  }, [])
 
   const start = (lessonId: string) => {
     const s = stats(lessonId)
@@ -129,6 +137,8 @@ function PracticeCTA() {
     <Link
       to="/practice"
       aria-label="Go to practice — trade real historical setups"
+      onMouseEnter={warmLlmEndpoint}
+      onFocus={warmLlmEndpoint}
       className="group relative block overflow-hidden rounded-3xl bg-brand-amber px-6 py-8 text-ink shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/45 sm:px-9 sm:py-10"
     >
       <CandleMotif className="pointer-events-none absolute -right-4 -top-2 hidden h-44 w-72 text-ink/[0.08] transition-transform duration-500 ease-out group-hover:translate-x-1 sm:block" />

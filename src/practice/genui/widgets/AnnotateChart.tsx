@@ -4,6 +4,7 @@ import type { Annotation, AnnotationTool } from '../types'
 import { useReducedMotion } from '../../../hooks/useReducedMotion'
 import { makeChartScale } from './chartScale'
 import { ChartFrame, provenanceText, svgPoint, tickerFromKey } from './ChartBase'
+import { timeframeFromAsset, timeframeLabel } from '../../chartContext'
 import { useResolvedCandles } from './context'
 import { WidgetCard, WidgetPrompt, WidgetHint } from './ui'
 
@@ -94,6 +95,7 @@ export default function AnnotateChart({ widget, onChange }: WidgetProps) {
   }
 
   const ticker = tickerFromKey(ref?.candlesKey ?? ref?.ohlcAsset)
+  const tf = timeframeLabel(timeframeFromAsset(ref?.ohlcAsset))
   const cy = scale.yFor(cursor.price)
   const cx = scale.xFor(cursor.index)
 
@@ -104,7 +106,7 @@ export default function AnnotateChart({ widget, onChange }: WidgetProps) {
         scale={scale}
         candles={candles}
         ariaLabel="Candlestick chart with annotation cursor"
-        provenance={provenanceText(candles, ticker)}
+        provenance={provenanceText(candles, ticker, tf)}
         svgRef={svgRef}
         onPointerDown={onSvgDown}
       >

@@ -88,9 +88,15 @@ export interface DataRef {
   chainAsset?: string
   /** Key into real spread/vol stats (Track B). */
   bookStatsKey?: string
-  /** Decision point index (Track A). */
+  /**
+   * Inclusive start offset into the full bundled/asset series (Track A/B). Lets a scenario
+   * trade a RANDOM sub-window of a longer series — the engine of procedural variety — while
+   * `splitIndex`/`revealToIndex` stay relative to the windowed slice. Absent ⇒ 0 (full series).
+   */
+  startIndex?: number
+  /** Decision point index, relative to the windowed slice (Track A). */
   splitIndex?: number
-  /** Resolution window end index (Track A). */
+  /** Resolution window end index, relative to the windowed slice (Track A). */
   revealToIndex?: number
   /** Snapshot/decision date (Track C). */
   decisionDate?: string

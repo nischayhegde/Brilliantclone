@@ -61,7 +61,7 @@ describe('ScenarioPlayer (generative flow)', () => {
     fireEvent.click(submit)
 
     // 2) Mandatory journal gate.
-    fireEvent.change(screen.getByLabelText(/why did you take/i), {
+    fireEvent.change(screen.getByLabelText(/explain your reasoning/i), {
       target: { value: 'No edge here — staying out.' },
     })
     fireEvent.click(screen.getByRole('radio', { name: /calm/i }))
