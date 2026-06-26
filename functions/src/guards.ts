@@ -1,18 +1,17 @@
 /**
- * Pure guard helpers for the `aiRespond` callable: input validation, token/temperature
- * clamping, and per-uid rate limiting. Deliberately FREE of `firebase-functions` and
- * `firebase-admin` imports so they unit-test fully offline; `index.ts` maps their
- * results onto `HttpsError`.
+ * Pure guard helpers for the `composeScenario`/`gradeRun` callables: input validation,
+ * output-token clamping, and per-uid rate limiting. Deliberately FREE of
+ * `firebase-functions` and `firebase-admin` imports so they unit-test fully offline;
+ * `index.ts` maps their results onto `HttpsError`.
  */
-import type { JsonSchemaSpec } from './openai'
 
-// --- token + temperature clamps ---------------------------------------------------
+// --- token clamp ------------------------------------------------------------------
 
 /** Floor for a single response's output tokens. */
 export const MIN_OUTPUT_TOKENS = 16
 /** Default output-token budget when the caller doesn't ask for one. */
 export const DEFAULT_OUTPUT_TOKENS = 1024
-/** Hard ceiling — clamps any client request so a single call can't run away on cost. */
+/** Hard ceiling — clamps any request so a single call can't run away on cost. */
 export const MAX_OUTPUT_TOKENS = 4096
 
 /** Clamp a requested output-token budget into [MIN, MAX], defaulting when absent/invalid. */
@@ -21,80 +20,11 @@ export function clampMaxOutputTokens(requested?: number): number {
   return Math.min(MAX_OUTPUT_TOKENS, Math.max(MIN_OUTPUT_TOKENS, Math.floor(requested)))
 }
 
-/** Clamp temperature into [0, 2]; returns undefined when not provided (so it's omitted). */
-export function clampTemperature(requested?: number): number | undefined {
-  if (typeof requested !== 'number' || !Number.isFinite(requested)) return undefined
-  return Math.min(2, Math.max(0, requested))
-}
-
-// --- input validation -------------------------------------------------------------
-
-/** The validated, trusted shape `aiRespond` forwards to `callModel`. */
-export interface AiRespondInput {
-  instructions?: string
-  input: string
-  jsonSchema?: JsonSchemaSpec
-  temperature?: number
-  maxOutputTokens?: number
-}
-
-export type ValidationOutcome =
-  | { ok: true; value: AiRespondInput }
-  | { ok: false; error: string }
+// --- composeScenario / gradeRun input validation ----------------------------------
 
 function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
-
-const JSON_SCHEMA_NAME_RE = /^[a-zA-Z0-9_-]{1,64}$/
-/** Max accepted prompt size (chars) — a coarse abuse guard before hitting the model. */
-export const MAX_INPUT_CHARS = 24000
-
-/** Validate raw callable `data` into a trusted `AiRespondInput` (or an error string). */
-export function validateAiRespondInput(data: unknown): ValidationOutcome {
-  if (!isObject(data)) return { ok: false, error: 'Request body must be an object.' }
-
-  const { input, instructions, jsonSchema, temperature, maxOutputTokens } = data
-
-  if (typeof input !== 'string' || input.trim() === '') {
-    return { ok: false, error: 'input must be a non-empty string.' }
-  }
-  if (input.length > MAX_INPUT_CHARS) {
-    return { ok: false, error: `input exceeds ${MAX_INPUT_CHARS} characters.` }
-  }
-  if (instructions != null && typeof instructions !== 'string') {
-    return { ok: false, error: 'instructions must be a string when provided.' }
-  }
-  if (temperature != null && (typeof temperature !== 'number' || !Number.isFinite(temperature))) {
-    return { ok: false, error: 'temperature must be a finite number when provided.' }
-  }
-  if (maxOutputTokens != null && (typeof maxOutputTokens !== 'number' || !Number.isFinite(maxOutputTokens))) {
-    return { ok: false, error: 'maxOutputTokens must be a finite number when provided.' }
-  }
-
-  let schema: JsonSchemaSpec | undefined
-  if (jsonSchema != null) {
-    if (!isObject(jsonSchema)) return { ok: false, error: 'jsonSchema must be an object when provided.' }
-    const { name, schema: schemaObj, strict } = jsonSchema
-    if (typeof name !== 'string' || !JSON_SCHEMA_NAME_RE.test(name)) {
-      return { ok: false, error: 'jsonSchema.name must match [a-zA-Z0-9_-]{1,64}.' }
-    }
-    if (!isObject(schemaObj)) return { ok: false, error: 'jsonSchema.schema must be a JSON Schema object.' }
-    if (strict != null && typeof strict !== 'boolean') {
-      return { ok: false, error: 'jsonSchema.strict must be a boolean when provided.' }
-    }
-    schema = { name, schema: schemaObj as Record<string, unknown>, ...(typeof strict === 'boolean' ? { strict } : {}) }
-  }
-
-  const value: AiRespondInput = { input }
-  if (typeof instructions === 'string') value.instructions = instructions
-  if (schema) value.jsonSchema = schema
-  if (typeof temperature === 'number') value.temperature = temperature
-  if (typeof maxOutputTokens === 'number') value.maxOutputTokens = maxOutputTokens
-  return { ok: true, value }
-}
-
-// --- composeScenario / gradeRun input validation ----------------------------------
 
 const TRACKS = new Set(['charts', 'options', 'market-making'])
 
@@ -122,6 +52,16 @@ export type ComposeOutcome =
 
 /** Max catalog allow-list size (per array) — a coarse abuse guard before composing. */
 export const MAX_CATALOG_ENTRIES = 5000
+/**
+ * Max rubric/nudge id-list size. These are interpolated IN FULL into the compose prompt
+ * (unlike the data refs, which are sampled), so they are the primary prompt-injection
+ * surface and get a tighter count cap than the data allow-lists.
+ */
+export const MAX_ID_LIST_ENTRIES = 200
+/** Max length of any single catalog string — bounds the per-entry injection surface. */
+export const MAX_CATALOG_ENTRY_CHARS = 64
+/** Max total characters across every catalog array — a coarse cost/payload ceiling. */
+export const MAX_TOTAL_CATALOG_CHARS = 200_000
 
 /** Validate raw callable `data` into a trusted `ComposeInput` (or an error string). */
 export function validateComposeInput(data: unknown): ComposeOutcome {
@@ -139,6 +79,21 @@ export function validateComposeInput(data: unknown): ComposeOutcome {
   }
   if ([candlesKeys, ohlcAssets, chainAssets].some((a) => (a as string[]).length > MAX_CATALOG_ENTRIES)) {
     return { ok: false, error: `catalog allow-list exceeds ${MAX_CATALOG_ENTRIES} entries.` }
+  }
+  // rubric/nudge ids are interpolated in full into the prompt — cap their count.
+  if ((rubricIds as string[]).length > MAX_ID_LIST_ENTRIES || (nudgeIds as string[]).length > MAX_ID_LIST_ENTRIES) {
+    return { ok: false, error: `rubricIds/nudgeIds exceed ${MAX_ID_LIST_ENTRIES} entries.` }
+  }
+  // Per-string + total-size ceilings across ALL arrays (cost + prompt-injection guard).
+  const allStrings = [
+    ...(candlesKeys as string[]), ...(ohlcAssets as string[]), ...(chainAssets as string[]),
+    ...(rubricIds as string[]), ...(nudgeIds as string[]),
+  ]
+  if (allStrings.some((s) => s.length > MAX_CATALOG_ENTRY_CHARS)) {
+    return { ok: false, error: `a catalog entry exceeds ${MAX_CATALOG_ENTRY_CHARS} characters.` }
+  }
+  if (allStrings.reduce((n, s) => n + s.length, 0) > MAX_TOTAL_CATALOG_CHARS) {
+    return { ok: false, error: `catalog total size exceeds ${MAX_TOTAL_CATALOG_CHARS} characters.` }
   }
   return {
     ok: true,
@@ -182,6 +137,18 @@ export function validateGradeInput(data: unknown): GradeOutcome {
   if (typeof passScore !== 'number' || !Number.isFinite(passScore)) return { ok: false, error: 'passScore must be a finite number.' }
   if (!isObject(decision)) return { ok: false, error: 'decision must be an object.' }
   if (!isObject(outcomeFacts)) return { ok: false, error: 'outcomeFacts must be an object.' }
+  // Outcome facts are numbers the grade guard whitelists + the P&L sanity bound reads — any
+  // non-finite numeric fact (NaN/±Infinity) would poison the guard, so reject them (MIN-4).
+  for (const [k, v] of Object.entries(outcomeFacts)) {
+    if (typeof v === 'number' && !Number.isFinite(v)) {
+      return { ok: false, error: `outcomeFacts.${k} must be a finite number.` }
+    }
+  }
+  // `pnl`, when present, is the sign the process-not-P&L bound protects against — require a
+  // finite number (never a string that would coerce to NaN downstream).
+  if (outcomeFacts.pnl != null && (typeof outcomeFacts.pnl !== 'number' || !Number.isFinite(outcomeFacts.pnl))) {
+    return { ok: false, error: 'outcomeFacts.pnl must be a finite number.' }
+  }
   if (!isObject(candleSummary) || !CANDLE_SUMMARY_KEYS.every((k) => typeof candleSummary[k] === 'number')) {
     return { ok: false, error: 'candleSummary must carry numeric bars/start/end/high/low/net/pct.' }
   }

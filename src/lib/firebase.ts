@@ -29,7 +29,7 @@ export const db = getFirestore(app)
 export const googleProvider = new GoogleAuthProvider()
 
 // Callable Cloud Functions client. The OpenAI key never reaches the client — the
-// `aiRespond` callable runs the model server-side behind auth + rate limits.
+// `composeScenario`/`gradeRun` callables run the model server-side behind auth + rate limits.
 export const functions = getFunctions(app)
 
 // Local development against the Functions emulator is OPT-IN (set VITE_USE_EMULATORS=true

@@ -1,9 +1,4 @@
-import type { Decision, ProcessScore, ScenarioOutcome, ScenarioSpec, Track } from '../types'
-
-/** Minimal model abstraction — one text-in/text-out call. Injectable + mockable. */
-export interface ModelClient {
-  generate(prompt: string, opts?: { temperature?: number; maxTokens?: number }): Promise<string>
-}
+import type { Track } from '../types'
 
 /** The ONLY real-data identifiers the composer is allowed to reference. */
 export interface DataCatalog {
@@ -20,15 +15,4 @@ export interface ComposeRequest {
   tier: number
   accountBalance: number
   catalog: DataCatalog
-}
-
-export interface CoachRequest {
-  spec: ScenarioSpec
-  decision: Decision
-  outcome: ScenarioOutcome
-  score: ProcessScore
-  nudgesFired: string[]
-  journal?: { rationale: string; feeling: string }
-  /** Whitelisted real facts the coach may cite (numbers it is allowed to mention). */
-  allowedFacts: Record<string, number | string | boolean>
 }

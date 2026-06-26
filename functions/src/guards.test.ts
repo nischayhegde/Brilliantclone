@@ -1,16 +1,15 @@
 import { describe, it, expect } from 'vitest'
 import {
   clampMaxOutputTokens,
-  clampTemperature,
-  validateAiRespondInput,
   validateComposeInput,
   validateGradeInput,
   RateLimiter,
   DEFAULT_OUTPUT_TOKENS,
   MAX_OUTPUT_TOKENS,
   MIN_OUTPUT_TOKENS,
-  MAX_INPUT_CHARS,
   MAX_CATALOG_ENTRIES,
+  MAX_ID_LIST_ENTRIES,
+  MAX_CATALOG_ENTRY_CHARS,
 } from './guards'
 
 describe('clampMaxOutputTokens', () => {
@@ -25,64 +24,6 @@ describe('clampMaxOutputTokens', () => {
   it('passes through and floors valid values', () => {
     expect(clampMaxOutputTokens(500)).toBe(500)
     expect(clampMaxOutputTokens(500.9)).toBe(500)
-  })
-})
-
-describe('clampTemperature', () => {
-  it('returns undefined when not provided (so the request omits it)', () => {
-    expect(clampTemperature()).toBeUndefined()
-    expect(clampTemperature(Number.NaN)).toBeUndefined()
-  })
-  it('clamps into [0, 2]', () => {
-    expect(clampTemperature(-1)).toBe(0)
-    expect(clampTemperature(5)).toBe(2)
-    expect(clampTemperature(0.7)).toBe(0.7)
-  })
-})
-
-describe('validateAiRespondInput', () => {
-  it('accepts a minimal valid body', () => {
-    const r = validateAiRespondInput({ input: 'hello' })
-    expect(r.ok).toBe(true)
-    if (r.ok) expect(r.value).toEqual({ input: 'hello' })
-  })
-
-  it('accepts a full valid body and only forwards known fields', () => {
-    const r = validateAiRespondInput({
-      input: 'hello',
-      instructions: 'sys',
-      temperature: 0.5,
-      maxOutputTokens: 200,
-      jsonSchema: { name: 'Layout', schema: { type: 'object' }, strict: true },
-      bogus: 'ignored',
-    })
-    expect(r.ok).toBe(true)
-    if (r.ok) {
-      expect(r.value.instructions).toBe('sys')
-      expect(r.value.jsonSchema).toEqual({ name: 'Layout', schema: { type: 'object' }, strict: true })
-      expect((r.value as Record<string, unknown>).bogus).toBeUndefined()
-    }
-  })
-
-  it('rejects a missing or empty input', () => {
-    expect(validateAiRespondInput({}).ok).toBe(false)
-    expect(validateAiRespondInput({ input: '   ' }).ok).toBe(false)
-    expect(validateAiRespondInput(null).ok).toBe(false)
-  })
-
-  it('rejects an over-long input', () => {
-    const r = validateAiRespondInput({ input: 'x'.repeat(MAX_INPUT_CHARS + 1) })
-    expect(r.ok).toBe(false)
-  })
-
-  it('rejects a malformed jsonSchema', () => {
-    expect(validateAiRespondInput({ input: 'x', jsonSchema: { name: 'bad name!', schema: {} } }).ok).toBe(false)
-    expect(validateAiRespondInput({ input: 'x', jsonSchema: { name: 'ok', schema: 'nope' } }).ok).toBe(false)
-  })
-
-  it('rejects non-numeric temperature / maxOutputTokens', () => {
-    expect(validateAiRespondInput({ input: 'x', temperature: 'hot' }).ok).toBe(false)
-    expect(validateAiRespondInput({ input: 'x', maxOutputTokens: 'lots' }).ok).toBe(false)
   })
 })
 
@@ -106,6 +47,21 @@ describe('validateComposeInput', () => {
     const huge = { ...catalog, ohlcAssets: Array.from({ length: MAX_CATALOG_ENTRIES + 1 }, (_, i) => `a${i}`) }
     expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 1, catalog: huge }).ok).toBe(false)
   })
+  it('rejects an over-long rubricIds/nudgeIds list (interpolated in full → tighter cap)', () => {
+    const manyRubrics = { ...catalog, rubricIds: Array.from({ length: MAX_ID_LIST_ENTRIES + 1 }, (_, i) => `r${i}`) }
+    expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 1, catalog: manyRubrics }).ok).toBe(false)
+    const manyNudges = { ...catalog, nudgeIds: Array.from({ length: MAX_ID_LIST_ENTRIES + 1 }, (_, i) => `n${i}`) }
+    expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 1, catalog: manyNudges }).ok).toBe(false)
+  })
+  it('rejects an over-long catalog entry (per-string char cap)', () => {
+    const longEntry = { ...catalog, nudgeIds: ['x'.repeat(MAX_CATALOG_ENTRY_CHARS + 1)] }
+    expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 1, catalog: longEntry }).ok).toBe(false)
+  })
+  it('rejects a catalog whose total size blows the input-char ceiling', () => {
+    // 5000 entries × 64 chars = 320k chars > the 200k total ceiling (each entry stays in-bounds).
+    const big = { ...catalog, ohlcAssets: Array.from({ length: MAX_CATALOG_ENTRIES }, () => 'a'.repeat(MAX_CATALOG_ENTRY_CHARS)) }
+    expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 1, catalog: big }).ok).toBe(false)
+  })
 })
 
 describe('validateGradeInput', () => {
@@ -122,6 +78,13 @@ describe('validateGradeInput', () => {
   })
   it('rejects a candleSummary missing numeric fields', () => {
     expect(validateGradeInput({ ...base, candleSummary: { bars: 40 } }).ok).toBe(false)
+  })
+  it('rejects a non-finite pnl / outcome fact (MIN-4)', () => {
+    expect(validateGradeInput({ ...base, outcomeFacts: { pnl: Number.POSITIVE_INFINITY } }).ok).toBe(false)
+    expect(validateGradeInput({ ...base, outcomeFacts: { pnl: Number.NaN } }).ok).toBe(false)
+    expect(validateGradeInput({ ...base, outcomeFacts: { pnl: -100, netMove: Number.NaN } }).ok).toBe(false)
+    // A string pnl would coerce to NaN downstream — reject it too.
+    expect(validateGradeInput({ ...base, outcomeFacts: { pnl: 'lots' } }).ok).toBe(false)
   })
   it('rejects empty or malformed rubricDims', () => {
     expect(validateGradeInput({ ...base, rubricDims: [] }).ok).toBe(false)
