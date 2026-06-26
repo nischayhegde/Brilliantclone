@@ -3,11 +3,14 @@ import {
   clampMaxOutputTokens,
   clampTemperature,
   validateAiRespondInput,
+  validateComposeInput,
+  validateGradeInput,
   RateLimiter,
   DEFAULT_OUTPUT_TOKENS,
   MAX_OUTPUT_TOKENS,
   MIN_OUTPUT_TOKENS,
   MAX_INPUT_CHARS,
+  MAX_CATALOG_ENTRIES,
 } from './guards'
 
 describe('clampMaxOutputTokens', () => {
@@ -80,6 +83,52 @@ describe('validateAiRespondInput', () => {
   it('rejects non-numeric temperature / maxOutputTokens', () => {
     expect(validateAiRespondInput({ input: 'x', temperature: 'hot' }).ok).toBe(false)
     expect(validateAiRespondInput({ input: 'x', maxOutputTokens: 'lots' }).ok).toBe(false)
+  })
+})
+
+describe('validateComposeInput', () => {
+  const catalog = { candlesKeys: ['AAPL__1d'], ohlcAssets: [], chainAssets: [], rubricIds: ['charts-v1'], nudgeIds: ['sizing'] }
+  it('accepts a well-formed compose request', () => {
+    const r = validateComposeInput({ track: 'charts', tier: 1, accountBalance: 10000, catalog })
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.catalog.candlesKeys).toEqual(['AAPL__1d'])
+  })
+  it('rejects an unknown track, bad tier, or non-positive balance', () => {
+    expect(validateComposeInput({ track: 'crypto', tier: 1, accountBalance: 1, catalog }).ok).toBe(false)
+    expect(validateComposeInput({ track: 'charts', tier: 0, accountBalance: 1, catalog }).ok).toBe(false)
+    expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 0, catalog }).ok).toBe(false)
+  })
+  it('rejects a malformed catalog (non-string-array fields)', () => {
+    expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 1, catalog: { ...catalog, candlesKeys: [1, 2] } }).ok).toBe(false)
+    expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 1, catalog: 'nope' }).ok).toBe(false)
+  })
+  it('rejects an over-large catalog allow-list', () => {
+    const huge = { ...catalog, ohlcAssets: Array.from({ length: MAX_CATALOG_ENTRIES + 1 }, (_, i) => `a${i}`) }
+    expect(validateComposeInput({ track: 'charts', tier: 1, accountBalance: 1, catalog: huge }).ok).toBe(false)
+  })
+})
+
+describe('validateGradeInput', () => {
+  const base = {
+    track: 'charts', passScore: 70,
+    decision: { took: true }, outcomeFacts: { pnl: -100 },
+    candleSummary: { bars: 40, startClose: 100, endClose: 92, high: 108, low: 90, netChange: -8, pctChange: -8 },
+    signals: {}, rubricDims: [{ id: 'read', label: 'Correct read', weight: 2, deterministic: 0.8 }],
+  }
+  it('accepts a well-formed grade request', () => {
+    const r = validateGradeInput(base)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.rubricDims[0].id).toBe('read')
+  })
+  it('rejects a candleSummary missing numeric fields', () => {
+    expect(validateGradeInput({ ...base, candleSummary: { bars: 40 } }).ok).toBe(false)
+  })
+  it('rejects empty or malformed rubricDims', () => {
+    expect(validateGradeInput({ ...base, rubricDims: [] }).ok).toBe(false)
+    expect(validateGradeInput({ ...base, rubricDims: [{ id: 'x' }] }).ok).toBe(false)
+  })
+  it('rejects an unknown track', () => {
+    expect(validateGradeInput({ ...base, track: 'nope' }).ok).toBe(false)
   })
 })
 

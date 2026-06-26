@@ -94,6 +94,121 @@ export function validateAiRespondInput(data: unknown): ValidationOutcome {
   return { ok: true, value }
 }
 
+// --- composeScenario / gradeRun input validation ----------------------------------
+
+const TRACKS = new Set(['charts', 'options', 'market-making'])
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string')
+}
+
+/** The trusted shape `composeScenario` forwards to the isomorphic compose builder. */
+export interface ComposeInput {
+  track: string
+  tier: number
+  accountBalance: number
+  catalog: {
+    candlesKeys: string[]
+    ohlcAssets: string[]
+    chainAssets: string[]
+    rubricIds: string[]
+    nudgeIds: string[]
+  }
+}
+
+export type ComposeOutcome =
+  | { ok: true; value: ComposeInput }
+  | { ok: false; error: string }
+
+/** Max catalog allow-list size (per array) — a coarse abuse guard before composing. */
+export const MAX_CATALOG_ENTRIES = 5000
+
+/** Validate raw callable `data` into a trusted `ComposeInput` (or an error string). */
+export function validateComposeInput(data: unknown): ComposeOutcome {
+  if (!isObject(data)) return { ok: false, error: 'Request body must be an object.' }
+  const { track, tier, accountBalance, catalog } = data
+  if (typeof track !== 'string' || !TRACKS.has(track)) return { ok: false, error: 'track must be charts|options|market-making.' }
+  if (typeof tier !== 'number' || !Number.isInteger(tier) || tier < 1) return { ok: false, error: 'tier must be an integer >= 1.' }
+  if (typeof accountBalance !== 'number' || !Number.isFinite(accountBalance) || accountBalance <= 0) {
+    return { ok: false, error: 'accountBalance must be a positive number.' }
+  }
+  if (!isObject(catalog)) return { ok: false, error: 'catalog must be an object.' }
+  const { candlesKeys, ohlcAssets, chainAssets, rubricIds, nudgeIds } = catalog
+  if (![candlesKeys, ohlcAssets, chainAssets, rubricIds, nudgeIds].every(isStringArray)) {
+    return { ok: false, error: 'catalog arrays (candlesKeys, ohlcAssets, chainAssets, rubricIds, nudgeIds) must be string arrays.' }
+  }
+  if ([candlesKeys, ohlcAssets, chainAssets].some((a) => (a as string[]).length > MAX_CATALOG_ENTRIES)) {
+    return { ok: false, error: `catalog allow-list exceeds ${MAX_CATALOG_ENTRIES} entries.` }
+  }
+  return {
+    ok: true,
+    value: {
+      track,
+      tier,
+      accountBalance,
+      catalog: {
+        candlesKeys: candlesKeys as string[],
+        ohlcAssets: ohlcAssets as string[],
+        chainAssets: chainAssets as string[],
+        rubricIds: rubricIds as string[],
+        nudgeIds: nudgeIds as string[],
+      },
+    },
+  }
+}
+
+/** The trusted shape `gradeRun` forwards to the isomorphic grade builder + guard. */
+export interface GradeInput {
+  track: string
+  passScore: number
+  decision: Record<string, unknown>
+  outcomeFacts: Record<string, number | string | boolean>
+  candleSummary: Record<string, unknown>
+  signals: Record<string, unknown>
+  rubricDims: { id: string; label: string; weight: number; deterministic: number }[]
+}
+
+export type GradeOutcome =
+  | { ok: true; value: GradeInput }
+  | { ok: false; error: string }
+
+const CANDLE_SUMMARY_KEYS = ['bars', 'startClose', 'endClose', 'high', 'low', 'netChange', 'pctChange']
+
+/** Validate raw callable `data` into a trusted `GradeInput` (or an error string). */
+export function validateGradeInput(data: unknown): GradeOutcome {
+  if (!isObject(data)) return { ok: false, error: 'Request body must be an object.' }
+  const { track, passScore, decision, outcomeFacts, candleSummary, signals, rubricDims } = data
+  if (typeof track !== 'string' || !TRACKS.has(track)) return { ok: false, error: 'track must be charts|options|market-making.' }
+  if (typeof passScore !== 'number' || !Number.isFinite(passScore)) return { ok: false, error: 'passScore must be a finite number.' }
+  if (!isObject(decision)) return { ok: false, error: 'decision must be an object.' }
+  if (!isObject(outcomeFacts)) return { ok: false, error: 'outcomeFacts must be an object.' }
+  if (!isObject(candleSummary) || !CANDLE_SUMMARY_KEYS.every((k) => typeof candleSummary[k] === 'number')) {
+    return { ok: false, error: 'candleSummary must carry numeric bars/start/end/high/low/net/pct.' }
+  }
+  if (!isObject(signals)) return { ok: false, error: 'signals must be an object.' }
+  if (!Array.isArray(rubricDims) || rubricDims.length === 0) return { ok: false, error: 'rubricDims must be a non-empty array.' }
+  const dims: GradeInput['rubricDims'] = []
+  for (const d of rubricDims) {
+    if (!isObject(d) || typeof d.id !== 'string' || typeof d.label !== 'string' ||
+      typeof d.weight !== 'number' || typeof d.deterministic !== 'number') {
+      return { ok: false, error: 'each rubricDim needs id, label, numeric weight and deterministic.' }
+    }
+    dims.push({ id: d.id, label: d.label, weight: d.weight, deterministic: d.deterministic })
+  }
+  return {
+    ok: true,
+    value: {
+      track,
+      passScore,
+      decision: decision as Record<string, unknown>,
+      outcomeFacts: outcomeFacts as Record<string, number | string | boolean>,
+      candleSummary: candleSummary as Record<string, unknown>,
+      signals: signals as Record<string, unknown>,
+      rubricDims: dims,
+    },
+  }
+}
+
 // --- rate limiting ----------------------------------------------------------------
 
 export interface RateLimitResult {
