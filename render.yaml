@@ -1,0 +1,30 @@
+# Render Blueprint — Trading Practice LLM endpoint (replaces the Firebase Functions path,
+# which needs the Blaze plan). Single Node web service built from the functions/ package.
+#
+# Deploy: push this file, open https://dashboard.render.com/blueprint/new?repo=https://github.com/nischayhegde/Brilliantclone
+# then set the OPENAI_API_KEY secret in the dashboard and click Apply.
+services:
+  - type: web
+    name: brilliantclone-llm
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: functions
+    # `npm run build` runs the `prebuild` copy-shared step (mirrors the isomorphic genui core
+    # from ../src/practice), then `tsc` → lib/. The whole repo is checked out, so ../src exists.
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      # Set this secret in the Render dashboard (never committed). The server reads it as
+      # process.env.OPENAI_API_KEY and calls GPT-5.5 server-side behind auth + rate limits.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: FIREBASE_PROJECT_ID
+        value: brilliantclone
+      # Comma-separated CORS allow-list — the deployed Hosting origins.
+      - key: ALLOWED_ORIGINS
+        value: https://brilliantclone.web.app,https://brilliantclone.firebaseapp.com
+      - key: NODE_VERSION
+        value: "20"
