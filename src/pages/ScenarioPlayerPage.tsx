@@ -37,8 +37,14 @@ export default function ScenarioPlayerPage() {
   return (
     <div className="min-h-screen bg-paper">
       <TopNav />
-      <main className="mx-auto flex max-w-5xl justify-center px-4 py-10">
-        {!spec || data === null ? <Spinner className="h-8 w-8" /> : <ScenarioPlayer spec={spec} data={data} />}
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:py-12">
+        {!spec || data === null ? (
+          <div className="flex justify-center py-24">
+            <Spinner className="h-8 w-8" />
+          </div>
+        ) : (
+          <ScenarioPlayer spec={spec} data={data} />
+        )}
       </main>
     </div>
   )

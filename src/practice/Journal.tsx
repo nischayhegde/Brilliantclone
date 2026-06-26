@@ -50,43 +50,65 @@ export default function Journal({ onSubmit }: { onSubmit: (e: { rationale: strin
   }
 
   return (
-    <div className="flex w-full max-w-xl flex-col items-center gap-3" onKeyDown={onKeyDown}>
-      <label htmlFor="journal-rationale" className="text-lg font-semibold">
-        Before you see the result — log it.
-      </label>
-      <input
-        id="journal-rationale"
-        ref={inputRef}
-        value={rationale}
-        onChange={(e) => setRationale(e.target.value)}
-        placeholder="One line: why did you take (or skip) this?"
-        className="w-full rounded-xl border-2 border-hairline px-4 py-3 text-base focus:border-ink focus:outline-none"
-      />
-      <div role="radiogroup" aria-label="How did you feel?" className="flex flex-wrap justify-center gap-2">
-        {FEELINGS.map((f, idx) => {
-          const selected = feeling === f
-          return (
-            <button
-              key={f}
-              ref={(el) => { btnRefs.current[idx] = el }}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              tabIndex={selected || (feeling === null && idx === 0) ? 0 : -1}
-              onClick={() => setFeeling(f)}
-              onKeyDown={(e) => onRadioKeyDown(e, idx)}
-              className={`rounded-full border-2 px-4 py-2 text-sm font-bold focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/35 ${
-                selected ? 'border-ink bg-ink text-white' : 'border-hairline text-ink hover:border-ink/40'
-              }`}
-            >
-              {FEELING_LABEL[f]}
-            </button>
-          )
-        })}
+    <div
+      className="flex w-full max-w-xl flex-col gap-5 rounded-2xl border border-hairline bg-paper p-6 shadow-[0_1px_2px_rgba(28,25,23,0.04)]"
+      onKeyDown={onKeyDown}
+    >
+      <div className="flex flex-col gap-1.5">
+        <h2 className="font-display text-xl font-bold text-ink">Lock in your reasoning</h2>
+        <p className="text-sm leading-relaxed text-ink-soft">
+          Commit before the outcome is revealed — this is how you learn to separate good process from luck.
+        </p>
       </div>
-      <Button disabled={!ready} onClick={submit}>
-        Log &amp; see result
-      </Button>
+
+      <div className="flex flex-col gap-2">
+        <label htmlFor="journal-rationale" className="text-sm font-semibold text-ink">
+          Why did you take (or skip) this?
+        </label>
+        <input
+          id="journal-rationale"
+          ref={inputRef}
+          value={rationale}
+          onChange={(e) => setRationale(e.target.value)}
+          placeholder="One line — your edge, your risk, your reason."
+          className="w-full rounded-xl border border-hairline bg-surface px-4 py-3 text-base text-ink placeholder:text-muted transition focus:border-ink focus:bg-paper focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/30"
+        />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span id="journal-feeling-label" className="text-sm font-semibold text-ink">
+          How are you feeling about it?
+        </span>
+        <div role="radiogroup" aria-labelledby="journal-feeling-label" className="flex flex-wrap gap-2">
+          {FEELINGS.map((f, idx) => {
+            const selected = feeling === f
+            return (
+              <button
+                key={f}
+                ref={(el) => { btnRefs.current[idx] = el }}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                tabIndex={selected || (feeling === null && idx === 0) ? 0 : -1}
+                onClick={() => setFeeling(f)}
+                onKeyDown={(e) => onRadioKeyDown(e, idx)}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/35 ${
+                  selected ? 'border-ink bg-ink text-white' : 'border-hairline text-ink hover:border-ink/40 hover:bg-surface'
+                }`}
+              >
+                {FEELING_LABEL[f]}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 pt-1">
+        <span className="text-xs text-muted">Tip: ⌘/Ctrl + Enter to submit.</span>
+        <Button disabled={!ready} onClick={submit}>
+          Log &amp; see result
+        </Button>
+      </div>
     </div>
   )
 }

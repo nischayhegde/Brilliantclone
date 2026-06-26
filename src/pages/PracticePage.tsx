@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import Spinner from '../components/ui/Spinner'
@@ -16,6 +16,29 @@ const TRACK_LABEL: Record<Track, string> = {
   'market-making': 'Market making',
 }
 
+/** What the learner walks away able to do — the teaching promise, in one short clause. */
+const TRACK_SKILL: Record<Track, string> = {
+  charts: 'Read price action, define risk, and trade a level with a plan.',
+  options: 'Build a defined-risk options structure and manage it to expiry.',
+  'market-making': 'Quote both sides, earn the spread, and survive adverse selection.',
+}
+
+function SkillBar({ skill }: { skill: number }) {
+  const pct = Math.max(0, Math.min(100, Math.round(skill)))
+  return (
+    <div
+      className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2"
+      role="progressbar"
+      aria-valuenow={pct}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label="Skill"
+    >
+      <div className="h-full rounded-full bg-brand-amber" style={{ width: `${pct}%` }} />
+    </div>
+  )
+}
+
 export default function PracticePage() {
   const { track } = useParams<{ track?: Track }>()
   const { loading, account, recentRuns, nextScenario, primeScenarios, pendingRuin } = usePractice()
@@ -31,6 +54,13 @@ export default function PracticePage() {
     if (loading) return
     for (const t of allTracks) if (scenariosFor(t).length > 0) primeScenarios(t)
   }, [loading, primeScenarios])
+
+  // Suggest the playable track with the most room to grow.
+  const recommended = useMemo<Track | null>(() => {
+    const playable = allTracks.filter((t) => scenariosFor(t).length > 0)
+    if (!playable.length) return null
+    return playable.reduce((lo, t) => (account.skill[t] < account.skill[lo] ? t : lo), playable[0])
+  }, [account.skill])
 
   const start = async (t: Track) => {
     if (starting) return
@@ -66,41 +96,80 @@ export default function PracticePage() {
           </div>
         ) : (
           <>
-            <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 className="font-display text-4xl font-bold">Practice</h1>
-                <p className="mt-2 text-ink-soft">
-                  Trade real historical setups. Graded on process, not luck.
+            <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex flex-col gap-2">
+                <h1 className="font-display text-4xl font-bold leading-[1.05] text-ink sm:text-5xl">Practice</h1>
+                <p className="max-w-lg text-[15px] leading-relaxed text-ink-soft">
+                  Trade real historical setups. You&rsquo;re graded on process — your read, your risk, your
+                  discipline — never on luck.
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="rounded-2xl bg-ink px-5 py-3 text-white">
-                  <div className="text-xs font-semibold uppercase tracking-wide text-white/60">Paper balance</div>
-                  <div className="font-display text-2xl font-bold">${account.balance.toLocaleString('en-US')}</div>
+              <div className="flex items-stretch gap-3">
+                <div className="rounded-2xl bg-ink px-5 py-4 text-white">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-white/55">Paper balance</div>
+                  <div className="mt-0.5 font-display text-2xl font-bold tabular-nums">
+                    ${account.balance.toLocaleString('en-US')}
+                  </div>
                 </div>
-                <div className="rounded-2xl border border-hairline bg-white px-5 py-3">
+                <div className="rounded-2xl border border-hairline bg-paper px-5 py-4">
                   <div className="text-xs font-semibold uppercase tracking-wide text-muted">Resets</div>
-                  <div className="font-display text-2xl font-bold">{account.ruinEvents}</div>
+                  <div className="mt-0.5 font-display text-2xl font-bold tabular-nums text-ink">{account.ruinEvents}</div>
                 </div>
               </div>
             </header>
 
-            <section className="mt-8 grid gap-4 sm:grid-cols-3">
-              {allTracks.map((t) => (
-                <div key={t} className="rounded-2xl border border-hairline bg-white p-5">
-                  <div className="text-sm font-bold uppercase tracking-wide text-muted">{TRACK_LABEL[t]}</div>
-                  <p className="mt-2 text-sm text-ink-soft">{TRACK_BLURB[t]}</p>
-                  <div className="mt-3 text-3xl font-bold">Tier {account.tier[t]}</div>
-                  <div className="mt-1 text-sm text-muted">Skill {Math.round(account.skill[t])}/100</div>
-                  <button
-                    onClick={() => start(t)}
-                    disabled={!hasTrack(t) || starting !== null}
-                    className="mt-4 rounded-xl bg-ink px-4 py-2 text-sm font-bold text-white disabled:opacity-40"
+            <section aria-label="Practice tracks" className="mt-10 flex flex-col gap-4">
+              {allTracks.map((t) => {
+                const playable = hasTrack(t)
+                const isRecommended = playable && recommended === t
+                return (
+                  <article
+                    key={t}
+                    className={`flex flex-col gap-5 rounded-2xl border bg-paper p-6 transition duration-200 ease-out sm:flex-row sm:items-center sm:justify-between sm:gap-8 ${
+                      isRecommended ? 'border-brand-amber/50 shadow-[0_1px_2px_rgba(28,25,23,0.04)]' : 'border-hairline'
+                    } ${playable ? 'hover:border-ink/25 hover:shadow-md' : 'opacity-70'}`}
                   >
-                    {!hasTrack(t) ? 'Coming soon' : starting === t ? 'Composing…' : 'Start scenario'}
-                  </button>
-                </div>
-              ))}
+                    <div className="flex flex-1 flex-col gap-3">
+                      <div className="flex flex-wrap items-center gap-2.5">
+                        <h2 className="font-display text-xl font-bold text-ink">{TRACK_LABEL[t]}</h2>
+                        <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-bold text-ink-soft">
+                          Tier {account.tier[t]}
+                        </span>
+                        {isRecommended && (
+                          <span className="rounded-full bg-brand-amber-soft px-2.5 py-0.5 text-xs font-bold text-brand-amber-ink">
+                            Start here
+                          </span>
+                        )}
+                      </div>
+                      <p className="max-w-xl text-sm leading-relaxed text-ink-soft">{TRACK_BLURB[t]}</p>
+                      <p className="text-xs font-medium text-muted">{TRACK_SKILL[t]}</p>
+                      <div className="mt-1 flex items-center gap-3">
+                        <SkillBar skill={account.skill[t]} />
+                        <span className="shrink-0 text-xs font-semibold tabular-nums text-ink-soft">
+                          {Math.round(account.skill[t])}
+                          <span className="text-muted">/100</span>
+                        </span>
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                      <button
+                        onClick={() => start(t)}
+                        disabled={!playable || starting !== null}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-px hover:bg-black hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/35 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0 sm:w-auto"
+                      >
+                        {!playable ? 'Coming soon' : starting === t ? (
+                          <>
+                            <span aria-hidden className="h-2 w-2 animate-pulse rounded-full bg-white/80" />
+                            Composing…
+                          </>
+                        ) : (
+                          'Start scenario'
+                        )}
+                      </button>
+                    </div>
+                  </article>
+                )
+              })}
             </section>
 
             {track && (
@@ -109,7 +178,7 @@ export default function PracticePage() {
               </p>
             )}
 
-            <div className="mt-8">
+            <div className="mt-10">
               <PracticeStats runs={recentRuns} account={account} />
             </div>
 

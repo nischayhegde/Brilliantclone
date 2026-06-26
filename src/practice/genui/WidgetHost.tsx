@@ -63,7 +63,14 @@ export default function WidgetHost({ track, layout, components, onSubmit, submit
           />
         )
       })}
-      <button type="button" disabled={!complete} onClick={submit}>
+      {/* Styling only (no contract change): the host owns the single submit control, so it
+          carries the app's primary-button vocabulary instead of an unstyled element. */}
+      <button
+        type="button"
+        disabled={!complete}
+        onClick={submit}
+        className="mt-1 inline-flex min-w-44 items-center justify-center rounded-xl bg-ink px-6 py-3 text-base font-semibold text-white shadow-sm transition duration-200 ease-out hover:-translate-y-px hover:bg-black hover:shadow-md focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/35 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:translate-y-0"
+      >
         {submitLabel}
       </button>
     </div>
