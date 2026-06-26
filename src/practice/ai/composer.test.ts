@@ -37,6 +37,22 @@ describe('composeScenario (server-callable transport)', () => {
     expect(res.spec.layout?.length).toBeGreaterThan(0)
   })
 
+  it('re-validates the server layout and falls back to curated on an out-of-registry kind (IMP-1)', async () => {
+    const badSpec = { ...llmSpec, id: 'llm-bad', layout: [{ id: 'evil', kind: 'teleporter', config: {} }] } as unknown as ScenarioSpec
+    const res = await composeScenario(req, transport({ spec: badSpec }))
+    expect(res.source).toBe('curated')
+    expect(res.spec.id).not.toBe('llm-bad')
+    expect(res.spec.layout?.length).toBeGreaterThan(0)
+  })
+
+  it('re-validates the server layout and falls back to curated when a widget is invalid for the track (IMP-1)', async () => {
+    // quote-ladder is a market-making widget; invalid on the charts track.
+    const badSpec = { ...llmSpec, id: 'llm-mm', layout: [{ id: 'q', kind: 'quote-ladder', config: { levels: 1 } }] } as ScenarioSpec
+    const res = await composeScenario(req, transport({ spec: badSpec }))
+    expect(res.source).toBe('curated')
+    expect(res.spec.id).not.toBe('llm-mm')
+  })
+
   it('falls back to a curated spec (with a layout) when the server signals fallback', async () => {
     const res = await composeScenario(req, transport({ fallback: true }))
     expect(res.source).toBe('curated')

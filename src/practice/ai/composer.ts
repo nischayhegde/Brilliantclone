@@ -1,6 +1,7 @@
 import type { ScenarioSpec } from '../types'
 import type { ComposeRequest } from './types'
 import { defaultLayoutFor } from '../genui/defaultLayout'
+import { layoutFitsTrack, validateLayout } from '../genui/schema'
 import { scenariosFor } from '../scenarioRegistry'
 
 /** The server callable response (mirrors functions `composeScenario`). */
@@ -21,12 +22,26 @@ function ensureLayout(spec: ScenarioSpec): ScenarioSpec {
 }
 
 /**
+ * Defense-in-depth (Invariant 1: BOTH client and server validate). Re-validate the
+ * server's LLM layout against the catalog allow-list + per-track widget fitness — the
+ * SAME isomorphic checks the server used to assemble it — before we trust + render it.
+ * An out-of-registry `kind` would otherwise throw downstream in `decision.ts`/`WidgetHost`.
+ */
+function layoutTrustworthy(spec: ScenarioSpec, catalog: ComposeRequest['catalog']): boolean {
+  const layout = spec.layout
+  if (!layout) return true
+  if (!validateLayout(layout, catalog).ok) return false
+  return layoutFitsTrack(layout, catalog.track).length === 0
+}
+
+/**
  * Compose a validated LAYOUT scenario via the SERVER `composeScenario` callable (which builds
  * the prompt + JSON schema and validates the model output server-side), falling back to a
  * curated layout spec when the model is unavailable, signals a fallback, or the call fails.
  *
- * The retry/validation now lives server-side; the client trusts the returned spec (already
- * validated against the catalog allow-list + numeric lint) and only guarantees a layout.
+ * The retry/validation lives server-side, but the client re-validates the returned layout
+ * (Invariant 1) and only trusts it when it still passes the catalog allow-list + track
+ * fitness; any failure falls back to the curated layout spec, exactly like the error path.
  */
 export async function composeScenario(
   req: ComposeRequest,
@@ -35,7 +50,10 @@ export async function composeScenario(
   if (transport) {
     try {
       const res = await transport(req)
-      if ('spec' in res && res.spec) return { spec: ensureLayout(res.spec), source: 'llm', attempts: 1 }
+      if ('spec' in res && res.spec) {
+        const spec = ensureLayout(res.spec)
+        if (layoutTrustworthy(spec, req.catalog)) return { spec, source: 'llm', attempts: 1 }
+      }
     } catch {
       // fall through to the curated fallback
     }

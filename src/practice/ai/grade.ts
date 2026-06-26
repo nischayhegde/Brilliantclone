@@ -1,7 +1,8 @@
 import type { Candle } from '../../data/candles'
 import type { Decision, Feeling, ProcessScore, ScenarioOutcome, ScenarioSpec } from '../types'
 import type { ProcessSignals } from '../genui/types'
-import type { CandleSummary, GradeRequest, RubricDimRef } from '../genui/gradePrompt'
+import { gradeAllowedNumbers, type CandleSummary, type GradeRequest, type RubricDimRef } from '../genui/gradePrompt'
+import { applyGradeGuard } from '../genui/gradeGuard'
 import { getRubric } from '../rubrics'
 import { curatedDebrief } from '../debrief'
 
@@ -97,7 +98,20 @@ export async function gradeRunHybrid(
 
   try {
     const res = await transport(req)
-    if ('score' in res && res.score) return { score: res.score, feedback: res.feedback, source: 'llm' }
+    if ('score' in res && res.score) {
+      // Defense-in-depth (Invariant 1: BOTH sides validate). Re-apply the isomorphic grade
+      // guard to the server's LLM score/feedback before accepting it: clamp every dimension
+      // into [0,1], drop invented dims, sanitize prose, and enforce the process-not-P&L
+      // sanity bound vs the deterministic rubric. If it can't be made valid, fall back.
+      const guard = applyGradeGuard({
+        raw: { dimensions: res.score.dimensions.map((d) => ({ id: d.id, score: d.score, note: d.note })), feedback: res.feedback },
+        rubricDims: req.rubricDims,
+        pnl: outcome.pnl,
+        passScore: spec.objective.passScore,
+        allowedNumbers: gradeAllowedNumbers(req),
+      })
+      if (guard.ok) return { score: guard.score, feedback: guard.feedback, source: 'llm' }
+    }
   } catch {
     // fall through to the deterministic guardrail
   }
