@@ -64,7 +64,7 @@ export default class CapstoneScene extends ModuleScene {
       t.setAlpha(0)
       this.tweens.add({ targets: [box, t], alpha: 1, duration: 280, delay: 200 + i * 220 })
     })
-    this.label(60, 98, 'P&L = sell − cover', { size: 12, col: C.muted })
+    this.label(60, 98, 'Profit = sell − buy back', { size: 12, col: C.muted })
 
     // 2) payoff line (+100% ceiling / −∞ tail), middle band
     this.time.delayedCall(1100, () => this.drawMiniPayoff())
@@ -127,11 +127,11 @@ export default class CapstoneScene extends ModuleScene {
   // --- Checklist assembles line-by-line ---
   private buildChecklist(): void {
     const items = [
-      'Borrow + locate the shares',
-      'Net of borrow fee & owed dividends',
-      'Stop ABOVE entry (downside has no floor)',
-      'Avoid high short-interest / low-float fuel',
-      'Respect margin & lender recall',
+      'Borrow the shares first',
+      'Subtract borrow fees and dividends',
+      'Keep a stop ABOVE (loss has no limit)',
+      'Avoid squeeze fuel (high short interest, thin float)',
+      'Watch margin and lender recall',
     ]
     this.label(60, 235, "Short seller's checklist", { size: 13, bold: true, col: C.ink })
     items.forEach((it, i) => {
@@ -184,8 +184,8 @@ export default class CapstoneScene extends ModuleScene {
     const good = this.worthShorting ? d === 'short' : d === 'pass'
     this.gradeText.setText(
       good
-        ? `Good call. ${this.worthShorting ? 'Low short-interest, deteriorating name with a stop above — the M12 winning-short profile.' : 'High short-interest / low-float catalyst is loaded squeeze fuel — stepping aside is right (M9/M10).'}`
-        : `Re-think. ${this.worthShorting ? 'This name is genuinely deteriorating with low squeeze fuel — a disciplined short fits.' : 'This is squeeze fuel (high SI, low float) — shorting it risks the unbounded tail (M5).'}`,
+        ? `Good call. ${this.worthShorting ? 'A fading stock with low squeeze risk and a stop above — a clean short.' : 'High short interest and a thin float are squeeze fuel — stepping aside is right.'}`
+        : `Re-think. ${this.worthShorting ? 'This stock is fading with low squeeze risk — a careful short fits.' : 'This is squeeze fuel (high short interest, thin float) — shorting it risks the unlimited loss.'}`,
     )
     this.gradeText.setColor(hex(color(good ? C.green : C.red)))
   }

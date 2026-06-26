@@ -36,6 +36,8 @@ export interface PayoffParams {
   spot0?: number
   /** quiz: hide the breakeven marker until reveal. */
   hideBreakeven?: boolean
+  /** hide the "Max loss · Max gain" risk badge (concepts not yet taught). */
+  hideRiskBadge?: boolean
   /** quiz: distractor price dots to expose on reveal {S, label, good}. */
   revealDots?: Array<{ S: number; label: string; good?: boolean }>
   /** challenge variant. 'exercise' = exercise-vs-expire buttons; 'breakeven' = drag a marker. */
@@ -146,7 +148,7 @@ export default class PayoffScene extends ModuleScene {
     const g = this.add.graphics()
     g.lineStyle(1.5, C.ink, 0.5)
     for (let yy = this.plot.t; yy < this.plot.b; yy += 10) g.lineBetween(xS, yy, xS, Math.min(yy + 6, this.plot.b))
-    this.label(xS, this.plot.t - 6, `S=${expiryS} at expiry`, {
+    this.label(xS, this.plot.t - 6, `stock $${expiryS} at the deadline`, {
       size: 13,
       col: C.ink,
       bold: true,
@@ -239,7 +241,7 @@ export default class PayoffScene extends ModuleScene {
     this.beGuessDot.setPosition(x, y0)
     // keep the label clear of the left/right walls so its chip never clips
     const lx = Phaser.Math.Clamp(x, this.plot.l + 44, this.plot.r - 44)
-    this.beGuessLabel.setX(lx).setText(`your BE ${this.fmt(this.beGuess)}`)
+    this.beGuessLabel.setX(lx).setText(`your guess $${this.fmt(this.beGuess)}`)
     this.drawMovingChip(this.beGuessChip, this.beGuessLabel)
   }
 
@@ -288,9 +290,10 @@ export default class PayoffScene extends ModuleScene {
 
   private titleText?: Phaser.GameObjects.Text
   protected drawTitle(): void {
-    const label = `${this.p.side.toUpperCase()} ${this.p.type.toUpperCase()}  ·  K=${this.p.K}  ·  premium ${this.fmt(
+    const sideWord = this.p.side === 'long' ? 'BUY' : 'SELL'
+    const label = `${sideWord} ${this.p.type.toUpperCase()}  ·  strike $${this.p.K}  ·  premium $${this.fmt(
       this.p.premium,
-    )} (illustrative)`
+    )}`
     if (!this.titleText) this.titleText = this.label(this.plot.l, 18, label, { size: 15, col: C.ink, bold: true })
     else this.titleText.setText(label)
   }
@@ -309,7 +312,7 @@ export default class PayoffScene extends ModuleScene {
 
     // y label (rotated — uses raw text since label() can't set angle)
     this.add
-      .text(14, this.plot.t + this.plot.h / 2, 'P&L / share', {
+      .text(14, this.plot.t + this.plot.h / 2, 'profit / loss', {
         fontFamily: FONT,
         fontSize: '12px',
         color: hex(C.muted),
@@ -325,7 +328,7 @@ export default class PayoffScene extends ModuleScene {
       g.lineBetween(x, this.plot.t, x, this.plot.b)
       this.label(x, this.plot.b + 12, S.toFixed(0), { size: 10, col: C.muted, align: 'center' })
     }
-    this.label((this.plot.l + this.plot.r) / 2, this.plot.b + 30, 'underlying price S at expiry', {
+    this.label((this.plot.l + this.plot.r) / 2, this.plot.b + 30, 'stock price at the deadline', {
       size: 11,
       col: C.muted,
       align: 'center',
@@ -348,7 +351,7 @@ export default class PayoffScene extends ModuleScene {
     let lbl = this.strikeLabel
     if (!lbl) {
       this.strikeChip = this.add.graphics()
-      lbl = this.label(xk, this.plot.t - 6, `K=${this.p.K}`, {
+      lbl = this.label(xk, this.plot.t - 6, `strike $${this.p.K}`, {
         size: 13,
         col: C.blue,
         bold: true,
@@ -356,7 +359,7 @@ export default class PayoffScene extends ModuleScene {
       })
       this.strikeLabel = lbl
     } else {
-      lbl.setText(`K=${this.p.K}`).setX(xk)
+      lbl.setText(`strike $${this.p.K}`).setX(xk)
     }
     this.drawMovingChip(this.strikeChip, lbl)
   }
@@ -406,7 +409,7 @@ export default class PayoffScene extends ModuleScene {
     // unlimited tail arrow (short call rises off the loss side; long call upside)
     this.drawTails()
     this.drawBreakeven()
-    this.drawRiskBadge()
+    if (!this.p.hideRiskBadge) this.drawRiskBadge()
   }
 
   private tailLabel?: Phaser.GameObjects.Text
@@ -447,12 +450,19 @@ export default class PayoffScene extends ModuleScene {
     g.lineStyle(1.5, C.blue)
     for (let yy = this.plot.t; yy < this.plot.b; yy += 12) g.lineBetween(x, yy, x, Math.min(yy + 7, this.plot.b))
     const dot = this.add.circle(x, y0, 5, C.blue).setStrokeStyle(2, C.white)
-    const t = this.label(x, this.plot.t + 22, `BE ${this.fmt(be)}`, {
+    const t = this.label(x, this.plot.t + 22, `break-even $${this.fmt(be)}`, {
       size: 13,
       col: C.blue,
       bold: true,
       align: 'center',
     })
+    // keep the (now longer) label clear of the top-right risk badge so the two chips
+    // never overlap; the dashed line still marks the exact break-even price.
+    if (!this.p.hideRiskBadge) {
+      const badgeLeft = this.plot.r - 250
+      const maxX = badgeLeft - t.width / 2 - 8
+      if (t.x > maxX) t.setX(maxX)
+    }
     const chip = this.chipBehind(t)
     this.beMarker = this.add.container(0, 0, [g, chip, dot, t])
     this.fadeIn(this.beMarker as unknown as Phaser.GameObjects.GameObject & { alpha: number; y: number })
@@ -615,7 +625,7 @@ export default class PayoffScene extends ModuleScene {
       .setData('S', S0)
       .setInteractive({ useHandCursor: true, draggable: true })
     this.input.setDraggable(this.spotDot)
-    this.label(this.plot.l + 8, this.plot.t + 14, '↔ drag the dot: spot at expiry', { size: 12, col: C.muted, bg: true })
+    this.label(this.plot.l + 8, this.plot.t + 14, '↔ drag the dot: stock price at the deadline', { size: 12, col: C.muted, bg: true })
     this.pnlChip = this.add.graphics()
     this.pnlLabel = this.label(this.plot.l + 8, this.plot.b - 13, '', { size: 13, col: C.ink, bold: true })
     this.spotDot.on('drag', (_p: Phaser.Input.Pointer, dx: number) => {
@@ -639,12 +649,8 @@ export default class PayoffScene extends ModuleScene {
     this.spotGuide.lineBetween(x, this.plot.b, x, y)
     this.spotGuide.lineBetween(this.plot.l, y, x, y)
     const perContract = v * 100
-    const intr = intrinsic(this.p.type, S, this.p.K)
     this.pnlLabel.setText(
-      `S=${S.toFixed(1)}  intrinsic ${this.fmt(intr)}  P&L/share ${this.signed(v)}  →  ${this.signed(
-        perContract,
-        true,
-      )}/contract`,
+      `At $${S.toFixed(0)}:  ${this.signed(v)}/share  →  ${this.signed(perContract, true)}/contract`,
     )
     this.pnlLabel.setColor(hex(v >= 0 ? C.green : C.red))
     if (this.pnlChip) this.drawMovingChip(this.pnlChip, this.pnlLabel)
@@ -737,16 +743,18 @@ export default class PayoffScene extends ModuleScene {
       ? `Let it expire · ${fmtMoney(expC)}`
       : `Exercising overpays · ${fmtMoney(exC)}`
     const detail = correct
-      ? `At S=${expiryS} the ${this.p.K}-strike call is out-of-the-money (intrinsic 0). You decline to exercise and lose only the ${this.fmt(
+      ? `The stock is $${expiryS} but your call lets you buy at $${this.p.K} — so you'd never use it. You walk away and lose only the $${this.fmt(
           this.p.premium,
         )} premium → ${fmtMoney(
           expC,
-        )}. An option is a right, not an obligation — that decline is exactly why a long option's loss is capped at the premium.`
-      : `Exercising buys 100 shares at ${this.p.K} when the market is only ${expiryS} — a ${this.fmt(
+        )}. An option is a right, not an obligation — that's why a buyer's loss can never be more than the premium.`
+      : `Exercising means buying 100 shares at $${this.p.K} when the stock is only $${expiryS} — paying $${this.fmt(
           this.p.K - expiryS,
-        )}/share overpay on top of the premium, for ${fmtMoney(
+        )} too much per share, on top of the premium, for ${fmtMoney(
           exC,
-        )}. Letting it expire loses only the premium (${fmtMoney(expC)}). Never exercise an OTM option.`
+        )}. Letting it expire loses only the premium (${fmtMoney(
+          expC,
+        )}). Never use an option that's worse than just buying at the market.`
     this.report(correct, title, detail)
   }
 
@@ -765,18 +773,18 @@ export default class PayoffScene extends ModuleScene {
     if (this.beGuessLabel) this.beGuessLabel.setColor(hex(verdictCol))
 
     const title = correct
-      ? `Breakeven ${this.fmt(be)} — nailed it`
-      : `Breakeven is ${this.fmt(be)} (you said ${this.fmt(this.beGuess)})`
+      ? `Break-even $${this.fmt(be)} — nailed it`
+      : `Break-even is $${this.fmt(be)} (you said $${this.fmt(this.beGuess)})`
     const sign = this.p.type === 'call' ? '+' : '−'
     const detail = correct
-      ? `Right where the rising leg crosses $0. BE = K ${sign} premium = ${this.p.K} ${sign} ${this.fmt(
+      ? `Right where the line crosses $0. Break-even = strike ${sign} premium = $${this.p.K} ${sign} $${this.fmt(
           this.p.premium,
-        )} = ${this.fmt(
+        )} = $${this.fmt(
           be,
-        )}. At the strike itself the option is worth 0, so you're still down the full premium — profit only starts past breakeven.`
-      : `BE = K ${sign} premium = ${this.p.K} ${sign} ${this.fmt(this.p.premium)} = ${this.fmt(
+        )}. At the strike you're still down the full premium — you only start making money past break-even.`
+      : `Break-even = strike ${sign} premium = $${this.p.K} ${sign} $${this.fmt(this.p.premium)} = $${this.fmt(
           be,
-        )}, marked in blue. A common trap is the strike (${this.p.K}): there the option's intrinsic is exactly 0, so you've still lost the whole premium. You only recoup the premium once intrinsic equals it.`
+        )}, marked in blue. The common trap is the strike ($${this.p.K}) — but at the strike you've still lost the whole premium. You only get it back once the stock moves past break-even.`
     this.report(correct, title, detail)
   }
 

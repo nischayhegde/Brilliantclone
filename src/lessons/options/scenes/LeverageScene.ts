@@ -55,16 +55,16 @@ export default class LeverageScene extends ModuleScene {
     }
 
     const shares = this.p.budget / this.p.S0
-    this.label(40, 24, `LEVERAGE — same $${this.p.budget} budget`, { size: this.fs(16), col: C.ink, bold: true })
+    this.label(40, 24, `LEVERAGE — same $${this.p.budget} to spend`, { size: this.fs(16), col: C.ink, bold: true })
     this.label(
       40,
       46,
-      `$${this.p.budget} buys ${shares} shares @ $${this.p.S0}  OR  one $${this.p.premium.toFixed(
+      `$${this.p.budget} buys ${shares} shares at $${this.p.S0}  OR  one $${this.p.premium.toFixed(
         2,
       )} call (controls 100 shares).`,
       { size: this.fs(13), col: C.muted },
     )
-    this.label(40, 64, '(premium illustrative; returns exact)', { size: this.fs(13), col: C.muted })
+    this.label(40, 64, '(premium illustrative)', { size: this.fs(13), col: C.muted })
 
     this.buildAxis()
     this.buildLens()
@@ -78,7 +78,7 @@ export default class LeverageScene extends ModuleScene {
     this.headline = this.label(this.cx, 330, '', { size: this.fs(13), col: C.ink, bold: true, align: 'center' })
 
     // % move dial (slider) — drives the underlying's move
-    this.label(120, 410, 'Move in the underlying', { size: this.fs(13), col: C.muted })
+    this.label(120, 410, 'Move the stock', { size: this.fs(13), col: C.muted })
     this.slider(
       160,
       434,
@@ -99,7 +99,7 @@ export default class LeverageScene extends ModuleScene {
   }
 
   private buildAxis(): void {
-    this.label(this.axisL, 96, 'Underlying move', { size: this.fs(13), col: C.muted })
+    this.label(this.axisL, 96, 'Stock move', { size: this.fs(13), col: C.muted })
     const g = this.add.graphics()
     g.lineStyle(2, C.gray200)
     g.lineBetween(this.axisL, this.axisY, this.axisR, this.axisY)
@@ -183,12 +183,12 @@ export default class LeverageScene extends ModuleScene {
       .setText(`CALL · 1 contract\n${pct(callRet)}   (${usd(callPnl)})`)
       .setColor(hex(callRet >= 0 ? C.green : C.red))
 
-    // exact formula headline
+    // plain-language value headline
+    const worth = Math.max(sNew - this.p.K, 0)
     this.headline.setText(
-      `stock S → ${sNew.toFixed(0)}   ·   call value at expiry = max(${sNew.toFixed(0)}−${this.p.K},0) = ${Math.max(
-        sNew - this.p.K,
-        0,
-      ).toFixed(2)}`,
+      worth > 0
+        ? `stock → $${sNew.toFixed(0)}   ·   the call is now worth $${worth.toFixed(2)} ($${sNew.toFixed(0)} − $${this.p.K})`
+        : `stock → $${sNew.toFixed(0)}   ·   the call is worth $0 (below the $${this.p.K} strike)`,
     )
     this.chipFor(this.headlineChip, this.headline)
   }

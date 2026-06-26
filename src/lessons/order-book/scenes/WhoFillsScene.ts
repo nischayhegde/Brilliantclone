@@ -43,7 +43,7 @@ export default class WhoFillsScene extends ModuleScene {
     this.resting = (this.params as WhoFillsParams).resting ?? DEFAULT_RESTING
     this.winnerId = this.computeWinner()
 
-    this.label(this.W / 2, 30, 'A MARKET BUY for 100 shares arrives — click the order that fills FIRST', {
+    this.label(this.W / 2, 30, 'A market buy for 100 shares lands — tap the order that fills first', {
       size: 14,
       col: C.muted,
       align: 'center',
@@ -56,7 +56,7 @@ export default class WhoFillsScene extends ModuleScene {
     g.lineStyle(1, C.hairline, 1)
     g.lineBetween(this.rungX, this.rung20Y, 600, this.rung20Y)
     g.lineBetween(this.rungX, this.rung2001Y, 600, this.rung2001Y)
-    this.label(this.rungX + 8, this.rung20Y - 30, '◀ earlier arrival . . . . later ▶', { size: 12, col: C.muted })
+    this.label(this.rungX + 8, this.rung20Y - 30, '◀ earlier in line . . . . later ▶', { size: 12, col: C.muted })
 
     const at20 = this.resting.filter((o) => o.price === 20.0).sort((a, b) => a.arrival.localeCompare(b.arrival))
     const at2001 = this.resting
@@ -65,7 +65,7 @@ export default class WhoFillsScene extends ModuleScene {
     at20.forEach((o, i) => this.makeTile(o, this.rungX + 40 + i * 140, this.rung20Y))
     at2001.forEach((o, i) => this.makeTile(o, this.rungX + 40 + i * 140, this.rung2001Y))
 
-    this.label(this.W / 2, 360, 'MARKET BUY 100  →  first fill: tap an order above', {
+    this.label(this.W / 2, 360, 'Market buy 100 — tap the order you think fills first', {
       size: 14,
       col: C.blue,
       align: 'center',
@@ -134,7 +134,7 @@ export default class WhoFillsScene extends ModuleScene {
     this.selectedId = id
     this.paintTile(id, true, false)
     const verdict = this.children.getByName('verdict') as Phaser.GameObjects.Text
-    verdict.setText(`MARKET BUY 100  →  you picked ${id}.  Press Run the match.`)
+    verdict.setText(`You picked ${id}. Press Run the match.`)
   }
 
   protected onSubmit(): void {
@@ -181,7 +181,7 @@ export default class WhoFillsScene extends ModuleScene {
         if (pickTile) this.label(pickTile.x, pickTile.y - 44, 'your pick', { size: 12, col: C.red, align: 'center', bold: true })
       }
       const verdict = this.children.getByName('verdict') as Phaser.GameObjects.Text
-      verdict.setText(`PRINT 100 @ ${fmtPrice(20.0)}  →  ${this.winnerId} fills first`)
+      verdict.setText(`Filled 100 @ ${fmtPrice(20.0)} → ${this.winnerId} fills first`)
       verdict.setColor(hex(C.green))
     })
   }
@@ -192,15 +192,15 @@ export default class WhoFillsScene extends ModuleScene {
     let detail: string
     if (correct) {
       title = `Correct — ${this.winnerId} fills first`
-      detail = `The engine takes the best (lowest) ask first → ${fmtPrice(winner.price)}, and among the orders there it fills the earliest arrival (${winner.arrival}) → ${this.winnerId}. Price first, then time.`
+      detail = `Best price fills first (${fmtPrice(winner.price)}), then the earliest order in line (${winner.arrival}) → ${this.winnerId}.`
     } else {
       const pick = this.resting.find((o) => o.id === picked)!
       const reason =
         pick.price > winner.price
-          ? `${picked} rests at ${fmtPrice(pick.price)} — a worse price, and no share at ${fmtPrice(pick.price)} fills until every ${fmtPrice(winner.price)} share is gone.`
-          : `${picked} is at the right price (${fmtPrice(pick.price)}) but arrived later (${pick.arrival}) than ${this.winnerId} (${winner.arrival}).`
+          ? `${picked} sits at ${fmtPrice(pick.price)} — a worse price. Nothing there fills until every share at ${fmtPrice(winner.price)} is gone.`
+          : `${picked} is at the right price (${fmtPrice(pick.price)}) but got in line later (${pick.arrival}) than ${this.winnerId} (${winner.arrival}).`
       title = `Not quite — ${this.winnerId} fills first`
-      detail = `${reason} The engine clears best price first, then earliest arrival.`
+      detail = `${reason} Best price first, then earliest in line.`
     }
     this.report(correct, title, detail)
   }

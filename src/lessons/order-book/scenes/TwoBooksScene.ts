@@ -59,8 +59,8 @@ export default class TwoBooksScene extends ModuleScene {
     })
     this.label(12, this.H - 14, 'Simulated depth — math exact', { size: 11, col: C.blue }).setAlpha(0.8)
 
-    this.panes.push(this.buildPane('DEEP (AAPL-like, ~1¢ spread)', deep, 175, C.green))
-    this.panes.push(this.buildPane('THIN (micro-cap, ~%-wide spread)', thin, 430, C.red))
+    this.panes.push(this.buildPane('DEEP book — lots of shares', deep, 175, C.green))
+    this.panes.push(this.buildPane('THIN book — few shares', thin, 430, C.red))
 
     this.buildComparison()
     this.buildSlider()
@@ -145,8 +145,8 @@ export default class TwoBooksScene extends ModuleScene {
       this.cmp[key] = this.label(px + 12, py + y + 17, '—', { size: 13, col, bold: true })
     }
     mk('order', 40, 'Order')
-    mk('deepAvg', 78, 'Deep avg / slip')
-    mk('thinAvg', 134, 'Thin avg / slip')
+    mk('deepAvg', 78, 'Deep: avg / cost')
+    mk('thinAvg', 134, 'Thin: avg / cost')
   }
 
   private updateComparison(): void {

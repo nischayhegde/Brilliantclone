@@ -76,11 +76,11 @@ export default class OrderTypeQuizScene extends ModuleScene {
 
     // scenario card (right of the ladder + ceiling label)
     this.panel(458, 74, 286, 138, { fill: C.blueSoft, stroke: C.blue, radius: 10 })
-    this.label(474, 96, 'Your constraint', { size: 13, col: C.blue, bold: true })
-    this.label(474, 122, `• Need ${fmtShares(this.orderSize)} shares`, { size: 12, col: C.ink })
-    this.label(474, 144, `• Hard ceiling: ${fmtPrice(this.ceiling)}`, { size: 12, col: C.ink })
-    this.label(474, 166, '• You can wait (not urgent)', { size: 12, col: C.ink })
-    this.label(474, 192, 'Goal: best price, never overpay', { size: 12, col: C.muted })
+    this.label(474, 96, 'The rules', { size: 13, col: C.blue, bold: true })
+    this.label(474, 122, `• Buy ${fmtShares(this.orderSize)} shares`, { size: 12, col: C.ink })
+    this.label(474, 144, `• Don't pay above ${fmtPrice(this.ceiling)}`, { size: 12, col: C.ink })
+    this.label(474, 166, '• No rush — you can wait', { size: 12, col: C.ink })
+    this.label(474, 192, 'Goal: never overpay', { size: 12, col: C.muted })
 
     // order-type toggle
     this.buildToggle()
@@ -248,7 +248,7 @@ export default class OrderTypeQuizScene extends ModuleScene {
     const ordered = this.asks.slice().sort((a, b) => a.price - b.price)
 
     const title = `Market overpaid · avg ${fmtPrice(r.avgFill)}`
-    const detail = `The touch holds only ${fmtShares(ordered[0].size)} of the ${fmtShares(this.orderSize)} you need, so a market order walks up to ${fmtPrice(ordered[1]?.price ?? r.avgFill)} — a ${fmtPrice(r.avgFill)} blend that blows past your ${fmtPrice(this.ceiling)} ceiling. Market buys take whatever is resting; on a thin book with no urgency, that is the wrong tool.`
+    const detail = `The best price holds only ${fmtShares(ordered[0].size)} of the ${fmtShares(this.orderSize)} you need, so a market buy climbs to ${fmtPrice(ordered[1]?.price ?? r.avgFill)} — a ${fmtPrice(r.avgFill)} average that blows past your ${fmtPrice(this.ceiling)} ceiling. With no rush, market is the wrong tool here.`
     // Guarantee the verdict reaches the footer even if the reveal is interrupted.
     this.time.delayedCall(this.dur(r.fills.length * 400 + 350), () => this.report(false, title, detail))
 
@@ -279,15 +279,15 @@ export default class OrderTypeQuizScene extends ModuleScene {
     if (overCeiling) {
       correct = false
       title = `Limit ${fmtPrice(this.limitPrice)} overpays`
-      detail = `Right tool, wrong price: a limit at ${fmtPrice(this.limitPrice)} is above your ${fmtPrice(this.ceiling)} ceiling, so it could fill at a price you swore not to pay. Set the limit at or below ${fmtPrice(this.ceiling)} to guarantee you never overpay.`
+      detail = `Right idea, wrong price. A limit at ${fmtPrice(this.limitPrice)} is above your ${fmtPrice(this.ceiling)} ceiling, so it could fill higher than you wanted. Set it at or below ${fmtPrice(this.ceiling)}.`
     } else if (!willFill) {
       correct = false
       title = `Limit ${fmtPrice(this.limitPrice)} won't fill`
-      detail = `A limit at ${fmtPrice(this.limitPrice)} sits below the best ask (${fmtPrice(bestAsk)}), so no seller meets it — it just rests, unfilled. You protected your price but set it so low you'll never get your shares. Aim between the best ask and your ${fmtPrice(this.ceiling)} ceiling.`
+      detail = `A limit at ${fmtPrice(this.limitPrice)} sits below the best ask (${fmtPrice(bestAsk)}), so no seller meets it — it just waits, unfilled. Aim between the best ask and your ${fmtPrice(this.ceiling)} ceiling.`
     } else {
       correct = true
       title = `Limit ${fmtPrice(this.limitPrice)} — never overpay`
-      detail = `Exactly right. A limit at ${fmtPrice(this.limitPrice)} (≤ your ${fmtPrice(this.ceiling)} ceiling) rests and fills only at ${fmtPrice(this.limitPrice)} or better — you control the price. The book is thin and you can wait, so trading immediacy for price is the correct call. Market controls fill; limit controls price.`
+      detail = `Exactly right. A limit at ${fmtPrice(this.limitPrice)} fills only at that price or better, so you never overpay. The book is thin and you can wait — limit controls the price.`
     }
     const panelCol = correct ? C.green : C.red
     // Guarantee the verdict reaches the footer even if the reveal is interrupted.
@@ -303,7 +303,7 @@ export default class OrderTypeQuizScene extends ModuleScene {
 
     this.time.delayedCall(450, () => {
       this.panel(120, 350, 520, 60, { fill: panelCol === C.green ? C.greenSoft : C.redSoft, stroke: panelCol, radius: 10 })
-      this.label(140, 368, `LIMIT ${fmtShares(this.orderSize)} @ ${fmtPrice(this.limitPrice)} · ${willFill ? 'status PENDING → fills at-or-below limit' : 'status PENDING → never reached'}`, { size: 12, col: C.ink })
+      this.label(140, 368, `LIMIT ${fmtShares(this.orderSize)} @ ${fmtPrice(this.limitPrice)} · ${willFill ? 'waits, then fills at your price or better' : 'waits, but never fills'}`, { size: 12, col: C.ink })
       this.label(140, 392, correct ? 'You control your price — never overpay' : 'Reconsider your limit price', { size: 12, col: panelCol, bold: true })
     })
   }

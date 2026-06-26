@@ -245,10 +245,10 @@ export default class PayoffChallengeScene extends ModuleScene {
     if (-sPnl > this.longMaxLoss()) {
       this.reachedCrossover = true
       this.flag.setColor(hex(C.red))
-      this.flag.setText(`Short's loss now BEATS the long's worst case (−$${this.longMaxLoss().toFixed(0)}) — and it keeps growing!`)
+      this.flag.setText(`The short's loss now beats the long's worst case (−$${this.longMaxLoss().toFixed(0)}) — and keeps growing.`)
     } else {
       this.flag.setColor(hex(C.muted))
-      this.flag.setText(`Push price above $${this.crossoverPrice.toFixed(0)} to push the short's loss past the long's max loss.`)
+      this.flag.setText(`Keep dragging up — past $${this.crossoverPrice.toFixed(0)} the short's loss beats the long's worst case.`)
     }
   }
 
@@ -273,17 +273,16 @@ export default class PayoffChallengeScene extends ModuleScene {
     let title: string
     let detail: string
     if (correct) {
-      title = 'Right — the short has UNLIMITED downside'
+      title = 'Right — the short can lose without limit'
       detail =
-        `At $${this.price.toFixed(0)} the short is down $${lossNow.toFixed(0)} — already worse than the most a long can EVER lose ` +
-        `($${this.longMaxLoss().toFixed(0)}, the whole stake, hit only if the stock goes to $0). The long's loss is FLOORED; the short's ` +
-        `keeps growing as price rises — double, triple, 10×, no cap. Capped loss vs unbounded loss is why a short demands a stop.`
+        `At $${this.price.toFixed(0)} the short is down $${lossNow.toFixed(0)} — already more than a long could ever lose ` +
+        `($${this.longMaxLoss().toFixed(0)}, the whole stake, and only if the stock hits $0). The long's loss stops there; the short's keeps growing ` +
+        `as the price rises. That one-sided risk is why a short needs a stop.`
     } else {
-      title = 'Look higher — the short keeps falling'
+      title = 'Keep going — the short falls further'
       detail =
-        `At $${this.price.toFixed(0)} the short is only down $${lossNow.toFixed(0)}, still inside the long's max loss of $${this.longMaxLoss().toFixed(0)}. ` +
-        `But keep dragging: past $${this.crossoverPrice.toFixed(0)} the short's loss BLOWS PAST the long's worst case and never stops — that's the ` +
-        `unbounded downside. A long can only lose its stake; a short can lose without limit. The SHORT is the worse risk.`
+        `At $${this.price.toFixed(0)} the short is only down $${lossNow.toFixed(0)}, still less than the long's worst case of $${this.longMaxLoss().toFixed(0)}. ` +
+        `Drag past $${this.crossoverPrice.toFixed(0)} and the short's loss blows past it and never stops. A long can only lose its stake; a short can lose far more.`
     }
     this.report(correct, title, detail)
   }

@@ -69,7 +69,7 @@ export default class IntroVibeScene extends ModuleScene {
     this.halo = this.add.circle(this.priceToX(this.price), this.trackY, 16, C.amber, 0.16)
     this.loop({ targets: this.halo, scale: 1.3, alpha: 0.28, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' })
 
-    this.label(this.W / 2, this.H - 18, 'Some trades win when the stock moves — up OR down. They lose only if it stays still.', {
+    this.label(this.W / 2, this.H - 18, 'The further it moves either way, the more you make.', {
       size: this.fs(12, 12, 15), col: C.muted, align: 'center',
     })
 

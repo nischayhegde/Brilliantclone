@@ -191,8 +191,8 @@ export default class LadderScene extends ModuleScene {
       c.on('pointerup', cb)
       return c
     }
-    perLevel = mk('Per-level size', () => { this.cumulative = false; this.applyMode(); restyle() })
-    cumul = mk('Cumulative depth', () => { this.cumulative = true; this.applyMode(); restyle() })
+    perLevel = mk('This level', () => { this.cumulative = false; this.applyMode(); restyle() })
+    cumul = mk('Running total', () => { this.cumulative = true; this.applyMode(); restyle() })
     perLevel.setPosition(x, y)
     cumul.setPosition(x, y + 40)
     restyle()
@@ -201,7 +201,7 @@ export default class LadderScene extends ModuleScene {
   private applyMode(): void {
     for (const r of this.rows) {
       if (this.cumulative) {
-        r.sizeText.setText(`${fmtShares(r.cum)} cum`)
+        r.sizeText.setText(`${fmtShares(r.cum)} total`)
         r.sizeText.setColor(hex(C.blue))
       } else {
         r.sizeText.setText(fmtShares(r.lvl.size))

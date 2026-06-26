@@ -170,7 +170,7 @@ export default class ContractCardScene extends ModuleScene {
       this.daysLabel.setText(`Expires in ${this.days} days  ·  less time = usually less value`)
       this.daysLabel.setColor(hex(C.red))
     } else {
-      this.daysLabel.setText(`Expires in ${this.days} days  ·  multiplier ×100 shares`)
+      this.daysLabel.setText(`Expires in ${this.days} days  ·  covers 100 shares`)
       this.daysLabel.setColor(hex(C.muted))
     }
   }
@@ -186,28 +186,6 @@ export default class ContractCardScene extends ModuleScene {
 
     this.makeSideCard(x0, cardY, cardW, cardH, 'call')
     this.makeSideCard(x0 + cardW + gap, cardY, cardW, cardH, 'put')
-
-    // central S gauge sweeping 90 → 110
-    const gx = this.W / 2
-    const marker = this.add.circle(gx, cardY + 30, 6, C.blue).setStrokeStyle(2, C.white)
-    const sLbl = this.label(gx, cardY + 10, 'S sweeps 90 → 110', {
-      size: 13,
-      col: C.blue,
-      bold: true,
-      align: 'center',
-      bg: true,
-    })
-    sLbl.setDepth(5)
-    if (this.reduceMotion) marker.setY(cardY + cardH / 2)
-    else
-      this.loop({
-        targets: marker,
-        y: cardY + cardH - 30,
-        duration: 2600,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.inOut',
-      })
   }
 
   private makeSideCard(x: number, y: number, w: number, h: number, type: OptType): void {
@@ -223,31 +201,32 @@ export default class ContractCardScene extends ModuleScene {
       this.tweens.add({ targets: card, alpha: 1, x: 0, duration: 500, ease: 'Expo.out' })
     }
 
-    this.label(x + 18, y + 26, type === 'call' ? 'CALL' : 'PUT', { size: 20, col: accent, bold: true })
+    this.label(x + 18, y + 28, type === 'call' ? 'CALL' : 'PUT', { size: 20, col: accent, bold: true })
     const verb = type === 'call' ? 'BUY' : 'SELL'
-    this.label(x + 18, y + 56, `Right to ${verb}`, { size: 14, col: C.ink, bold: true })
-    this.label(x + 18, y + 78, `100 shares @ $${this.p.K}`, { size: 14, col: C.ink })
-    this.label(x + 18, y + 104, type === 'call' ? 'Helps when  S > K' : 'Helps when  S < K', {
+    this.label(x + 18, y + 62, `Right to ${verb} 100 @ $${this.p.K}`, { size: 14, col: C.ink, bold: true })
+    this.label(x + 18, y + 90, type === 'call' ? 'Good if the stock goes UP' : 'Good if the stock goes DOWN', {
       size: 13,
       col: accent,
       bold: true,
     })
 
-    // worked example ribbon
+    // plain worked example
     const exS = type === 'call' ? 110 : 90
     const gain = intrinsic(type, exS, this.p.K)
-    this.label(x + 18, y + 134, `Example: S=${exS}, K=${this.p.K}`, { size: 12, col: C.muted })
+    this.label(x + 18, y + 124, 'Example', { size: 12, col: C.muted })
     const ribbon = this.label(
       x + 18,
-      y + 156,
-      type === 'call' ? `buy 100 @ 100, worth ${exS} → +$${gain}/sh` : `sell 100 @ 100 into ${exS} → +$${gain}/sh`,
-      { size: 12, col: accent, bold: true },
+      y + 148,
+      type === 'call'
+        ? `Stock at $${exS}: buy at $${this.p.K}, make $${gain}/share`
+        : `Stock at $${exS}: sell at $${this.p.K}, make $${gain}/share`,
+      { size: 13, col: accent, bold: true },
     )
     ribbon.setWordWrapWidth(w - 36)
 
     // ×100 stamp turning premium $3.00 → $300 (count-up)
-    this.label(x + 18, y + 196, 'Premium $3.00/sh (illustrative)', { size: 13, col: C.muted })
-    const cost = this.label(x + 18, y + 218, '×100 = $0', { size: 15, col: C.blue, bold: true })
+    this.label(x + 18, y + 198, 'Premium $3.00/share (illustrative)', { size: 12, col: C.muted })
+    const cost = this.label(x + 18, y + 220, '×100 = $0', { size: 15, col: C.blue, bold: true })
     if (this.reduceMotion) {
       cost.setText('×100 = $300')
     } else {

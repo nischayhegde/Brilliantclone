@@ -223,16 +223,11 @@ export default class IntroFlipScene extends ModuleScene {
 
     // Readouts
     const side = isLong ? 'Long' : 'Short'
-    const formula = isLong
-      ? `${side} P&L/sh = ${this.future} − ${this.entry}`
-      : `${side} P&L/sh = ${this.entry} − ${this.future}`
-    this.readoutText.setText(
-      `Entry $${this.entry.toFixed(0)} · Future price $${this.future.toFixed(0)}   (${formula})`,
-    )
+    this.readoutText.setText(`Entry $${this.entry.toFixed(0)}  ·  Price now $${this.future.toFixed(0)}`)
     const sign = pnl >= 0 ? '+' : '−'
     // For a SHORT at a loss, foreshadow the unbounded downside (M5).
-    const noCeil = !isLong && pnl < 0 ? '   …no floor (loss has no limit)' : ''
-    this.pnlText.setText(`${side} P&L: ${sign}$${Math.abs(pnl).toFixed(2)}/sh${noCeil}`)
+    const noCeil = !isLong && pnl < 0 ? '  ·  loss has no limit' : ''
+    this.pnlText.setText(`${side} profit: ${sign}$${Math.abs(pnl).toFixed(2)}/sh${noCeil}`)
     this.pnlText.setColor(hex(color(colName)))
   }
 }

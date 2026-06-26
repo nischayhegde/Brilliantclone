@@ -58,7 +58,7 @@ export default class BorrowFeeScene extends ModuleScene {
     this.marketValue = this.shares * this.sell
     this.extraMargin = this.marketValue * 0.5
 
-    this.label(this.W / 2, 16, 'Illustrative simulation · fee math exact', {
+    this.label(this.W / 2, 16, 'Example — the fee math is exact', {
       size: 12,
       col: C.muted,
       align: 'center',
@@ -135,21 +135,21 @@ export default class BorrowFeeScene extends ModuleScene {
     g.strokeRoundedRect(gx, gy, gw, gh, 6)
     this.fadeIn(g)
 
-    this.label(gx + gw / 2, gy + gh - proceedsH / 2, `Sale proceeds  $${this.marketValue.toLocaleString()}`, {
+    this.label(gx + gw / 2, gy + gh - proceedsH / 2, `Your sale cash  $${this.marketValue.toLocaleString()}`, {
       size: 12,
       bold: true,
       col: C.white,
       align: 'center',
     })
-    this.label(gx + gw / 2, gy + gh - proceedsH - marginH / 2, `+50% extra margin  $${this.extraMargin.toLocaleString()}`, {
+    this.label(gx + gw / 2, gy + gh - proceedsH - marginH / 2, `Safety deposit  $${this.extraMargin.toLocaleString()}`, {
       size: 12,
       bold: true,
       col: C.white,
       align: 'center',
     })
 
-    // brace spanning both → total collateral
-    this.label(gx + gw + 12, gy + gh / 2, `Collateral the broker holds\n≈150% of proceeds = $${total.toLocaleString()}`, {
+    // brace spanning both → total the broker holds
+    this.label(gx + gw + 12, gy + gh / 2, `The broker locks this up\nas your deposit = $${total.toLocaleString()}`, {
       size: 12,
       col: C.muted,
     })
@@ -158,7 +158,7 @@ export default class BorrowFeeScene extends ModuleScene {
   // --- Controls ---
   private drawControls(): void {
     // Borrow-rate slider with snap presets (0.3% .. 30%/yr)
-    this.label(60, 268, 'Annual borrow rate (example)', { size: 12, bold: true, col: C.ink })
+    this.label(60, 268, 'Borrow rate (per year)', { size: 12, bold: true, col: C.ink })
     this.rateText = this.label(330, 268, '', { size: 12, bold: true, col: C.blue, align: 'right' })
     this.slider(60, 290, 280, 0.003, 0.3, this.rate, (v) => {
       // snap to nearest preset if close, else free-drag
@@ -203,18 +203,18 @@ export default class BorrowFeeScene extends ModuleScene {
     const x = 470
     const y = 264
     this.panel(x, y, 240, 150, { fill: C.gray100, stroke: C.hairline, radius: 10 })
-    this.label(x + 14, y + 20, 'Daily fee', { size: 12, col: C.muted })
+    this.label(x + 14, y + 20, 'Fee per day', { size: 12, col: C.muted })
     this.feeText = this.label(x + 226, y + 20, '', { size: 12, bold: true, col: C.ink, align: 'right' })
-    this.label(x + 14, y + 44, 'Borrow cost so far', { size: 12, col: C.muted })
+    this.label(x + 14, y + 44, 'Borrow fee so far', { size: 12, col: C.muted })
     this.cumText = this.label(x + 226, y + 44, '', { size: 12, bold: true, col: C.red, align: 'right' })
     this.label(x + 14, y + 68, 'Dividend owed', { size: 12, col: C.muted })
     this.divText = this.label(x + 226, y + 68, '', { size: 12, bold: true, col: C.red, align: 'right' })
 
     this.feeBar = this.add.graphics()
 
-    this.label(x + 14, y + 104, 'NET (gross − costs)', { size: 12, bold: true, col: C.ink })
+    this.label(x + 14, y + 104, 'Profit after costs', { size: 12, bold: true, col: C.ink })
     this.netText = this.label(x + 226, y + 128, '', { size: 18, bold: true, col: C.green, align: 'right' })
-    this.label(x + 14, y + 130, `gross $${this.gross}`, { size: 12, col: C.muted })
+    this.label(x + 14, y + 130, `before costs $${this.gross}`, { size: 12, col: C.muted })
   }
 
   // --- Exact fee math ---

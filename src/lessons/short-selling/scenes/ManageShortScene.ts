@@ -61,7 +61,7 @@ export default class ManageShortScene extends ModuleScene {
     this.shares = p.shares ?? 100
     this.rate = p.rate ?? 0.3
 
-    this.label(this.W / 2, 16, 'Real price path · illustrative fee/margin overlays', { size: 12, col: C.muted, align: 'center' })
+    this.label(this.W / 2, 16, 'Real chart — fees and margin shown for practice', { size: 12, col: C.muted, align: 'center' })
 
     // Single persistent toast (recall / window-end messages reuse it — never stacks).
     this.toastChip = this.add.graphics().setAlpha(0)
@@ -142,14 +142,14 @@ export default class ManageShortScene extends ModuleScene {
     bg.fillStyle(C.blueSoft, 1)
     bg.fillRoundedRect(-bw / 2, -bh / 2, bw, bh, 8)
     this.pathBtnLabel = this.add
-      .text(0, 0, 'Path: PTON 2021–22 (trending)', { fontFamily: FONT, fontSize: '12px', color: hex(C.blue), fontStyle: 'bold' })
+      .text(0, 0, 'Path: PTON (keeps falling)', { fontFamily: FONT, fontSize: '12px', color: hex(C.blue), fontStyle: 'bold' })
       .setOrigin(0.5)
     const tog = this.add.container(430, 332, [bg, this.pathBtnLabel])
     tog.setSize(bw, bh)
     tog.setInteractive({ useHandCursor: true })
     tog.on('pointerup', () => this.togglePath())
 
-    this.label(60, 362, 'Drag the dashed STOP (above) and TARGET (below) lines, choose a path, then Run.', {
+    this.label(60, 362, 'Drag the STOP (above) and TARGET (below), pick a path, then Run.', {
       size: 12,
       col: C.muted,
     })
@@ -236,7 +236,7 @@ export default class ManageShortScene extends ModuleScene {
     if (this.running) return
     this.usingAdverse = !this.usingAdverse
     this.loadPath(this.usingAdverse ? this.adverseKey : this.candlesKey)
-    this.pathBtnLabel.setText(this.usingAdverse ? 'Path: GME 2021 (adverse)' : 'Path: PTON 2021–22 (trending)')
+    this.pathBtnLabel.setText(this.usingAdverse ? 'Path: GME (squeezes up)' : 'Path: PTON (keeps falling)')
     // reset
     this.day = 0
     this.cumBorrow = 0
@@ -278,8 +278,8 @@ export default class ManageShortScene extends ModuleScene {
 
       // recall on adverse path
       if (this.usingAdverse && this.day === Math.floor(this.candles.length * 0.55)) {
-        this.toast('Lender RECALL — forced to cover', C.blue)
-        this.closeAt(c.c, 'RECALL COVER', C.blue)
+        this.toast('Lender recall — forced to buy back', C.blue)
+        this.closeAt(c.c, 'RECALL — BOUGHT BACK', C.blue)
         this.running = false
         return
       }
@@ -339,7 +339,7 @@ export default class ManageShortScene extends ModuleScene {
     const proceeds = this.entry * this.shares
     const equity = proceeds * 0.5 + proceeds - px * this.shares
     const maint = 0.3 * px * this.shares
-    this.marginText.setText(`Equity $${equity.toFixed(0)} · maint $${maint.toFixed(0)}${equity < maint ? '\n⚠ MARGIN CALL' : ''}`)
+    this.marginText.setText(`Cushion $${equity.toFixed(0)} · min $${maint.toFixed(0)}${equity < maint ? '\n⚠ MARGIN CALL' : ''}`)
     this.marginText.setColor(hex(color(equity < maint ? C.red : C.muted)))
   }
 

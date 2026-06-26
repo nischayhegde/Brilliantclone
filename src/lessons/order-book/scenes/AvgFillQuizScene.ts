@@ -58,7 +58,7 @@ export default class AvgFillQuizScene extends ModuleScene {
     this.pMin = lo - (hi - lo) * 0.6
     this.pMax = hi + (hi - lo) * 0.6
 
-    this.label(this.W / 2, 30, 'Size up a MARKET BUY, then sweep the book and read your average vs the touch', {
+    this.label(this.W / 2, 30, 'Size up a market buy, sweep the book, and watch your average price', {
       size: 13,
       col: C.muted,
       align: 'center',
@@ -108,7 +108,7 @@ export default class AvgFillQuizScene extends ModuleScene {
     }
     // touch line
     this.dashedLine(this.plotL, this.yFor(this.asks[0].price), this.plotR, C.muted, 6, 5, 1.5)
-    this.label(this.plotR + 4, this.yFor(this.asks[0].price), 'touch', { size: 12, col: C.muted, bg: true })
+    this.label(this.plotR + 4, this.yFor(this.asks[0].price), 'best price', { size: 12, col: C.muted, bg: true })
 
     // available depth blocks (outlined, not filled yet)
     let cum = 0
@@ -141,8 +141,8 @@ export default class AvgFillQuizScene extends ModuleScene {
     const levels = r.fills.length
     this.sizeLabel.setText(
       levels <= 1
-        ? `${fmtShares(this.orderSize)} fits in the touch (1 level)`
-        : `${fmtShares(this.orderSize)} reaches into ${levels} levels — you will pay above the touch`,
+        ? `${fmtShares(this.orderSize)} fits at the best price (1 level)`
+        : `${fmtShares(this.orderSize)} reaches into ${levels} levels — you will pay above the best price`,
     )
   }
 
@@ -221,11 +221,11 @@ export default class AvgFillQuizScene extends ModuleScene {
     let detail: string
     if (levels <= 1) {
       // fit entirely in the touch — no slippage
-      title = `Filled at the touch · ${fmtPrice(r.avgFill)}`
-      detail = `Your ${fmtShares(r.filled)} shares fit inside the ${fmtPrice(r.touch)} touch, so every share filled at the best price — zero slippage. Push the size past ${fmtShares(this.asks[0].size)} and you would start walking up the book.`
+      title = `Filled at the best price · ${fmtPrice(r.avgFill)}`
+      detail = `Your ${fmtShares(r.filled)} shares all fit at the ${fmtPrice(r.touch)} best price, so every share filled there — zero slippage. Push the size past ${fmtShares(this.asks[0].size)} and you would start climbing the book.`
     } else {
       title = `Avg ${fmtPrice(r.avgFill, 3)} · +${fmtPrice(r.slippagePerShare, 3)}/sh slippage`
-      detail = `Only ${fmtShares(this.asks[0].size)} sit at the ${fmtPrice(r.touch)} touch, so the rest walked up the book: avg = (${breakdown}) / ${fmtShares(r.filled)} = ${fmtPrice(r.avgFill, 3)}. That is ${fmtPrice(r.slippagePerShare, 3)} above the touch — ${fmtMoney(r.slippageTotal)} of slippage on ${fmtShares(r.filled)} shares. A market order pays the weighted average, never just the touch.`
+      detail = `Only ${fmtShares(this.asks[0].size)} sit at the ${fmtPrice(r.touch)} best price, so the rest climbed the book: avg = (${breakdown}) / ${fmtShares(r.filled)} = ${fmtPrice(r.avgFill, 3)}. That is ${fmtPrice(r.slippagePerShare, 3)} above the best price — ${fmtMoney(r.slippageTotal)} of slippage on ${fmtShares(r.filled)} shares. A market order pays the average, never just the best price.`
     }
     // "correct" = the learner understands they pay >= the touch (always true here, but
     // we celebrate genuinely sizing past the touch as the key lesson).

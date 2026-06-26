@@ -84,7 +84,7 @@ export default class CapstoneScene extends ModuleScene {
     // baseline = all-market walk of the full target on the opening book
     this.baselineAvg = walkBuy(this.asks, this.target).avgFill
 
-    this.label(this.W / 2, 24, 'BUY 1,000 shares at minimum cost. Rest limits to capture the spread; clip the rest at market.', {
+    this.label(this.W / 2, 24, 'Buy 1,000 shares as cheaply as you can — rest limits to save, take the rest at market', {
       size: 13,
       col: C.muted,
       align: 'center',
@@ -315,7 +315,7 @@ export default class CapstoneScene extends ModuleScene {
     this.add.rectangle(this.W / 2, this.H / 2, this.W, this.H, C.white, 0.86).setDepth(20)
     const realized = this.notional / this.filled
     this.label(this.W / 2, 120, 'Before the score unmasks:', { size: 13, col: C.muted, align: 'center' }).setDepth(21)
-    this.label(this.W / 2, 150, 'Did your realized average fill beat the all-market baseline?', {
+    this.label(this.W / 2, 150, 'Did your average price beat buying it all at market?', {
       size: 16,
       col: C.ink,
       align: 'center',

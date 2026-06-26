@@ -67,7 +67,7 @@ export default class TopOfBookScene extends ModuleScene {
     this.warnPanel.setVisible(false)
 
     // Rule banner.
-    const banner = this.label(this.W / 2, 415, 'bid < ask, always', { size: 16, col: C.ink, align: 'center', bold: true })
+    const banner = this.label(this.W / 2, 415, 'Bid is always below ask', { size: 16, col: C.ink, align: 'center', bold: true })
     this.fadeIn(banner, 600)
 
     this.redraw()
@@ -147,7 +147,7 @@ export default class TopOfBookScene extends ModuleScene {
       .text(0, -16, 'Crossed book — impossible', { fontFamily: FONT, fontSize: '14px', color: hex(C.red), fontStyle: 'bold' })
       .setOrigin(0.5)
     const t2 = this.add
-      .text(0, 9, 'A buyer paying ≥ what a seller asks\nwould just trade. bid < ask, always.', {
+      .text(0, 9, "A buyer won't pay more than\na seller asks. Keep bid below ask.", {
         fontFamily: FONT,
         fontSize: '12px',
         color: hex(C.red),

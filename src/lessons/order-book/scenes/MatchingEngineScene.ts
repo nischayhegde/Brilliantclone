@@ -56,7 +56,7 @@ export default class MatchingEngineScene extends ModuleScene {
     this.resting = (p.resting ?? DEFAULT_RESTING).map((o) => ({ ...o }))
     this.incoming = p.incoming ?? 300
 
-    this.label(this.W / 2, 28, 'Deli rule: best price served first; ties go to the earliest ticket (arrival)', {
+    this.label(this.W / 2, 28, 'Best price fills first. If prices tie, the earliest order wins.', {
       size: this.fs(13),
       col: C.muted,
       align: 'center',
@@ -72,9 +72,12 @@ export default class MatchingEngineScene extends ModuleScene {
   }
 
   private drawCounter(): void {
-    // "Now serving" ticket display above the queue.
-    this.label(this.rungX, 96, 'NOW SERVING', { size: this.fs(11, 11, 13), col: C.amberInk, bold: true })
-    this.servingText = this.label(this.rungX + 112, 96, '— take a number —', {
+    // Legend for the amber serve-order badge on each tile (left-aligned so it stays
+    // clear of the "Fills" panel on the right).
+    this.label(this.rungX, 70, 'Amber number = fill order (1 = first)', { size: this.fs(12), col: C.amberInk })
+    // "Next to fill" display above the queue.
+    this.label(this.rungX, 96, 'NEXT TO FILL', { size: this.fs(11, 11, 13), col: C.amberInk, bold: true })
+    this.servingText = this.label(this.rungX + 112, 96, 'press Fire to start', {
       size: this.fs(13),
       col: C.amberInk,
       bold: true,
@@ -129,7 +132,7 @@ export default class MatchingEngineScene extends ModuleScene {
       .text(0, 5, `${fmtShares(o.size)} sh`, { fontFamily: FONT, fontSize: '12px', color: hex(C.ink) })
       .setOrigin(0.5)
     const tT = this.add
-      .text(0, 21, `ticket ${o.arrival}`, { fontFamily: FONT, fontSize: '11px', color: hex(C.blue) })
+      .text(0, 21, `arrived ${o.arrival}`, { fontFamily: FONT, fontSize: '11px', color: hex(C.blue) })
       .setOrigin(0.5)
     // "served #N" badge (amber = the active path) at the top-left corner.
     const badgeBg = this.add.circle(-w / 2 + 13, -h / 2 + 13, 11, C.amber).setStrokeStyle(2, C.white)
@@ -151,7 +154,7 @@ export default class MatchingEngineScene extends ModuleScene {
 
   private drawLog(): void {
     this.panel(this.logX, this.logY - 24, 270, 210, { fill: C.gray100, stroke: C.hairline, radius: 8 })
-    this.label(this.logX + 12, this.logY - 4, 'Fill log (time & sales)', { size: this.fs(12), col: C.muted, bold: true })
+    this.label(this.logX + 12, this.logY - 4, 'Fills', { size: this.fs(12), col: C.muted, bold: true })
   }
 
   private addLog(text: string): void {
@@ -173,7 +176,7 @@ export default class MatchingEngineScene extends ModuleScene {
       align: 'center',
       bold: true,
     })
-    this.button(this.W / 2 - 110, 380, 'Swap A ↔ B ticket', () => this.swapAB(), { w: 180, fill: C.muted })
+    this.button(this.W / 2 - 110, 380, 'Swap A ↔ B', () => this.swapAB(), { w: 180, fill: C.muted })
     this.button(this.W / 2 + 110, 380, 'Fire market buy', () => this.fire(), { w: 170, fill: C.red })
   }
 
@@ -208,7 +211,7 @@ export default class MatchingEngineScene extends ModuleScene {
     const playNext = () => {
       if (i >= steps.length) {
         this.firing = false
-        this.servingText.setText('done — all printed')
+        this.servingText.setText('done — all filled')
         return
       }
       const o = steps[i]
@@ -231,7 +234,7 @@ export default class MatchingEngineScene extends ModuleScene {
     const c = tile.container
 
     if (this.reduceMotion) {
-      this.addLog(`PRINT ${fmtShares(o.size)} @ ${fmtPrice(o.price)} (${o.id})`)
+      this.addLog(`Filled ${fmtShares(o.size)} @ ${fmtPrice(o.price)} (${o.id})`)
       c.destroy()
       this.shuffleForward(o.price)
       done()
@@ -253,7 +256,7 @@ export default class MatchingEngineScene extends ModuleScene {
         this.shuffleForward(o.price)
       },
     })
-    this.addLog(`PRINT ${fmtShares(o.size)} @ ${fmtPrice(o.price)} (${o.id})`)
+    this.addLog(`Filled ${fmtShares(o.size)} @ ${fmtPrice(o.price)} (${o.id})`)
     this.time.delayedCall(this.dur(480), done)
   }
 

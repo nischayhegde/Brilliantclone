@@ -53,7 +53,7 @@ export default class SpreadCostScene extends ModuleScene {
     this.shares = p.startShares ?? 1000
     this.setAnchor(0)
 
-    this.label(this.W / 2, 30, 'The booth sells to you high and buys from you low — a round-trip pays its full cut', {
+    this.label(this.W / 2, 30, 'You buy above the mid and sell below it — a round-trip pays the full spread', {
       size: this.fs(13),
       col: C.muted,
       align: 'center',
@@ -125,7 +125,7 @@ export default class SpreadCostScene extends ModuleScene {
     const my = 90
     const mw = 250
     const mh = 30
-    this.label(mx, my - 18, "Booth's cut (round-trip cost)", { size: this.fs(12), col: C.muted })
+    this.label(mx, my - 18, 'Round-trip cost', { size: this.fs(12), col: C.muted })
     const frame = this.add.graphics()
     frame.lineStyle(2, C.ink, 1)
     frame.strokeRoundedRect(mx, my, mw, mh, 6)
@@ -198,8 +198,8 @@ export default class SpreadCostScene extends ModuleScene {
   }
 
   private refresh(): void {
-    ;(this.children.getByName('askLbl') as Phaser.GameObjects.Text).setText(`ASK ${fmtPrice(this.ask)}  ·  booth sells`)
-    ;(this.children.getByName('bidLbl') as Phaser.GameObjects.Text).setText(`BID ${fmtPrice(this.bid)}  ·  booth buys`)
+    ;(this.children.getByName('askLbl') as Phaser.GameObjects.Text).setText(`ASK ${fmtPrice(this.ask)}  ·  you buy here`)
+    ;(this.children.getByName('bidLbl') as Phaser.GameObjects.Text).setText(`BID ${fmtPrice(this.bid)}  ·  you sell here`)
     ;(this.children.getByName('midLbl') as Phaser.GameObjects.Text).setText(`MID ${this.fmtMid(this.mid)}  ·  fair`)
 
     const spread = this.spread

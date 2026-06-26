@@ -49,7 +49,7 @@ export default class OrderBookIntroScene extends ModuleScene {
   }
 
   private simLabel(): void {
-    this.label(this.W - 12, this.H - 14, 'Simulated depth — illustrating the matching mechanic', {
+    this.label(this.W - 12, this.H - 14, 'Simulated depth', {
       size: 11,
       col: C.blue,
       align: 'right',

@@ -14,15 +14,14 @@ interface ExerciseParams {
 
 /**
  * ExerciseTimelineScene
- *  - 'timeline' (module 4): American (green band) vs European (single node); drag an
- *    "exercise now" marker → realize intrinsic only, forfeit time value; CALL/PUT
- *    toggle reveals the dividend / interest-on-strike special cases.
- *  - 'doors'    (module 14): held ITM call 8.00 (6 intrinsic + 2 time) with three
- *    action doors; the chosen door opens on quiz reveal.
+ *  - 'timeline': American (green band, use any day) vs European (single node, deadline
+ *    only); drag a "use it now" marker → you get real value only and forfeit the
+ *    leftover time value, so selling is worth more until the deadline.
+ *  - 'doors': held ITM call 8.00 (6 real + 2 time) with three action doors; the chosen
+ *    door opens on quiz reveal.
  */
 export default class ExerciseTimelineScene extends ModuleScene {
   private p!: Required<ExerciseParams>
-  private isCall = true
   private revealed = false
 
   protected build(): void {
@@ -49,8 +48,8 @@ export default class ExerciseTimelineScene extends ModuleScene {
   private euY = 252
 
   private buildTimeline(): void {
-    this.label(40, 24, 'AMERICAN vs EUROPEAN — exercise window', { size: 16, col: C.ink, bold: true })
-    this.label(40, 46, '(time-value figures illustrative; trade-off logic exact)', { size: 13, col: C.muted })
+    this.label(40, 24, 'AMERICAN vs EUROPEAN — when can you use it?', { size: 16, col: C.ink, bold: true })
+    this.label(40, 46, '(time value illustrative)', { size: 13, col: C.muted })
 
     // American band (green, full length) — grows in via a numeric proxy
     const am = this.add.graphics()
@@ -69,21 +68,17 @@ export default class ExerciseTimelineScene extends ModuleScene {
     } else {
       this.tweens.add({ targets: proxy, w: full, duration: 800, ease: 'Cubic.out', onUpdate: drawBand })
     }
-    this.label(this.trackL, this.amY - 30, 'AMERICAN — exercise ANYTIME', { size: 13, col: C.green, bold: true })
+    this.label(this.trackL, this.amY - 30, 'AMERICAN — use it any day', { size: 13, col: C.green, bold: true })
 
     // European track (grey with single green node at expiry)
     const eu = this.add.graphics()
     eu.lineStyle(2, C.gray200)
     eu.lineBetween(this.trackL, this.euY, this.trackR, this.euY)
     this.add.circle(this.trackR, this.euY, 7, C.green).setStrokeStyle(2, C.white)
-    this.label(this.trackL, this.euY - 22, 'EUROPEAN — exercise ONLY at expiry', { size: 13, col: C.muted, bold: true })
-    this.label(this.trackR, this.euY + 18, 'expiry', { size: 12, col: C.green, align: 'right' })
+    this.label(this.trackL, this.euY - 22, 'EUROPEAN — only on the deadline', { size: 13, col: C.muted, bold: true })
+    this.label(this.trackR, this.euY + 18, 'deadline', { size: 12, col: C.green, align: 'right' })
 
-    // dividend flag near 0.7 of life
-    const divX = this.trackL + 0.7 * (this.trackR - this.trackL)
-    this.label(divX, this.amY + 26, '⚑ dividend', { size: 12, col: C.blue, align: 'center' })
-
-    // draggable "exercise now" marker on the American track
+    // draggable "use it now" marker on the American track
     this.shatter = this.add.graphics()
     const marker = this.add.circle(0, this.amY, 9, C.ink).setStrokeStyle(3, C.white)
     const place = (frac: number) => marker.setX(this.trackL + frac * (this.trackR - this.trackL))
@@ -99,16 +94,10 @@ export default class ExerciseTimelineScene extends ModuleScene {
       this.refreshTimeline()
     })
     place(this.tFrac)
-    this.label(this.trackL, this.amY + 54, '↔ drag "exercise now" along the American life', { size: 13, col: C.muted })
+    this.label(this.trackL, this.amY + 54, '↔ drag "use it now" earlier or later', { size: 13, col: C.muted })
 
-    // CALL/PUT toggle for special cases
-    this.toggle(120, 300, ['CALL', 'PUT'], 0, (i) => {
-      this.isCall = i === 0
-      this.refreshTimeline()
-    })
-
-    this.readoutTxt = this.label(40, 350, '', { size: 13, col: C.ink, bold: true })
-    this.verdict = this.label(40, 376, '', { size: 13, col: C.green, bold: true })
+    this.readoutTxt = this.label(40, 340, '', { size: 13, col: C.ink, bold: true })
+    this.verdict = this.label(40, 370, '', { size: 14, col: C.green, bold: true })
     this.refreshTimeline()
   }
 
@@ -116,12 +105,12 @@ export default class ExerciseTimelineScene extends ModuleScene {
     // remaining time value scales with distance to expiry (0 at expiry)
     const remTV = this.p.timeValueNow * (1 - this.tFrac)
     const intr = this.p.intrinsicNow
-    const exerciseVal = intr // intrinsic only
-    const sellVal = intr + remTV // intrinsic + remaining time value
+    const exerciseVal = intr // real value only
+    const sellVal = intr + remTV // real value + remaining time value
     this.readoutTxt.setText(
-      `If EXERCISE now: realize ${exerciseVal.toFixed(2)} (intrinsic only)   ·   if SELL-to-close: ${sellVal.toFixed(
+      `Use it now: get $${exerciseVal.toFixed(2)} (real value only)   ·   Sell it: get $${sellVal.toFixed(
         2,
-      )} (intrinsic + time)`,
+      )} (real + time value)`,
     )
 
     // shatter the forfeited time value visually
@@ -132,19 +121,11 @@ export default class ExerciseTimelineScene extends ModuleScene {
       for (let i = 0; i < 6; i++) this.shatter.fillCircle(x + (i - 3) * 6, this.amY + 30 + (i % 2) * 6, 2)
     }
 
-    // special-case logic
-    const nearDividend = this.tFrac >= 0.6 && this.tFrac <= 0.78
     if (this.tFrac >= 0.98) {
-      this.verdict.setText('At expiry: exercise = sell = intrinsic (time value is 0).')
+      this.verdict.setText('At the deadline they tie — no time value is left.')
       this.verdict.setColor(hex(C.muted))
-    } else if (this.isCall && nearDividend && remTV < 1.0) {
-      this.verdict.setText('Special case: deep-ITM CALL before a dividend → early exercise can WIN (capture the dividend).')
-      this.verdict.setColor(hex(C.green))
-    } else if (!this.isCall && remTV < 0.8) {
-      this.verdict.setText('Special case: deep-ITM PUT → early exercise can WIN (earn interest on the strike cash now).')
-      this.verdict.setColor(hex(C.green))
     } else {
-      this.verdict.setText(`Selling wins by ${(sellVal - exerciseVal).toFixed(2)} — keep the time value.`)
+      this.verdict.setText(`Selling keeps $${(sellVal - exerciseVal).toFixed(2)} more — the leftover time value.`)
       this.verdict.setColor(hex(C.green))
     }
   }
@@ -161,12 +142,12 @@ export default class ExerciseTimelineScene extends ModuleScene {
     const tv = this.p.timeValueNow // 2
     const total = intr + tv
 
-    this.label(40, 24, `You hold an ITM CALL worth ${total.toFixed(2)} — a week left`, {
+    this.label(40, 24, `Your call is worth $${total.toFixed(2)} — a week left`, {
       size: 16,
       col: C.ink,
       bold: true,
     })
-    this.label(40, 46, `intrinsic ${intr.toFixed(2)} + time value ${tv.toFixed(2)} (illustrative)`, {
+    this.label(40, 46, `$${intr.toFixed(2)} real value + $${tv.toFixed(2)} time value (illustrative)`, {
       size: 13,
       col: C.muted,
     })
@@ -182,7 +163,7 @@ export default class ExerciseTimelineScene extends ModuleScene {
     g.fillRect(bx, by - total * scale, 50, tv * scale)
     g.lineStyle(1, C.blue, 0.5)
     g.strokeRect(bx, by - total * scale, 50, total * scale)
-    this.label(bx + 58, by - intr * scale / 2, `intrinsic ${intr.toFixed(2)}`, { size: 13, col: C.blue, bold: true })
+    this.label(bx + 58, by - intr * scale / 2, `real value ${intr.toFixed(2)}`, { size: 13, col: C.blue, bold: true })
     this.label(bx + 58, by - intr * scale - (tv * scale) / 2, `time value ${tv.toFixed(2)}`, { size: 13, col: C.blue })
 
     // three doors on the right
@@ -276,10 +257,10 @@ export default class ExerciseTimelineScene extends ModuleScene {
     if (this.pick === null) {
       this.report(
         false,
-        `Sell-to-close keeps the most (${total.toFixed(2)})`,
-        `No door was chosen. Selling-to-close hands the contract to a buyer who pays for intrinsic AND the remaining time value, so you keep the full ${total.toFixed(
+        `Selling keeps the most ($${total.toFixed(2)})`,
+        `No door was chosen. Selling hands the contract to a buyer who pays for the real value AND the leftover time value, so you keep the full $${total.toFixed(
           2,
-        )} — exercising keeps only the ${intr.toFixed(2)} intrinsic, and letting it expire keeps nothing.`,
+        )} — using it keeps only the $${intr.toFixed(2)} real value, and letting it expire keeps nothing.`,
       )
       return
     }
@@ -288,27 +269,23 @@ export default class ExerciseTimelineScene extends ModuleScene {
     const kept = this.pick === 'sell' ? total : this.pick === 'exercise' ? intr : 0
     const keptNote = correct
       ? ''
-      : ` Your choice keeps ${kept.toFixed(2)} vs ${total.toFixed(2)} by selling.`
+      : ` Your choice keeps $${kept.toFixed(2)} vs $${total.toFixed(2)} by selling.`
     const title = correct
-      ? `Sell-to-close · keep ${total.toFixed(2)}`
+      ? `Sell it · keep $${total.toFixed(2)}`
       : this.pick === 'exercise'
-        ? `Exercising forfeits the time value (kept ${intr.toFixed(2)})`
-        : `Letting it expire wastes all ${total.toFixed(2)}`
+        ? `Using it loses the time value (kept $${intr.toFixed(2)})`
+        : `Letting it expire wastes all $${total.toFixed(2)}`
     const detail = correct
-      ? `Selling-to-close captures the full ${total.toFixed(2)} — including the ${tv.toFixed(
+      ? `Selling captures the full $${total.toFixed(2)} — including the $${tv.toFixed(
           2,
-        )} of time value. Exercising would realize only the ${intr.toFixed(
+        )} of time value. Using it now would give you only the $${intr.toFixed(
           2,
-        )} intrinsic and throw away the ${tv.toFixed(
-          2,
-        )}; early exercise of an American option is usually suboptimal (the exception is special cases like capturing a dividend).`
+        )} real value and throw away the $${tv.toFixed(2)}.`
       : this.pick === 'exercise'
-        ? `Exercising realizes only the ${intr.toFixed(2)} intrinsic and forfeits the ${tv.toFixed(
+        ? `Using it now gives you only the $${intr.toFixed(2)} real value and loses the $${tv.toFixed(
             2,
-          )} time value (and ties up K×100 in capital). Sell-to-close instead — a buyer pays for intrinsic AND the remaining time value, so you keep the full ${total.toFixed(2)}.`
-        : `Letting it expire would waste all ${total.toFixed(2)} (you'd only auto-exercise the ${intr.toFixed(
-            2,
-          )} intrinsic at best). Sell-to-close hands the contract to a buyer who pays for intrinsic AND the remaining time value — you keep the full ${total.toFixed(2)}.`
+          )} time value. Sell it instead — a buyer pays for the real value AND the leftover time value, so you keep the full $${total.toFixed(2)}.`
+        : `Letting it expire wastes all $${total.toFixed(2)}. Sell it instead — a buyer pays for the real value AND the leftover time value, so you keep the full $${total.toFixed(2)}.`
     this.report(correct, title, `${detail}${keptNote}`)
   }
 
@@ -333,49 +310,9 @@ export default class ExerciseTimelineScene extends ModuleScene {
       d.body.setText(txt).setColor(hex(col))
       this.tweens.add({ targets: d.body, alpha: 1, duration: 360, delay: 200 })
     }
-    open('sell', `+${total.toFixed(2)} realized\n(keeps the ${tv.toFixed(2)} time value)`, C.green)
-    open('exercise', `only ${intr.toFixed(2)} intrinsic\n−${tv.toFixed(2)} time value thrown away`, C.red)
-    open('expire', `forfeit all ${total.toFixed(2)}\n(nonsensical here)`, C.red)
-
-    // assignment envelope flying to the (hypothetical) writer
-    this.time.delayedCall(600, () => {
-      const env = this.label(
-        this.W / 2,
-        330,
-        '✉ ASSIGNMENT → if you were SHORT, you would be assigned (forced to deliver shares)',
-        { size: 13, col: C.blue, bold: true, align: 'center', bg: true },
-      )
-      env.setAlpha(0)
-      this.tweens.add({ targets: env, alpha: 1, duration: 400 })
-    })
+    open('sell', `keep all $${total.toFixed(2)}\n(real + time value)`, C.green)
+    open('exercise', `only $${intr.toFixed(2)} real value\n($${tv.toFixed(2)} time value lost)`, C.red)
+    open('expire', `get $0\n(throws it all away)`, C.red)
   }
 
-  // --- shared toggle --------------------------------------------------------
-  private toggle(x: number, y: number, labels: string[], start: number, onPick: (i: number) => void): void {
-    const segW = 64
-    const h = 28
-    const bg = this.add.graphics()
-    bg.fillStyle(C.gray100, 1)
-    bg.fillRoundedRect(x, y - h / 2, segW * labels.length, h, 8)
-    const hi = this.add.graphics()
-    const texts: Phaser.GameObjects.Text[] = []
-    const draw = (active: number) => {
-      hi.clear()
-      hi.fillStyle(C.blue, 1)
-      hi.fillRoundedRect(x + active * segW, y - h / 2, segW, h, 8)
-      texts.forEach((t, i) => t.setColor(i === active ? hex(C.white) : hex(C.muted)))
-    }
-    labels.forEach((lab, i) => {
-      const t = this.add
-        .text(x + i * segW + segW / 2, y, lab, { fontFamily: FONT, fontSize: '12px', fontStyle: 'bold' })
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-      t.on('pointerup', () => {
-        draw(i)
-        onPick(i)
-      })
-      texts.push(t)
-    })
-    draw(start)
-  }
 }

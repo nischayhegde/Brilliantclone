@@ -61,7 +61,7 @@ export default class SqueezeChoiceScene extends ModuleScene {
 
     // Three dials across the top.
     this.drawDial(150, 150, 'Short interest', `${this.shortPct.toFixed(0)}%`, this.shortPct / 200, this.shortPct >= 100 ? C.red : C.blue, this.shortPct >= 100 ? '> 100% of float!' : 'of float')
-    this.drawDial(380, 150, 'Days-to-cover', `${this.daysToCover.toFixed(1)}`, Math.min(1, this.daysToCover / 10), this.daysToCover > 5 ? C.red : C.blue, this.daysToCover > 5 ? 'a long exit line' : 'days of volume')
+    this.drawDial(380, 150, 'Days-to-cover', `${this.daysToCover.toFixed(1)}`, Math.min(1, this.daysToCover / 10), this.daysToCover > 5 ? C.red : C.blue, this.daysToCover > 5 ? 'slow to buy back' : 'days of volume')
     this.drawDial(610, 150, 'Free float', `${this.floatM.toFixed(0)}M`, 1 - Math.min(1, this.floatM / 200), this.floatM < 80 ? C.red : C.blue, this.floatM < 80 ? 'thin — easy to corner' : 'shares')
 
     // Catalyst flag.
@@ -162,35 +162,33 @@ export default class SqueezeChoiceScene extends ModuleScene {
     let title: string
     let detail: string
     if (this.choice === null) {
-      title = this.stepAsideIsRight ? 'The disciplined call: STEP ASIDE' : 'The disciplined call: a measured SHORT'
+      title = this.stepAsideIsRight ? 'The smart call: STEP ASIDE' : 'The smart call: a careful SHORT'
       detail = this.stepAsideIsRight
-        ? `Short interest ${this.shortPct.toFixed(0)}% means more shares are sold short than exist in the free float, and days-to-cover ${this.daysToCover.toFixed(1)} means a long exit line. Add a bullish catalyst and forced covering must chase a near-empty float — any up-move snowballs. When more shares are short than exist to buy back, the smart short steps aside. This is GME — it ran toward ~$483.`
-        : `Short interest ${this.shortPct.toFixed(0)}% and days-to-cover ${this.daysToCover.toFixed(1)} are modest, so there's little forced-covering fuel. With a stop above, a deteriorating name like this fits a disciplined short. Squeeze risk is highest when short interest exceeds the float.`
+        ? `More shares are short (${this.shortPct.toFixed(0)}%) than there are to buy back, and it takes ${this.daysToCover.toFixed(1)} days to cover. With buyers piling in, any rise snowballs. When the exit is that small, step aside. This was GME — it ran toward ~$483.`
+        : `Short interest (${this.shortPct.toFixed(0)}%) and days-to-cover (${this.daysToCover.toFixed(1)}) are low, so there's little squeeze risk. With a stop above, a fading stock like this is a fair short.`
     } else if (this.stepAsideIsRight) {
       if (this.choice === 'aside') {
-        title = 'Good discipline — step aside'
+        title = 'Good call — step aside'
         detail =
-          `Short interest ${this.shortPct.toFixed(0)}% means more shares are sold short than exist in the free float, and days-to-cover ` +
-          `${this.daysToCover.toFixed(1)} means the exit line is long. Add a bullish catalyst and forced covering must chase a near-empty float — ` +
-          `any up-move snowballs. Being "right on value" won't save you; the mechanics force the squeeze. This is GME — it ran toward ~$483.`
+          `More shares are short (${this.shortPct.toFixed(0)}%) than there are to buy back, and it takes ${this.daysToCover.toFixed(1)} days to cover. ` +
+          `Add eager buyers and any rise snowballs. Being right on value won't save you. This was GME — it ran toward ~$483.`
       } else {
-        title = 'Shorting into a loaded spring'
+        title = 'Shorting into a trap'
         detail =
-          `With short interest ${this.shortPct.toFixed(0)}% (above the float), days-to-cover ${this.daysToCover.toFixed(1)}, and a bullish catalyst, ` +
-          `the squeeze fuel is maxed. Staying short here is how the unbounded-loss tail gets realized — GME squeezed to ~$483. When more shares ` +
-          `are short than exist to buy back, the smart short steps aside.`
+          `Short interest is ${this.shortPct.toFixed(0)}% (more shares short than exist to buy), days-to-cover is ${this.daysToCover.toFixed(1)}, and buyers are piling in. ` +
+          `This is exactly the squeeze setup — GME ran to ~$483. When the exit is that small, step aside.`
       }
     } else {
       if (this.choice === 'short') {
-        title = 'Reasonable short — fuel is low'
+        title = 'Reasonable short — squeeze risk is low'
         detail =
-          `Short interest ${this.shortPct.toFixed(0)}% and days-to-cover ${this.daysToCover.toFixed(1)} are modest, so there's little forced-covering ` +
-          `fuel. With a stop above, a deteriorating name like this fits a disciplined short. Squeeze risk is highest when SI exceeds the float.`
+          `Short interest (${this.shortPct.toFixed(0)}%) and days-to-cover (${this.daysToCover.toFixed(1)}) are low, so there's little forced buying to fear. ` +
+          `With a stop above, a fading stock like this is a fair short.`
       } else {
-        title = 'Over-cautious — little squeeze fuel here'
+        title = 'Too cautious — little squeeze risk here'
         detail =
-          `Short interest ${this.shortPct.toFixed(0)}% and days-to-cover ${this.daysToCover.toFixed(1)} are low — not the loaded spring that crushes shorts. ` +
-          `Stepping aside from every short means never taking the good ones. The squeeze trap is HIGH SI + thin float + catalyst, which this isn't.`
+          `Short interest (${this.shortPct.toFixed(0)}%) and days-to-cover (${this.daysToCover.toFixed(1)}) are low — not the trap that crushes shorts. ` +
+          `Stepping aside from every short means never taking the good ones. The trap needs high short interest, a thin float, and a catalyst — not here.`
       }
     }
     this.report(correct, title, detail)

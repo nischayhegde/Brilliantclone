@@ -55,7 +55,7 @@ export default class WalkBookScene extends ModuleScene {
     this.pMin = lo - (hi - lo) * 0.25 - 0.01
     this.pMax = hi + (hi - lo) * 0.25 + 0.01
 
-    this.label(this.W / 2, 32, 'Bigger order = more seats: the cheap row sells out, so you climb to pricier rows', {
+    this.label(this.W / 2, 32, 'A bigger order eats the cheap shares first, then climbs to pricier ones', {
       size: this.fs(13),
       col: C.muted,
       align: 'center',
@@ -65,7 +65,7 @@ export default class WalkBookScene extends ModuleScene {
     this.drawStatic()
     this.dynG = this.add.graphics()
     // Plot callouts that ride the moving lines (kept above dynG so they stay readable).
-    this.avgTag = this.label(this.plotL + 6, this.yFor(this.asks[0].price), 'your avg seat', {
+    this.avgTag = this.label(this.plotL + 6, this.yFor(this.asks[0].price), 'your average', {
       size: this.fs(12),
       col: C.blue,
       bold: true,
@@ -100,7 +100,7 @@ export default class WalkBookScene extends ModuleScene {
       g.lineBetween(this.plotL, y, this.plotR, y)
       this.label(this.plotL - 8, y, fmtPrice(lvl.price), { size: this.fs(12), col: C.muted, align: 'right' })
     }
-    this.label((this.plotL + this.plotR) / 2, this.plotB + 18, 'seats bought (cumulative shares) →', {
+    this.label((this.plotL + this.plotR) / 2, this.plotB + 18, 'shares bought →', {
       size: this.fs(12),
       col: C.muted,
       align: 'center',
@@ -119,7 +119,7 @@ export default class WalkBookScene extends ModuleScene {
       g.lineStyle(1.5, C.red, 0.35)
       g.lineBetween(x1, y, x2, y)
       g.lineBetween(x2, y, x2, this.plotB)
-      this.label((x1 + x2) / 2, y - 9, `${fmtShares(lvl.size)} seats`, {
+      this.label((x1 + x2) / 2, y - 9, `${fmtShares(lvl.size)} shares`, {
         size: this.fs(11, 11, 13),
         col: C.muted,
         align: 'center',
@@ -132,7 +132,7 @@ export default class WalkBookScene extends ModuleScene {
     // grey "touch" line = the cheapest seat in the house.
     const touchY = this.yFor(this.asks[0].price)
     this.dashedLine(this.plotL, touchY, this.plotR, C.muted, 6, 5, 1.5)
-    this.label(this.plotR + 4, touchY, 'touch', { size: this.fs(12), col: C.muted, bg: true })
+    this.label(this.plotR + 4, touchY, 'best price', { size: this.fs(12), col: C.muted, bg: true })
   }
 
   private recompute(): void {
@@ -231,12 +231,12 @@ export default class WalkBookScene extends ModuleScene {
       this.readouts[key] = this.label(px + 262, py + y, '—', { size: this.fs(13), col: C.ink, bold: true, align: 'right' })
     }
     mk('order', 54, 'Order size')
-    mk('avg', 84, 'Avg seat (fill)')
-    mk('touch', 114, 'Cheapest (touch)')
+    mk('avg', 84, 'Your average')
+    mk('touch', 114, 'Best price')
     mk('slipps', 144, 'Slippage / share')
     mk('sliptot', 174, 'Slippage total')
     // per-level breakdown area
-    this.label(px + 16, py + 204, 'Seats per row:', { size: this.fs(12), col: C.muted })
+    this.label(px + 16, py + 204, 'Shares per row:', { size: this.fs(12), col: C.muted })
     for (let i = 0; i < 3; i++) {
       this.levelLabels[i] = this.label(px + 16, py + 222 + i * 17, '', { size: this.fs(12), col: C.ink })
     }

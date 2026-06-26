@@ -111,7 +111,7 @@ export default class MarketOrderScene extends ModuleScene {
 
   private drawTape(): void {
     this.panel(this.tapeX, this.tapeY - 24, 270, 150, { fill: C.gray100, stroke: C.hairline, radius: 8 })
-    this.label(this.tapeX + 12, this.tapeY - 4, 'Time & sales', { size: 12, col: C.muted, bold: true })
+    this.label(this.tapeX + 12, this.tapeY - 4, 'Trades', { size: 12, col: C.muted, bold: true })
   }
 
   private buildControls(): void {
@@ -175,8 +175,8 @@ export default class MarketOrderScene extends ModuleScene {
     // single chip-backed tag, centered below the ladder (clear of the rung size labels
     // and the tape on the right). Guarded above so it is only ever created once.
     const bidsBottomY = this.midY + this.gap / 2 + this.bids.length * this.rowH + 14
-    this.label(this.cx, bidsBottomY, 'LIMIT PENDING — provides liquidity', { size: 12, col: C.blue, bold: true, align: 'center', bg: true })
-    this.addPrint(`LIMIT rests · ${this.orderSize} @ ${fmtPrice(this.bids[0].price)}`, C.blue)
+    this.label(this.cx, bidsBottomY, 'LIMIT — waits in line', { size: 12, col: C.blue, bold: true, align: 'center', bg: true })
+    this.addPrint(`LIMIT waits · ${this.orderSize} @ ${fmtPrice(this.bids[0].price)}`, C.blue)
   }
 
   private fireMarket(): void {
@@ -211,18 +211,18 @@ export default class MarketOrderScene extends ModuleScene {
         entry.bar.destroy()
         flash.destroy()
         const idx = this.askBars.indexOf(entry)
-        ;(this.children.getByName(`st-${idx}`) as Phaser.GameObjects.Text)?.setText('consumed')
+        ;(this.children.getByName(`st-${idx}`) as Phaser.GameObjects.Text)?.setText('filled')
         ;(this.children.getByName(`pt-${idx}`) as Phaser.GameObjects.Text)?.setAlpha(0.4)
       },
     })
     entry.consumed = true
 
-    this.addPrint(`PRINT ${fmtShares(this.orderSize)} @ ${fmtPrice(entry.lvl.price)}`, C.green)
+    this.addPrint(`Filled ${fmtShares(this.orderSize)} @ ${fmtPrice(entry.lvl.price)}`, C.green)
 
-    // TAKES LIQUIDITY tag on the consumed touch row (chip-backed so it reads over the
+    // "fills now" tag on the consumed best-ask row (chip-backed so it reads over the
     // collapsing bar); new best ask note just above it. Single texts, created once.
     const nextAsk = this.askBars[this.askBars.length - 2]?.lvl.price
-    this.label(this.cx, entry.y, 'TAKES LIQUIDITY', { size: 12, col: C.red, align: 'center', bold: true, bg: true })
+    this.label(this.cx, entry.y, 'FILLS NOW', { size: 12, col: C.red, align: 'center', bold: true, bg: true })
     if (nextAsk !== undefined) {
       this.time.delayedCall(500, () =>
         this.label(this.cx, entry.y - this.rowH, `new best ask: ${fmtPrice(nextAsk)}`, { size: 12, col: C.muted, align: 'center', bg: true }),

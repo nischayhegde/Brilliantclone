@@ -50,7 +50,7 @@ export default class DeltaCurveScene extends PayoffScene {
     const pw = 226
     const ph = 92
     this.panel(px, py, pw, ph, { fill: C.white, stroke: C.blue, radius: 10, alpha: 0.95 })
-    this.label(px + 12, py + 16, 'DELTA — slope of the curve', { size: 12, col: C.muted, bold: true })
+    this.label(px + 12, py + 16, 'DELTA — how fast it moves', { size: 12, col: C.muted, bold: true })
     this.deltaText = this.label(px + 12, py + 38, '', { size: 18, col: C.blue, bold: true })
 
     // gauge (0 → 1) inside the panel
@@ -95,7 +95,7 @@ export default class DeltaCurveScene extends PayoffScene {
     const lx = this.xFor(labelS)
     const ly = this.yFor(this.smoothValue(labelS)) - 18
     if (!this.curveLabel) {
-      this.curveLabel = this.label(lx, ly, 'pre-expiry curve', { size: 13, col: C.blue, align: 'center', bg: true })
+      this.curveLabel = this.label(lx, ly, 'value before the deadline', { size: 13, col: C.blue, align: 'center', bg: true })
     } else {
       this.curveLabel.setPosition(lx, ly)
     }
@@ -144,8 +144,8 @@ export default class DeltaCurveScene extends PayoffScene {
     this.tangent.lineBetween(x - dx, y + dy, x + dx, y - dy)
 
     const shares = Math.round(delta * 100)
-    this.deltaText.setText(`δ ≈ ${delta.toFixed(2)}`)
-    this.deltaSub.setText(`≈ ${shares} shares · +$1 stock → +$${shares}/contract`)
+    this.deltaText.setText(`delta ≈ ${delta.toFixed(2)}`)
+    this.deltaSub.setText(`acts like ${shares} shares · +$1 stock → +$${shares}/contract`)
     // gauge
     this.gaugeFill.clear()
     this.gaugeFill.fillStyle(C.blue, 1)

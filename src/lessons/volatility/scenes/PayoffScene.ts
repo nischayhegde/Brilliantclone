@@ -417,7 +417,7 @@ export default class PayoffScene extends ModuleScene {
     this.beLabels.push(t)
     if (short) {
       // the loss ramps fall off the bottom of the window — flag the large/undefined risk
-      const risk = this.label(this.plot.r - 6, this.plot.b - 12, 'loss grows ↓ (unbounded up / large down)', {
+      const risk = this.label(this.plot.r - 6, this.plot.b - 12, 'big move = big loss (no cap on the upside)', {
         size: beSize, col: C.red, bold: true, align: 'right', bg: true,
       })
       this.beLabels.push(risk)
@@ -465,8 +465,8 @@ export default class PayoffScene extends ModuleScene {
     const ptsB = this.curvePoints([legB])
     const lblSize = this.fs(13, 12, 16)
 
-    const labA = isStraddle ? `long ${legA.type} (−${fmt(legA.premium)})` : `OTM put (kink ${fmt(legA.K)})`
-    const labB = isStraddle ? `long ${legB.type} (−${fmt(legB.premium)})` : `OTM call (kink ${fmt(legB.K)})`
+    const labA = isStraddle ? `${legA.type} (pay ${fmt(legA.premium)})` : `put (strike ${fmt(legA.K)})`
+    const labB = isStraddle ? `${legB.type} (pay ${fmt(legB.premium)})` : `call (strike ${fmt(legB.K)})`
     const total = totalPremium(legs)
     const ledger = isStraddle
       ? `cost = ${fmt(legA.premium)} + ${fmt(legB.premium)} = ${fmt(total)}  (×100 = $${total * 100})`
@@ -560,7 +560,7 @@ export default class PayoffScene extends ModuleScene {
     const clampedX = Phaser.Math.Clamp(x, this.plot.l + 60, this.plot.r - 60)
     this.dotLabel.setPosition(clampedX, labY)
     this.dotLabel.setColor(hex(profit ? C.greenText : pnl < -0.001 ? C.red : C.muted))
-    this.dotLabel.setText(`S=${fmt(this.dotPrice)}  P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`)
+    this.dotLabel.setText(`stock ${fmt(this.dotPrice)} · ${fmtSigned(pnl)} (${fmtDollars(pnl)})`)
     // redraw the chip to track the moving label
     if (this.dotChip) {
       const padX = 6
@@ -876,8 +876,8 @@ export default class PayoffScene extends ModuleScene {
       ? `Both breakevens nailed · ${fmt(be.lower)} / ${fmt(be.upper)}`
       : `Off — the breakevens are ${fmt(be.lower)} / ${fmt(be.upper)}`
     const detail = correct
-      ? `Right where the V crosses zero. Breakevens = K ± total premium = ${fmt(this.K)} ± ${fmt(total)} = ${fmt(be.lower)} and ${fmt(be.upper)}. The vertex sits at (${fmt(this.K)}, ${fmtSigned(-total)}) — pin at the strike and you lose the full ${fmt(total)} premium (${fmtDollars(-total)}). You must move MORE than the premium to profit.`
-      : `You placed ${fmt(guessLo)} / ${fmt(guessHi)}; the V crosses zero at ${fmt(be.lower)} / ${fmt(be.upper)}. Breakevens = K ± TOTAL premium = ${fmt(this.K)} ± ${fmt(total)} (not one leg). Max loss is the vertex ${fmtSigned(-total)} at K=${fmt(this.K)} — you must clear a breakeven, not merely move.`
+      ? `Right where the V crosses zero. Breakevens = strike ± total cost = ${fmt(this.K)} ± ${fmt(total)} = ${fmt(be.lower)} and ${fmt(be.upper)}. At the strike you lose the full ${fmt(total)} you paid (${fmtDollars(-total)}). You need to move more than the cost to win.`
+      : `You placed ${fmt(guessLo)} / ${fmt(guessHi)}, but the V crosses zero at ${fmt(be.lower)} / ${fmt(be.upper)}. Breakevens = strike ± TOTAL cost (${fmt(this.K)} ± ${fmt(total)}) — use both prices, not one. The worst case is losing the full ${fmt(total)} at the strike.`
     this.report(correct, title, detail)
   }
 
@@ -896,7 +896,7 @@ export default class PayoffScene extends ModuleScene {
     const x = this.xFor(S)
     const g = this.add.graphics()
     this.dashLineV(g, x, this.plot.t, this.plot.b, C.amber, 1, 7, 5)
-    this.label(x, this.plot.t + 8, `expected → S = ${fmt(S)}`, {
+    this.label(x, this.plot.t + 8, `stock lands at ${fmt(S)}`, {
       size: this.fs(12, 12, 15), col: C.amberInk, bold: true, align: 'center', bg: true,
     })
 
@@ -938,14 +938,14 @@ export default class PayoffScene extends ModuleScene {
     }
 
     const title = correct
-      ? `${capitalize(pick)} wins at S=${fmt(S)} · ${fmtSigned(chosen)}`
+      ? `${capitalize(pick)} wins at ${fmt(S)} · ${fmtSigned(chosen)}`
       : `${capitalize(pick)} loses here · ${fmtSigned(chosen)}`
     const detail =
-      `At S=${fmt(S)}: straddle P&L ${fmtSigned(pnlStrad)} (${fmtDollars(pnlStrad)}), strangle P&L ${fmtSigned(pnlStran)} (${fmtDollars(pnlStran)}). ` +
+      `At ${fmt(S)}: straddle ${fmtSigned(pnlStrad)} (${fmtDollars(pnlStrad)}), strangle ${fmtSigned(pnlStran)} (${fmtDollars(pnlStran)}). ` +
       (move < 8
-        ? `This move clears the straddle's 107 breakeven but NOT the strangle's 108. The cheaper strangle (cost 3) needs the bigger move to escape its 92/108 band — cost vs move. `
-        : `A move this big clears both bands; the cheaper strangle (cost 3) keeps more because it paid less premium. `) +
-      `Breakeven DISTANCE, not price tag, decides: straddle BE 93/107 (7 from 100), strangle BE 92/108 (8 from 100).`
+        ? `This move clears the straddle's 107 breakeven but not the strangle's 108. The cheaper strangle needs the bigger move. `
+        : `A move this big clears both — the cheaper strangle keeps more because it paid less. `) +
+      `What matters is breakeven distance, not the price tag: straddle 93/107 (7 from 100), strangle 92/108 (8 from 100).`
     this.report(correct, title, detail)
   }
 
@@ -961,15 +961,15 @@ export default class PayoffScene extends ModuleScene {
     // mark the expected pin at 100 in amber — the scenario in focus
     const xg = this.add.graphics()
     this.dashLineV(xg, this.xFor(100), this.plot.t, this.plot.b, C.amber, 1, 7, 5)
-    this.label(this.xFor(100), this.plot.t + 8, 'expected pin → S = 100', {
+    this.label(this.xFor(100), this.plot.t + 8, 'you expect it to stay near 100', {
       size: this.fs(12, 12, 15), col: C.amberInk, bold: true, align: 'center', bg: true,
     })
 
     const by = this.H - 28
-    this.makePickButton('long', 'LONG VOL (buy)', this.plot.l + 30, by, 210, C.green, () => {
+    this.makePickButton('long', 'Buy (long)', this.plot.l + 30, by, 210, C.green, () => {
       this.volPick = 'long'; this.refreshPickButtons()
     })
-    this.makePickButton('short', 'SHORT VOL (sell)', this.plot.l + 270, by, 210, C.red, () => {
+    this.makePickButton('short', 'Sell (short)', this.plot.l + 270, by, 210, C.red, () => {
       this.volPick = 'short'; this.refreshPickButtons()
     })
     this.refreshPickButtons()
@@ -1004,11 +1004,11 @@ export default class PayoffScene extends ModuleScene {
 
     const correct = volPick === 'short'
     const title = correct
-      ? `Short vol fits the pin · ${fmtSigned(pnl)} at S=100`
-      : `Long vol is the wrong side here · ${fmtSigned(pnl)} at S=100`
+      ? `Selling fits a quiet stock · ${fmtSigned(pnl)} at 100`
+      : `Buying is the wrong side here · ${fmtSigned(pnl)} at 100`
     const detail = correct
-      ? `Right call for a confident pin + rich IV: SELLING the straddle keeps the full ${fmt(totalPremium(this.legs()))} premium (${fmtDollars(totalPremium(this.legs()))}) if the stock stays inside 93–107, and IV crush works FOR you. The caveat the payoff shows: the inverted tent has large/undefined risk if the move is bigger than you expect — only right when you truly expect quiet.`
-      : `Buying the straddle into a pin is the IV-crush trap (module 11): you pay 7 of rich premium for a move that never comes, so a pin at 100 loses the full ${fmt(totalPremium(straddle(100, 4, 3, 'long')))} (${fmtDollars(-totalPremium(straddle(100, 4, 3, 'long')))}). For an expected pin + rich IV, SELL the premium (short vol) — accepting its large tail risk — or stay flat.`
+      ? `Right call for a quiet stock with expensive options: SELLING keeps the full ${fmt(totalPremium(this.legs()))} (${fmtDollars(totalPremium(this.legs()))}) if the stock stays inside 93–107, and the price drop after the news helps you. Careful — a big move can cost a lot (no cap on the upside), so only sell when you really expect calm.`
+      : `Buying into a quiet stock is the IV-crush trap: you pay top dollar for a move that never comes, so a stock stuck at 100 loses the full ${fmt(totalPremium(straddle(100, 4, 3, 'long')))} (${fmtDollars(-totalPremium(straddle(100, 4, 3, 'long')))}). When you expect calm with expensive options, SELL — or stay out.`
     this.report(correct, title, detail)
   }
 

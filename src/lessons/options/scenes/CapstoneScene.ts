@@ -97,32 +97,31 @@ export default class CapstoneScene extends PayoffScene {
     const delta = this.cp.delta ?? 0.5
     const lossTxt = ml === Infinity ? 'UNLIMITED' : `$${ml.toLocaleString()}`
     const gainTxt = mg === Infinity ? 'unlimited' : `$${mg.toLocaleString()}`
+    const mFull = m === 'ITM' ? 'In the money' : m === 'ATM' ? 'At the money' : 'Out of the money'
     this.readoutPanel.setText(
       [
         'YOUR POSITION',
-        `Breakeven  ${be.toFixed(2)}`,
-        `Max loss   ${lossTxt}`,
-        `Max gain   ${gainTxt}`,
-        `Moneyness  ${m} (S=${anchorS})`,
-        `Delta      ≈ ${delta.toFixed(2)} (illustrative)`,
+        `Break-even   $${be.toFixed(2)}`,
+        `Max loss     ${lossTxt}`,
+        `Max gain     ${gainTxt}`,
+        `${mFull} (at $${anchorS})`,
+        `Delta ≈ ${delta.toFixed(2)} (like ${Math.round(delta * 100)} shares)`,
       ].join('\n'),
     )
 
-    // Challenge feedback: the target is a long call (bullish, defined risk, the leg the
-    // embedded P&L check is built on). Every branch states an accurate fact about the leg.
+    // Challenge feedback: the target is a long call (bets the stock rises, capped risk —
+    // the leg the embedded P&L check is built on). Every branch states an accurate fact.
     if (this.p.type === 'call' && this.p.side === 'long') {
-      this.challengeTxt.setText('✓ Bullish with DEFINED risk — a long call. Nice.').setColor(hex(C.green))
+      this.challengeTxt.setText('✓ A long call: bets the stock rises, and your loss is capped. Nice.').setColor(hex(C.green))
     } else if (this.p.type === 'call' && this.p.side === 'short') {
-      this.challengeTxt.setText('Short call: Max loss = UNLIMITED — not defined risk (module 11).').setColor(hex(C.red))
+      this.challengeTxt.setText('A sold call has UNLIMITED risk — not what we want here.').setColor(hex(C.red))
     } else if (this.p.type === 'put' && this.p.side === 'short') {
-      // A short put IS bullish and its loss IS capped — just nudge toward the target leg.
       this.challengeTxt
-        .setText(`Short put: bullish, and its risk is capped at ${lossTxt} — but the classic defined-risk bullish play is the long call.`)
+        .setText(`A sold put also bets the stock rises, with risk capped at ${lossTxt} — but the classic capped-risk bet is a bought call.`)
         .setColor(hex(C.blue))
     } else {
-      // long put = bearish
       this.challengeTxt
-        .setText('A long put is BEARISH (it profits when S falls). Aim for a bullish, defined-risk leg.')
+        .setText('A long put bets the stock FALLS. We want a bet that it rises, with capped risk.')
         .setColor(hex(C.blue))
     }
   }
@@ -151,7 +150,7 @@ export default class CapstoneScene extends PayoffScene {
     const tag = this.label(
       x,
       y + (vShare >= 0 ? -20 : 20),
-      `S=${S}: ${sign(vShare)}${Math.abs(vShare).toFixed(2)}/sh = ${sign(vContract)}$${Math.abs(vContract).toFixed(
+      `At $${S}: ${sign(vShare)}$${Math.abs(vShare).toFixed(2)}/share = ${sign(vContract)}$${Math.abs(vContract).toFixed(
         0,
       )}/contract`,
       { size: 13, col, bold: true, align: 'center', bg: true },
@@ -165,9 +164,9 @@ export default class CapstoneScene extends PayoffScene {
   // summary reel: three one-line takeaways fade in sequence
   private runSummaryReel(): void {
     const lines = [
-      'premium = intrinsic + time value',
-      'hockey-stick payoff · breakeven = K ± premium',
-      'delta & leverage vs the underlying',
+      'price = real value + time value',
+      'profit chart · break-even = strike ± premium',
+      'delta & leverage vs the stock',
     ]
     const panel = this.panel(this.plot.l + 40, this.plot.t + 64, 372, 108, {
       fill: C.blueSoft,

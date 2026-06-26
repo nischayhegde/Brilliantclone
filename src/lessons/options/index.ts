@@ -30,10 +30,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Options · XYZ @ $100',
     title: 'A Coupon on a Stock',
     intro:
-      'An option is like a refundable deposit: you pay a little for the RIGHT — never the obligation — to trade 100 shares at a fixed "strike" price by a deadline. Flip CALL/PUT and drag the deadline.',
+      'An option is a coupon on a stock: for a small fee, you get the right — never the obligation — to trade 100 shares at a set price before a deadline.',
     scene: { kind: 'card', params: { variant: 'coupon', K: 100, premium: 5, days: 30 } },
     caption:
-      'An option gives you the right (never the obligation) to BUY (a call) or SELL (a put) 100 shares at a fixed strike price by a deadline. You pay a small premium for that right — like a deposit you can walk away from. (Premium shown is illustrative.)',
+      'A call is the right to BUY; a put is the right to SELL. You can always walk away — the most you lose is the small fee you paid (the premium).',
     cta: 'Got it',
   },
 
@@ -41,13 +41,13 @@ const modules: ModuleSpec[] = [
   {
     id: 2,
     type: 'teach',
-    kicker: 'Teach · S ≈ $100',
-    title: 'Calls vs Puts (and the ×100 Multiplier)',
+    kicker: 'Teach · calls vs puts',
+    title: 'Calls, Puts, and the ×100 Rule',
     intro:
-      'A CALL is a coupon to BUY 100 shares at the strike K; a PUT is a coupon to SELL 100 shares at K. One contract always covers 100 shares, so a per-share premium ×100 is the real dollar cost.',
+      'A call lets you buy; a put lets you sell. One contract always covers 100 shares — so a $3 premium really costs $300.',
     scene: { kind: 'card', params: { variant: 'compare', K: 100, premium: 3 } },
     caption:
-      'Call = a coupon to BUY 100 shares cheap (you want the stock high). Put = a coupon to SELL 100 shares at a locked-in high price (you want the stock low). One contract is 100 shares, so a $3.00 premium really costs $300. (Premium illustrative; the ×100 rule is exact.)',
+      'Buy a call when you think the stock will rise; buy a put when you think it will fall. Always multiply the premium by 100 to see the real cost.',
     cta: 'Got it',
   },
 
@@ -55,10 +55,10 @@ const modules: ModuleSpec[] = [
   {
     id: 3,
     type: 'challenge',
-    kicker: 'Challenge · CALL K=100',
+    kicker: 'Challenge · right, not obligation',
     title: 'Right, Not Obligation',
     intro:
-      'You hold a CALL with strike 100 — think of it as a cancellable pre-order to buy at 100. At expiry the stock is only 95. You decide: exercise the right to buy at 100, or let the contract expire and walk away.',
+      'Your call lets you buy the stock at $100 — but the stock is only worth $95. Would you really pay $100 for it?',
     scene: {
       kind: 'payoff',
       params: {
@@ -71,11 +71,13 @@ const modules: ModuleSpec[] = [
         mode: 'challenge',
         challenge: 'exercise',
         expiryS: 95,
+        hideBreakeven: true,
+        hideRiskBadge: true,
       },
     },
     challenge: {
-      prompt: 'The stock closed at 95 and you hold a 100-strike call. What do you do?',
-      instructions: 'Tap EXERCISE or LET EXPIRE, then Submit to settle the contract.',
+      prompt: 'The stock is $95 and your call lets you buy at $100. What do you do?',
+      instructions: 'Tap EXERCISE or LET EXPIRE, then Submit.',
       submitLabel: 'Settle',
     },
   },
@@ -84,13 +86,13 @@ const modules: ModuleSpec[] = [
   {
     id: 4,
     type: 'teach',
-    kicker: 'Teach · CALL K=100',
-    title: 'Premium = Intrinsic + Time Value',
+    kicker: 'Teach · what makes the price',
+    title: 'Price = Real Value + Time Value',
     intro:
-      'A premium splits into two parts: intrinsic value + time (extrinsic) value. Intrinsic is the in-the-money part: call = max(S−K,0), put = max(K−S,0). Drag S across the strike and watch the split — and the moneyness — change.',
+      "An option's price has two parts: real value (what it's worth right now) plus time value (extra you pay for the chance it grows). Drag the stock price and watch the split.",
     scene: { kind: 'premium', params: { mode: 'interactive', type: 'call', K: 100, S: 100, premium: 3, sMin: 70, sMax: 130 } },
     caption:
-      'Think of a concert ticket: its price is the face value (the real, "intrinsic" part) plus a scalper\'s hype markup ("time value"). For an option, intrinsic is the in-the-money part — call max(S−K,0), put max(K−S,0) — and the rest is time value. ITM = intrinsic above 0, OTM = intrinsic 0, ATM = right at the strike. (Time-value numbers illustrative; intrinsic math exact.)',
+      "Like a concert ticket: part of the price is face value (real worth) and part is the scalper's markup (the hope you pay for). When the stock is below the strike, a call has no real value yet — it's all time value.",
     cta: 'Got it',
   },
 
@@ -98,17 +100,17 @@ const modules: ModuleSpec[] = [
   {
     id: 5,
     type: 'challenge',
-    kicker: 'Challenge · CALL K=100, S=107',
+    kicker: 'Challenge · real vs time value',
     title: 'How Much Is Real Value?',
     intro:
-      'A CALL, strike 100, with the stock at 107, trades for a 9.00 premium. Picture it as cash-in-hand plus a lottery ticket that expires: drag the divider to split the premium into intrinsic (real) value and time value.',
+      'A call to buy at $100 costs $9, and the stock is already $107. How much of that $9 is real value you could cash in today?',
     scene: {
       kind: 'premium',
       params: { mode: 'challenge', type: 'call', K: 100, S: 107, premium: 9 },
     },
     challenge: {
-      prompt: 'Split the 9.00 premium: how much is intrinsic (real) value, and how much is time value?',
-      instructions: 'Drag the divider — below it is intrinsic, above it is time value — then Submit.',
+      prompt: 'Split the $9: how much is real value, and how much is time value?',
+      instructions: 'Drag the divider — below it is real value, above it is time value — then Submit.',
       submitLabel: 'Split it',
     },
   },
@@ -117,13 +119,13 @@ const modules: ModuleSpec[] = [
   {
     id: 6,
     type: 'teach',
-    kicker: 'Teach · CALL K=100, S=105',
-    title: 'Theta: Time Value Decays to Zero',
+    kicker: 'Teach · time decay',
+    title: 'Time Value Melts Away (Theta)',
     intro:
-      'An option’s time value melts like an ice cube — slowly far out, faster as the deadline nears. That melt is theta. Drag days-to-expiry from 60 to 0 and watch the time value melt down onto the intrinsic floor.',
+      'Time value melts like an ice cube — slowly at first, then faster as the deadline nears. Drag the days left and watch it melt.',
     scene: { kind: 'theta', params: { K: 100, S: 105, tv0: 3, days: 60, money: 'ITM' } },
     caption:
-      'An option’s "time value" melts like an ice cube — slowly at first, then faster as the deadline nears. That melt is called theta. At expiry the cube is gone and the option is worth exactly its intrinsic value (the real, in-the-money part): an OTM option becomes worthless, an ITM one is worth S−K (call) / K−S (put). (Decay curve illustrative; intrinsic-at-expiry exact.)',
+      "This slow leak is called theta. By the deadline the time value is gone, and the option is worth only its real value — or nothing, if it's out of the money. Holding too long just bleeds away what you paid.",
     cta: 'Got it',
   },
 
@@ -134,10 +136,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Teach · 90-day call',
     title: 'American vs European Style',
     intro:
-      'American options can be exercised ANY day up to expiry; European ones only AT expiry. Drag the "exercise now" marker — exercising early usually throws away time value (with two special-case exceptions).',
+      'American options can be used any day before the deadline; European ones only on the deadline. Drag the marker to try using yours early.',
     scene: { kind: 'timeline', params: { variant: 'timeline', intrinsicNow: 6, timeValueNow: 2 } },
     caption:
-      'American = use it any day (like a gift card good until its expiry); European = only on the deadline date (like a dinner reservation good for one night). Equity options are usually American, but exercising early normally wastes time value — selling-to-close keeps it. Exceptions: a deep-ITM call just before a dividend, and a deep-ITM put (to earn interest on the strike cash now). (Time-value figures illustrative; the trade-off logic is exact.)',
+      'Most stock options are American — usable any day. But using one early throws away its leftover time value. Selling the option instead lets you keep that value, so early exercise is usually a mistake.',
     cta: 'Got it',
   },
 
@@ -145,13 +147,13 @@ const modules: ModuleSpec[] = [
   {
     id: 8,
     type: 'challenge',
-    kicker: 'Challenge · ITM call worth 8.00',
+    kicker: 'Challenge · cash out a call',
     title: 'Exercise, Sell, or Let It Expire?',
     intro:
-      'You hold an ITM call worth 8.00 (intrinsic 6.00, time value 2.00) with a week left, and you want out now. Like a concert ticket, you can resell the whole thing or redeem it early — pick a door, then Submit to open them and see what each keeps.',
+      "Your call is worth $8 — $6 of real value plus $2 of time value still left — and you want out. Sell it, use it, or let it expire?",
     scene: { kind: 'timeline', params: { variant: 'doors', intrinsicNow: 6, timeValueNow: 2, challenge: true } },
     challenge: {
-      prompt: 'You want out of an ITM call (intrinsic 6.00, time value 2.00). Which action keeps the most value?',
+      prompt: 'You want out of a call worth $8 ($6 real + $2 time value). Which choice keeps the most?',
       instructions: 'Tap Exercise, Sell-to-close, or Let it expire — then Submit.',
       submitLabel: 'Open the doors',
     },
@@ -161,16 +163,16 @@ const modules: ModuleSpec[] = [
   {
     id: 9,
     type: 'teach',
-    kicker: 'Teach · long call/put',
-    title: 'Long Call & Long Put Payoffs (with Breakevens)',
+    kicker: 'Teach · buyer payoffs',
+    title: 'Long Call & Put Payoffs',
     intro:
-      'At expiry a long option is a hockey-stick shape. Long-call breakeven = K + premium; long-put breakeven = K − premium; the most you can lose either way is the premium. Drag the spot dot to read your P&L.',
+      'This chart shows your profit at any final stock price. The flat part is your worst case: you can only lose the premium. Drag the dot to read it.',
     scene: {
       kind: 'payoff',
       params: { type: 'call', side: 'long', K: 100, premium: 5, sMin: 70, sMax: 130, mode: 'interactive', controls: true, spot0: 108 },
     },
     caption:
-      'The flat part of the stick is your worst case — the most you can lose is the premium, your cost of entry. But clearing the strike isn’t enough to profit: first the move has to earn that premium back. The long call profits above K + premium (105); the long put profits below K − premium (95). The call’s upside is unlimited while the put’s max gain is K − premium (the stock can’t fall below 0). (Breakeven math exact; premium illustrative.)',
+      "Clearing the strike isn't enough to make money — first the move has to earn back the premium you paid. That tipping point is the breakeven (the blue line). Past it, a call's profit can keep climbing.",
     cta: 'Got it',
   },
 
@@ -178,10 +180,10 @@ const modules: ModuleSpec[] = [
   {
     id: 10,
     type: 'challenge',
-    kicker: 'Challenge · CALL K=50, prem 2.50',
+    kicker: 'Challenge · find break-even',
     title: 'Find the Breakeven',
     intro:
-      'You buy a CALL, strike 50, for a 2.50 premium — so you start 2.50 in the hole. Drag the blue marker to the stock price where your gain has climbed back to $0. That price is your breakeven.',
+      'You paid $2.50 for a call to buy at $50, so you start $2.50 down. Drag the marker to the price where you finally get back to $0.',
     scene: {
       kind: 'payoff',
       params: {
@@ -207,10 +209,10 @@ const modules: ModuleSpec[] = [
   {
     id: 11,
     type: 'teach',
-    kicker: 'Teach · short call/put',
-    title: "The Writer's Side: Short Call & Short Put",
+    kicker: "Teach · the seller's side",
+    title: "The Seller's Side: Short Options",
     intro:
-      'The writer (the seller) collects the premium and takes on the obligation — like an insurance company. Short = the mirror of long, flipped across the x-axis. A short call has unlimited risk; a short put’s loss is capped at (K − premium) × 100. Drag the spot dot.',
+      "Sell an option and you're the insurer: you pocket the premium but take on the risk. Selling a call is the dangerous one — its loss has no ceiling. Drag the dot.",
     scene: {
       kind: 'payoff',
       params: {
@@ -227,7 +229,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'Writing an option is like being the insurance company: you pocket the premium up front, but you’re on the hook if things go against you. A short call must deliver shares no matter how high the stock climbs → unlimited risk. A short put must buy at K → the loss grows as the stock falls, capped at (K − premium) × 100 ($9,500 here) since the stock can’t go below 0. Short = the mirror of long. (Premium illustrative; risk math exact.)',
+      "The seller keeps the premium up front but must deliver if the trade goes against them. A short call can lose without limit, because a stock can rise forever. A short put's loss is big but capped — the stock can only fall to $0.",
     cta: 'Got it',
   },
 
@@ -235,14 +237,14 @@ const modules: ModuleSpec[] = [
   {
     id: 12,
     type: 'challenge',
-    kicker: 'Challenge · build a leg',
+    kicker: 'Challenge · unlimited risk',
     title: 'Who Has Unlimited Risk?',
     intro:
-      'Build a single-leg position by toggling CALL/PUT and LONG/SHORT (K=100, premium 5); the payoff redraws live. One of these is like betting against a balloon — it can inflate forever. Build the position whose loss is theoretically unbounded, then Submit.',
+      'Four positions — only one can lose without any limit. Flip the switches to build it, watching the max-loss readout, then submit.',
     scene: { kind: 'builder', params: { K: 100, premium: 5, sMin: 60, sMax: 140 } },
     challenge: {
-      prompt: 'Build the single-leg position with theoretically UNLIMITED loss, then Submit.',
-      instructions: 'Toggle CALL/PUT and LONG/SHORT — watch the max-loss readout — then Submit.',
+      prompt: 'Build the position whose loss has no limit, then Submit.',
+      instructions: 'Flip CALL/PUT and LONG/SHORT and watch the Max loss readout.',
       submitLabel: 'Check my position',
     },
   },
@@ -251,10 +253,10 @@ const modules: ModuleSpec[] = [
   {
     id: 13,
     type: 'interactive',
-    kicker: 'Explore · CALL K=100',
+    kicker: 'Explore · delta',
     title: 'Value vs the Underlying (Delta)',
     intro:
-      'Delta is how much the option’s price moves per $1 move in the stock — the slope of its price curve. Think of a gas pedal: drag S along the curve and the tangent tilts from barely-pressed (OTM) to ~45° (ATM, δ≈0.5) to floored (deep-ITM, δ→1).',
+      'Delta tells you how much the option moves when the stock moves $1. Drag the dot: deep in the money it nearly matches the stock; far out, it barely reacts.',
     scene: {
       kind: 'delta',
       params: {
@@ -278,7 +280,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'Delta is like a gas pedal’s sensitivity — the slope of the option’s price curve. Deep-ITM options ≈ pedal floored, tracking the shares 1:1 (δ near 1); ATM ≈ half-pressed (δ≈0.5); far-OTM ≈ barely touched (small δ). So one deep-ITM contract behaves like ~100 shares while a far-OTM one hardly budges. (Delta values illustrative; slope behavior exact.)',
+      'A delta near 1 means the option moves almost dollar-for-dollar with the stock — like owning the shares. A delta near 0 means it barely moves. At the strike it sits around 0.5.',
     cta: 'Done exploring',
   },
 
@@ -289,10 +291,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Teach · $100 stock',
     title: 'Leverage: $1 Premium, 100 Shares',
     intro:
-      'The same $500 buys 5 shares of a $100 stock — or one $5.00 call that controls 100 shares. A call is a magnifying glass: drag the % move and watch the call’s swing dwarf the stock’s — and hit −100% at or below the strike at expiry.',
+      'The same $500 buys 5 shares — or one call that controls 100. The call acts like a magnifying glass: drag the move and watch its swing dwarf the stock.',
     scene: { kind: 'leverage', params: { S0: 100, K: 100, premium: 5, budget: 500 } },
     caption:
-      '$500 buys exactly 5 shares of a $100 stock — or one $5.00 call controlling 100 shares. A call works like a magnifying glass on the move: a +10% stock becomes the call’s +100%, but a flat or down move becomes −100% (the whole premium gone). Magnified both ways — that’s leverage, and it cuts in both directions. (Underlying anchor real; premium illustrative; returns computed exactly.)',
+      "A +10% stock move can turn into a +100% gain on the call — but a flat or down move can wipe out the whole premium (−100%). Leverage magnifies the move in both directions.",
     cta: 'Got it',
   },
 
@@ -300,10 +302,10 @@ const modules: ModuleSpec[] = [
   {
     id: 15,
     type: 'capstone',
-    kicker: 'Capstone · S ≈ $120',
+    kicker: 'Capstone · put it all together',
     title: 'Build & Read an Option Position',
     intro:
-      'Build a position (type, side, strike, premium) and read it live like a dashboard: breakeven, max loss, max gain, moneyness, delta. Challenge: build a bullish position with defined (capped) risk — then check its P&L at expiry.',
+      'Put it all together: build your own option and read it like a dashboard — breakeven, max loss, max gain. Your goal: a bullish position with limited risk.',
     scene: {
       kind: 'capstone',
       params: {
@@ -320,7 +322,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'You built it and read every gauge: a long call, strike 120, premium $6 → breakeven 126, max loss $600, max gain unlimited, ATM with δ≈0.5. To profit, the stock must clear the breakeven (126), not just the strike — at 123 you’re still −$300. That one chart ties the whole lesson together. (Underlying anchor real; premium illustrative; all P&L math exact.)',
+      "You built a long call: strike 120, premium $6, breakeven 126, max loss $600, upside unlimited. To profit, the stock must clear 126 — not just the strike. That one chart ties the whole lesson together.",
     quiz: {
       prompt: 'Your built long call (K=120, premium 6): if the stock is 130 at expiry, is it profitable — and by how much per contract?',
       options: [
@@ -330,9 +332,9 @@ const modules: ModuleSpec[] = [
       ],
       correctId: 'b',
       explainRight:
-        'Correct. P&L = (max(130−120,0) − 6) × 100 = (10 − 6) × 100 = +$400. You cleared the breakeven (126) by $4 a share. Above the strike but below 126, you’d still be in the red.',
+        "Correct. At $130 the call is worth $10 a share; minus the $6 you paid, that's $4 × 100 = +$400. You cleared the breakeven (126) by $4.",
       explainWrong:
-        'It’s +$400. P&L = (max(S−K,0) − premium) × 100 = (10 − 6) × 100. The $1,000 answer forgets to subtract the $6 premium; the $600 loss is the max loss, which only happens at or below the strike (S ≤ 120).',
+        "It's +$400. The call is worth $10 a share at $130, minus the $6 premium = $4 × 100. The $1,000 answer forgets the premium; the $600 loss only happens at or below the strike.",
     },
     cta: 'Check',
   },
@@ -346,7 +348,7 @@ const pkg: LessonPackage = {
     subtitle: 'American Calls & Puts',
     level: 4,
     blurb:
-      'Calls, puts, premium = intrinsic + time, the hockey-stick payoffs and exact breakevens, delta & leverage — then build and read a position yourself.',
+      'What calls and puts really are, what sets their price, when to use them, and how leverage cuts both ways — then build one yourself.',
     modules,
   },
   scenes: {

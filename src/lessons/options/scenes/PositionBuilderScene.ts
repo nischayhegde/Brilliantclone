@@ -101,7 +101,7 @@ export default class PositionBuilderScene extends ModuleScene {
     g.lineBetween(this.plot.l, this.plot.b, this.plot.r, this.plot.b)
     this.label(this.plot.l - 6, y0, '0', { size: 11, col: C.muted, align: 'right' })
     this.add
-      .text(14, this.plot.t + this.plot.h / 2, 'P&L / share', {
+      .text(14, this.plot.t + this.plot.h / 2, 'profit / loss', {
         fontFamily: FONT,
         fontSize: '12px',
         color: hex(C.muted),
@@ -116,7 +116,7 @@ export default class PositionBuilderScene extends ModuleScene {
       g.lineBetween(x, this.plot.t, x, this.plot.b)
       this.label(x, this.plot.b + 12, S.toFixed(0), { size: 10, col: C.muted, align: 'center' })
     }
-    this.label((this.plot.l + this.plot.r) / 2, this.plot.b + 28, 'underlying price S at expiry', {
+    this.label((this.plot.l + this.plot.r) / 2, this.plot.b + 28, 'stock price at the deadline', {
       size: 11,
       col: C.muted,
       align: 'center',
@@ -127,7 +127,7 @@ export default class PositionBuilderScene extends ModuleScene {
     for (let yy = this.plot.t; yy < this.plot.b; yy += 12) {
       g.lineBetween(xk, yy, xk, Math.min(yy + 7, this.plot.b))
     }
-    this.label(xk, this.plot.t - 6, `K=${this.p.K}`, { size: 13, col: C.blue, bold: true, align: 'center', bg: true })
+    this.label(xk, this.plot.t - 6, `strike $${this.p.K}`, { size: 13, col: C.blue, bold: true, align: 'center', bg: true })
   }
 
   private redraw(): void {
@@ -163,9 +163,9 @@ export default class PositionBuilderScene extends ModuleScene {
     }
 
     this.titleTxt.setText(
-      `${this.side.toUpperCase()} ${this.type.toUpperCase()}  ·  K=${this.p.K}  ·  premium ${this.p.premium.toFixed(
+      `${this.side === 'long' ? 'BUY' : 'SELL'} ${this.type.toUpperCase()}  ·  strike $${this.p.K}  ·  premium $${this.p.premium.toFixed(
         2,
-      )} (illustrative)`,
+      )}`,
     )
     const ml = maxLoss(pos)
     const mg = maxGain(pos)
@@ -263,18 +263,18 @@ export default class PositionBuilderScene extends ModuleScene {
     }
 
     const lossTxt = unlimited ? 'UNLIMITED' : `$${ml.toLocaleString()}`
-    const legName = `${this.side} ${this.type}`
+    const legName = `${this.side === 'long' ? 'bought' : 'sold'} ${this.type}`
     let detail: string
     if (correct) {
-      detail = `A naked short call is obligated to deliver 100 shares at ${this.p.K} however high S climbs; to deliver, the writer must buy at an arbitrarily high market price, so the loss grows without bound. There is no ceiling on a stock price — its loss tail runs off the top of the frame.`
+      detail = `Selling a call (without owning the stock) forces you to hand over 100 shares at $${this.p.K} no matter how high the stock climbs. Since a stock can rise forever, your loss has no ceiling — the red line runs off the top.`
     } else if (this.side === 'short' && this.type === 'put') {
-      detail = `A short put feels symmetric, but the stock can't fall below 0, so its worst case is bounded: (K − premium) × 100 = ${lossTxt}. Only the naked SHORT CALL is unbounded — build that one.`
+      detail = `Selling a put feels just as risky, but a stock can't fall below $0 — so the worst case is capped at ${lossTxt}. Only selling a call has no limit. Build that one.`
     } else {
-      detail = `A long ${this.type} can only lose the premium you paid (${lossTxt}) — you can decline to exercise. The unbounded loss belongs to the naked SHORT CALL: it must deliver shares at any price the stock reaches. Build a short call.`
+      detail = `Buying a ${this.type} can only lose the premium you paid (${lossTxt}) — you can always walk away. The no-limit loss belongs to a sold call. Switch to SELL + CALL.`
     }
     const title = correct
-      ? `Naked short call — UNLIMITED loss`
-      : `Your ${legName} is bounded (max loss ${lossTxt})`
+      ? `Sold call — UNLIMITED loss`
+      : `Your ${legName} has a limited loss (${lossTxt})`
     this.report(correct, title, detail)
   }
 }

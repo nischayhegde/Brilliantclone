@@ -30,10 +30,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Short selling',
     title: 'Betting Against a Stock',
     intro:
-      "A short flips the usual order — you sell first, then buy back later. Picture borrowing a friend's bike, selling it now, then buying an identical one back cheaper to return: you keep the difference. Drag the future price and watch the meter.",
+      'Normally you buy low, then sell high. A short flips it: you sell first, then buy back later — and keep the drop. Drag the future price and watch your profit.',
     scene: { kind: 'introFlip', params: { entry: 50, min: 0, max: 100 } },
     caption:
-      'Your profit per share is just sell price − future price. Drag the price down and you win; drag it up and — notice — the loss keeps going, with nothing to stop it.',
+      'You win when the price falls. Drag it down and you profit — but drag it up and the loss just keeps growing.',
     cta: 'Continue',
   },
 
@@ -44,7 +44,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · LCID',
     title: 'The Short Lifecycle: Borrow, Sell, Cover, Return',
     intro:
-      "Four steps: borrow the shares (your broker 'locates' them), sell now while the price is high, later buy them back lower (that's buy to cover), then return them to the lender. Profit = sell − cover per share. Real Lucid (LCID) decline.",
+      'A short has four steps: borrow the shares, sell them high, later buy them back lower (this is called covering), and return them. You keep the gap. Here is a real Lucid (LCID) slide.',
     scene: {
       kind: 'candle',
       params: {
@@ -57,7 +57,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'Borrow, sell high ($57.75), wait as it falls, buy to cover low ($21.31), and return the shares. You keep the gap: $36.44/share × 100 = $3,644 (before borrow costs — those come next).',
+      'Sold at $57.75, bought back at $21.31. That $36.44 gap × 100 shares = $3,644 — before borrow costs, which come next.',
   },
 
   // 3 — INTERACTIVE · borrow fee & margin
@@ -67,10 +67,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Cost of carry',
     title: 'Borrow Fee & the Margin Account',
     intro:
-      'Shorting runs through a margin account: your sale cash plus extra is locked up as collateral. Borrowed shares charge rent — a daily borrow fee, like renting a tool — and you owe the lender any dividend the shares pay. Tune the rate, days, and dividend.',
+      'Shorting is not free. The broker locks up your cash as a deposit, then charges a small daily fee to rent the shares — plus any dividend they owe. Move the dials and watch your profit shrink.',
     scene: { kind: 'borrowFee', params: { shares: 100, sell: 50, gross: 600, divPerShare: 0.2 } },
     caption:
-      "Your sale cash isn't free money. The broker holds it plus extra as collateral, charges daily rent to borrow the shares (tiny for easy-to-borrow names, brutal for hard-to-borrow ones), and bills you for any dividends. All of it comes out of your gross profit.",
+      'The fee is tiny for easy-to-borrow stocks but brutal for hard-to-borrow ones. Every day you hold, borrow fees and owed dividends eat into your profit.',
     cta: 'Continue',
   },
 
@@ -81,18 +81,18 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge · Net P&L',
     title: 'Did the Short Make Money?',
     intro:
-      'You shorted 100 shares at $50. Drag the buy-to-cover price down the axis and set how long you hold — the borrow fee adds up every day, and you owe $0.20/share in dividends. Watch the ledger and find an exit that still profits after costs.',
+      'You shorted 100 shares at $50. Pick where you buy back and how long you hold. Fees add up every day — find an exit that still profits after costs.',
     scene: {
       kind: 'netPnl',
       params: { shares: 100, sell: 50, cover: 44, borrowPerShareDay: 0.02, divPerShare: 0.2, days: 30 },
     },
     challenge: {
-      prompt: 'Pick a buy-to-cover price and holding period that still profits after costs.',
-      instructions: 'Drag the green COVER line down the price axis and drag the days slider. The bar shows gross minus borrow fee minus dividends — that is your net.',
+      prompt: 'Find a buy-back price and holding time that still profits after costs.',
+      instructions: 'Drag the green COVER line down, and slide the days left or right. The bar shows your profit after fees.',
       submitLabel: 'Close the short',
     },
     caption:
-      'A short can be right about the direction and still lose money — borrow fees and owed dividends eat into the gross. Cover far enough below your entry, and fast enough, that the net stays green. Always trade the net, not the gross.',
+      'A short can be right about the drop and still lose money — fees eat the profit. Cover low enough, and fast enough, to stay green.',
   },
 
   // 5 — TEACH / INTERACTIVE · asymmetry
@@ -102,10 +102,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · Asymmetry',
     title: 'The Asymmetry: Capped Gain, Unlimited Loss',
     intro:
-      "A short's gain is capped — the stock can only fall to $0, which is +100% and no more. Its loss has no cap, because the price can climb without bound. A long position is the mirror image. Drag the future price to feel the two shapes.",
+      'A short can only win so much — a stock can fall to $0 and no further. But its loss has no limit, because the price can keep rising. Drag the price to feel the difference.',
     scene: { kind: 'payoff', params: { entry: 30, priceMax: 120, shares: 100, mode: 'teach' } },
     caption:
-      'Picture betting against a balloon. It can only deflate to empty — that is your best case, a capped +100%. But it can inflate forever, and your loss inflates right along with it. That one-sided risk is what makes shorting dangerous.',
+      'Best case, the stock hits zero (a capped +100%). Worst case, it climbs with no limit — and your loss climbs with it. That one-sided risk is what makes shorting dangerous.',
   },
 
   // 6 — CHALLENGE · long vs short risk
@@ -115,15 +115,15 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge · Risk shape',
     title: 'Long vs Short: Which Risk Is Worse?',
     intro:
-      'Same stock, two opposite positions opened at $30 × 100 shares: one long, one short. Drag the future price up and watch each profit and loss. The long can only lose its $3,000 stake — see how much further the short can sink.',
+      'Same stock, two bets at $30 × 100 shares: one long, one short. Drag the price up and watch each loss. The long can only lose its $3,000 — see how far the short can sink.',
     scene: { kind: 'payoffChallenge', params: { entry: 30, priceMax: 150, shares: 100, startPrice: 30 } },
     challenge: {
       prompt: 'Push the price high enough that the short loses more than the long ever could.',
-      instructions: "Drag the cursor right to push the price up. The long's loss stops at −$3,000; keep going until the short blows past it.",
+      instructions: "Drag right to push the price up. The long's loss stops at −$3,000; keep going until the short blows past it.",
       submitLabel: 'Lock it in',
     },
     caption:
-      "A long's worst case is −100% — you lose what you put in, and not a penny more. A short's worst case is −∞, because the price can rise forever. Same stock, opposite risk shapes — that is why a short demands a stop.",
+      'A long can only lose what you put in. A short can lose far more, because the price can keep rising. That is why every short needs a stop.',
   },
 
   // 7 — TEACH / INTERACTIVE · margin calls
@@ -133,10 +133,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · Margin',
     title: 'Margin Calls & Forced Buy-In',
     intro:
-      'Your account must keep a minimum cushion — the maintenance margin. As the price rises against your short, that cushion shrinks. Cross the line and the broker taps your shoulder with a MARGIN CALL: post more cash, or it buys you back in at market (a forced BUY-IN). A lender RECALL can force you out too. Run the path and choose.',
+      'Your account must keep a minimum cushion. As the price rises against you, that cushion shrinks. Cross the line and the broker issues a MARGIN CALL: add cash, or get bought back in. Run the path and choose.',
     scene: { kind: 'marginGauge', params: { shares: 100, entry: 30, startEquity: 1500, maintFrac: 0.3, peakPrice: 48 } },
     caption:
-      'A rising price drains your cushion toward the maintenance line. Cross it and the broker calls; ignore the call and it buys you back in at the market — usually at the worst possible price. And a recall can force you out even when your margin is fine.',
+      'Ignore a margin call and the broker buys you back in — usually at the worst price. A lender can also recall the shares at any time, forcing you out.',
   },
 
   // 8 — TEACH / INTERACTIVE · squeeze anatomy
@@ -146,10 +146,10 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · Squeeze',
     title: 'Anatomy of a Short Squeeze',
     intro:
-      'A rising price forces shorts to buy back (cover), and that buying drives the price even higher — forcing still more covering. It is a crowd bolting for one tiny exit: their own scramble is what jams the door. High short interest and days-to-cover are the fuel. Set the levers and nudge the price up.',
+      'When the price rises, shorts must buy back to limit losses — and that buying pushes the price even higher, forcing more buying. Move the sliders and nudge the price up to set it off.',
     scene: { kind: 'squeezeLoop', params: { floatM: 50, avgVolM: 8, shortPct: 90 } },
     caption:
-      'A squeeze is a feedback loop: shorts must buy to cover, and that buying is the very thing driving the price higher, forcing yet more covering. The more shares sold short, the smaller the float, and the longer it takes to cover, the worse the crush at that one exit.',
+      'A squeeze feeds itself: covering pushes the price up, which forces more covering. The more shares sold short, and the fewer left to buy, the worse it gets.',
   },
 
   // 9 — TEACH · REAL chart (GME)
@@ -159,7 +159,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · GME',
     title: 'Case Study — GameStop, January 2021',
     intro:
-      'A real squeeze. GME was heavily shorted — short interest reportedly over 100% of the float — and spiked toward ~$483 intraday on 2021-01-28 as shorts were forced to buy back.',
+      'A real squeeze. So many traders were short GME — more than 100% of its shares — that when it turned up, they were forced to buy back, spiking it toward ~$483 on 2021-01-28.',
     scene: {
       kind: 'candle',
       params: {
@@ -173,7 +173,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      "GME was the Module 8 setup fully loaded — short interest reportedly over 100% of the float. When it ignited, shorts had to buy back a stock that barely existed to buy, and it ran to $483.00 intraday. A short near the base didn't just lose 100% — it lost several times the stake.",
+      'More shares were short than existed to buy. When it ignited, shorts had to chase a stock that barely traded — straight to $483. A short near the bottom lost several times their stake.',
   },
 
   // 10 — CHALLENGE · squeeze or settle (read the dials, choose)
@@ -183,18 +183,18 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge · GME',
     title: 'Squeeze or Settle? Read the Setup',
     intro:
-      "You're short this name. Read the dials — short interest, days-to-cover, free float — and the catalyst flag. Decide whether too many shorts are crowding one small exit, then choose SHORT IT or STEP ASIDE.",
+      "You're short this stock. Check the three dials — short interest, days-to-cover, and float — plus the catalyst. Then choose: SHORT IT or STEP ASIDE.",
     scene: {
       kind: 'squeezeChoice',
       params: { shortPct: 140, daysToCover: 6, floatM: 50, catalyst: true, stepAsideIsRight: true },
     },
     challenge: {
-      prompt: 'Read the squeeze fuel, then choose SHORT IT or STEP ASIDE.',
-      instructions: 'Tap a choice button in the scene; the dials show the fuel. Submit to reveal what the setup did.',
+      prompt: 'Read the dials, then choose SHORT IT or STEP ASIDE.',
+      instructions: 'Tap a choice in the scene, then Submit to see what happened.',
       submitLabel: 'Reveal the squeeze',
     },
     caption:
-      "When more shares are sold short than there are to buy back, the exit door is too small for the crowd. That is when a smart short steps aside — being 'right' about the value won't save you from the squeeze.",
+      "When more shares are short than there are to buy back, the exit is too small for the crowd. Being right on value won't save you — a smart short steps aside.",
   },
 
   // 11 — TEACH · REAL chart (VW)
@@ -204,7 +204,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · VW',
     title: 'Case Study — Volkswagen, October 2008',
     intro:
-      "A real losing short. A squeeze briefly made VW the world's most valuable company. Porsche's stake plus its options left almost no shares freely trading (a tiny free float), so the scramble to buy back destroyed even professional shorts.",
+      'Another real squeeze. Porsche had quietly bought up most of VW, leaving almost no shares to trade. When shorts scrambled to buy back, even the pros got crushed.',
     scene: {
       kind: 'candle',
       params: {
@@ -218,7 +218,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      'VW is GME thirteen years earlier: heavily shorted, almost no free float, a forced scramble to buy back, and a spike so extreme it briefly made VW the most valuable company in the world (daily peak €635; documented intraday ~€1,005 on 2008-10-28). The same squeeze signature, a different era.',
+      'Same story as GME, 13 years earlier: heavy shorting, almost no shares to buy, and a spike so wild VW briefly became the world\u2019s most valuable company (daily peak €635, intraday ~€1,005).',
   },
 
   // 12 — TEACH · REAL chart (PTON winning short)
@@ -228,7 +228,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Learn · PTON',
     title: 'A Short That Worked',
     intro:
-      'The other side of the ledger: a stock that truly falls rewards a patient short. Peloton (PTON) slid from the low-$90s to a $6.66 low. Sell high, buy back low, and keep the drop minus borrow costs.',
+      'Shorts win when a stock really falls. Peloton (PTON) slid from the low $90s to under $7. Sell high, buy back low, keep the drop.',
     scene: {
       kind: 'candle',
       params: {
@@ -242,7 +242,7 @@ const modules: ModuleSpec[] = [
       },
     },
     caption:
-      "When the call is right and the price keeps falling, a short pays — sell the breakdown near $50, buy back near $8, keep the drop minus borrow. The skill isn't just getting short; it's picking the exit: too early leaves profit behind, too late lets a bounce take it back.",
+      "Sell near $50, buy back near $8, keep the difference. The hard part isn't getting short — it's picking the exit: too early leaves profit behind, too late gives it back.",
   },
 
   // 13 — CHALLENGE · REAL chart (HOOD, masked at split; set TP/SL for the short)
@@ -252,7 +252,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Challenge · HOOD',
     title: 'Will This Short Pay Off?',
     intro:
-      'HOOD blew off the top — an $85 spike in its IPO week on a call-option frenzy — and is rolling over, back to ~$55 by 2021-08-06. You can short here. Set a take-profit BELOW (buy back for a gain) and a stop-loss ABOVE (your safety exit), or stay out, then watch the real candles play out. The right half is hidden.',
+      'HOOD spiked to $85 in its first week, then started rolling over (~$55 now). You can short here. Set a take-profit below and a stop-loss above — or stay out. Then watch it play out.',
     scene: {
       kind: 'candle',
       params: {
@@ -263,12 +263,12 @@ const modules: ModuleSpec[] = [
       },
     },
     challenge: {
-      prompt: 'If you take the short, drag your take-profit (below) and stop-loss (above) — or stay out.',
-      instructions: 'Drag the green TP line down and the red SL line up; toggle Take trade / Stay out. Submit to reveal HOOD and simulate your exit.',
+      prompt: 'Set your take-profit (below) and stop-loss (above) — or stay out.',
+      instructions: 'Drag the green take-profit line down and the red stop-loss line up. Submit to reveal what HOOD did.',
       submitLabel: 'Run the short',
     },
     caption:
-      "Reading a fresh chart is the whole game. A failed blow-off often keeps falling — HOOD did, $55 → ~$17 — but a short that turns against you has no loss limit, so even a 'winning' setup needs a stop above the spike. Your take-profit and stop-loss decide what you actually keep.",
+      'A failed spike often keeps falling — HOOD did, $55 → ~$17. But a short can turn against you with no limit, so always keep a stop above.',
   },
 
   // 14 — INTERACTIVE · manage a live short
@@ -278,13 +278,13 @@ const modules: ModuleSpec[] = [
     kicker: 'Sandbox',
     title: 'Manage a Live Short',
     intro:
-      'Put it all together. Drag a STOP (buy-to-cover) above your entry and a TARGET below, pick a path, and Run. The borrow fee nibbles every day, and a path that runs against you can trigger a margin call or a recall. Survive with a plan.',
+      'Put it all together. Set a stop above your entry and a target below, pick a path, and run it. Fees tick every day, and a bad path can margin-call or recall you.',
     scene: {
       kind: 'manageShort',
       params: { candlesKey: 'short_winner_PTON', adverseKey: 'gme_squeeze_2021', shares: 100, rate: 0.3 },
     },
     caption:
-      'Now you run it: size the trade, set a stop above and a target below, and survive the path. Borrow fees nibble every day, and a path that runs against you can margin-call you or get you recalled. The traders who last have a plan before the candle prints.',
+      'Set a stop and a target, then survive the path. The traders who last always have a plan before the candle prints.',
     cta: 'Continue',
   },
 
@@ -295,7 +295,7 @@ const modules: ModuleSpec[] = [
     kicker: 'Capstone',
     title: "Capstone & Recap: The Short Seller's Scorecard",
     intro:
-      'Recap the whole lesson — the borrow-sell-cover-return lifecycle, the costs, the capped-gain / unlimited-loss asymmetry, margin and recall, and the squeeze. Then make a final SHORT or PASS call and reveal whether the short was worth taking.',
+      'A quick recap: borrow-sell-cover-return, the costs, the capped-gain / unlimited-loss shape, margin and recall, and the squeeze. Then make one last call — SHORT or PASS.',
     scene: {
       kind: 'capstone',
       params: {
@@ -314,12 +314,12 @@ const modules: ModuleSpec[] = [
       ],
       correctId: 'yes',
       explainRight:
-        'Right. Low short interest (35%) and low days-to-cover (1.5) mean little squeeze fuel. A genuinely fading company, shorted with a stop above, is the M12 winning-short profile — and the chart did follow through lower.',
+        'Right. Low short interest (35%) and low days-to-cover (1.5) mean little squeeze risk. A fading company, shorted with a stop above, is a clean setup — and it did keep falling.',
       explainWrong:
-        "This name has low squeeze fuel (35% short interest, 1.5 days-to-cover) and is genuinely fading — with a stop above, a disciplined short fits. The squeeze trap (M9/M10) needs high short interest, a low float, and a catalyst, which this setup doesn't have.",
+        "Not quite. With low short interest (35%) and low days-to-cover (1.5), there's little squeeze risk here, and the company is fading — a stop above makes this a fair short. The squeeze trap needs high short interest, a thin float, and a catalyst, which this setup doesn't have.",
     },
     caption:
-      "The short seller's edge isn't being bearish — it's discipline against a one-sided, squeeze-prone bet: borrow and subtract the carry, always keep a stop above (the downside has no floor), and step aside when too many shorts crowd the exit.",
+      "A short seller's edge isn't being bearish — it's discipline: subtract the fees, always keep a stop above, and step aside when too many shorts crowd the exit.",
     cta: 'Finish lesson',
   },
 ]

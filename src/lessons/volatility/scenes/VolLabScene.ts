@@ -100,7 +100,7 @@ export default class VolLabScene extends ModuleScene {
     this.buildControls()
     this.redraw()
 
-    this.label(20, this.H - 12, 'Build a winner, then one where the stock moves and you still lose. Drag the dials; the breakevens decide.', {
+    this.label(20, this.H - 12, 'Build a winner, then one where the stock moves but you still lose. The breakevens decide.', {
       size: this.fs(12, 12, 15), col: C.muted,
     })
     this.time.delayedCall(600, () => this.emitReady())
@@ -224,14 +224,14 @@ export default class VolLabScene extends ModuleScene {
 
     const lines = [
       `cost: ${short ? 'collect' : 'pay'} ${fmt(total)} (×100 = $${Math.round(total * 100)})`,
-      `breakevens: ${fmt(be.lower)} (down) / ${fmt(be.upper)} (up)`,
-      `P&L at S=${fmt(this.S)}: ${fmtSigned(pnl)}  (${fmtDollars(pnl)})`,
+      `breakevens: ${fmt(be.lower)} / ${fmt(be.upper)}`,
+      `at ${fmt(this.S)}: ${fmtSigned(pnl)}  (${fmtDollars(pnl)})`,
     ]
     this.readoutTexts.forEach((t, i) => t.setText(lines[i] ?? ''))
 
     // bold flag
     const win = pnl > 0
-    this.flagText.setText(win ? (short ? 'STAYED INSIDE → profit' : 'CLEARED a breakeven → profit') : (short ? 'BROKE OUT → loss' : 'inside breakevens → loss'))
+    this.flagText.setText(win ? (short ? 'stayed quiet → profit' : 'cleared a breakeven → profit') : (short ? 'broke out → loss' : 'inside breakevens → loss'))
     this.flagText.setColor(hex(win ? C.greenText : C.red))
     this.flagPanel.clear()
     this.flagPanel.fillStyle(win ? C.greenSoft : C.redSoft, 1)
@@ -239,7 +239,7 @@ export default class VolLabScene extends ModuleScene {
     this.children.bringToTop(this.flagText)
 
     // risk badge
-    this.riskText.setText(short ? 'risk: unbounded up / large down' : 'risk: max loss = premium (defined)')
+    this.riskText.setText(short ? 'risk: big move = big loss' : 'risk: most you can lose is what you paid')
     this.riskText.setColor(hex(short ? C.red : C.muted))
   }
 
@@ -312,10 +312,10 @@ export default class VolLabScene extends ModuleScene {
   }
 
   private refreshLabels(): void {
-    this.kLabel.setText(`Strike K: ${fmt(this.K)}`)
+    this.kLabel.setText(`Strike: ${fmt(this.K)}`)
     this.spreadLabel.setText(`Strangle strikes: ${fmt(this.Kp)} / ${fmt(this.Kc)}`)
-    this.premLabel.setText(`Total premium: ${fmt(this.total)}`)
-    this.moveLabel.setText(`Realized S: ${fmt(this.S)}`)
+    this.premLabel.setText(`Total cost: ${fmt(this.total)}`)
+    this.moveLabel.setText(`Stock lands at: ${fmt(this.S)}`)
   }
 
   private setStructure(s: 'straddle' | 'strangle'): void {

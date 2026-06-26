@@ -71,8 +71,8 @@ export default class ThetaDecayScene extends ModuleScene {
     const avail = this.groundY - 92
     this.px = maxV > 0 ? avail / maxV : 25
 
-    this.label(40, 24, 'THETA — TIME VALUE MELTS TO ZERO', { size: this.fs(16), col: C.ink, bold: true })
-    this.label(40, 46, '(decay curve illustrative; intrinsic-at-expiry exact)', { size: this.fs(13), col: C.muted })
+    this.label(40, 24, 'TIME VALUE MELTS AWAY', { size: this.fs(16), col: C.ink, bold: true })
+    this.label(40, 46, '(time value illustrative)', { size: this.fs(13), col: C.muted })
 
     // ground the cube + floor sit on
     const ground = this.add.graphics()
@@ -96,7 +96,7 @@ export default class ThetaDecayScene extends ModuleScene {
     this.ghostLabel = this.label(this.cx - this.cubeW / 2, 0, '', { size: this.fs(12), col: C.muted })
 
     // controls: moneyness toggle + days-to-expiry slider
-    this.label(60, 404, 'Moneyness', { size: this.fs(13), col: C.muted })
+    this.label(60, 404, 'In the money?', { size: this.fs(13), col: C.muted })
     this.toggle(60, 426, ['OTM', 'ATM', 'ITM'], 2, (i) => {
       this.money = (['OTM', 'ATM', 'ITM'] as const)[i]
       this.recomputeIntrinsic()
@@ -219,7 +219,7 @@ export default class ThetaDecayScene extends ModuleScene {
     this.tvLabel.setText(`time value ${tv.toFixed(2)} → 0`).setY(tvH > 14 ? cubeTopY + tvH / 2 : cubeTopY - 8)
     this.chipFor(this.tvChip, this.tvLabel)
     this.intrLabel
-      .setText(`intrinsic floor ${this.intr.toFixed(2)} (constant)`)
+      .setText(`real value ${this.intr.toFixed(2)} (stays put)`)
       .setY(intrH > 14 ? slabTopY + intrH / 2 : this.groundY - 8)
     this.chipFor(this.intrChip, this.intrLabel)
     this.ghostLabel.setText(`started at ${this.p.tv0.toFixed(2)}`).setY(ghostTopY - 10)
@@ -228,9 +228,9 @@ export default class ThetaDecayScene extends ModuleScene {
     else this.ghostChip.clear()
 
     this.readouts.setText(
-      `${this.dte.toFixed(0)} days left   intrinsic ${this.intr.toFixed(2)} (constant)   time value ${tv.toFixed(
+      `${this.dte.toFixed(0)} days left   real value ${this.intr.toFixed(2)} (stays)   time value ${tv.toFixed(
         2,
-      )} → 0   total premium ${total.toFixed(2)}`,
+      )} → 0   total price ${total.toFixed(2)}`,
     )
     this.readouts.setColor(hex(this.dte <= 0 ? C.red : C.ink))
   }

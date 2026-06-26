@@ -21,6 +21,10 @@ const PracticePreviewPage = import.meta.env.DEV
   ? lazy(() => import('./pages/PracticePreviewPage'))
   : null
 
+const LessonPreviewPage = import.meta.env.DEV
+  ? lazy(() => import('./pages/LessonPreviewPage'))
+  : null
+
 export default function App() {
   return (
     <LessonProgressProvider>
@@ -33,6 +37,16 @@ export default function App() {
               element={
                 <Suspense fallback={<FullScreenSpinner />}>
                   <PracticePreviewPage />
+                </Suspense>
+              }
+            />
+          )}
+          {import.meta.env.DEV && LessonPreviewPage && (
+            <Route
+              path="/preview-lesson"
+              element={
+                <Suspense fallback={<FullScreenSpinner />}>
+                  <LessonPreviewPage />
                 </Suspense>
               }
             />

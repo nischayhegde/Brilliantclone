@@ -46,9 +46,7 @@ export default class PremiumBarScene extends ModuleScene {
   private timeLabel!: Phaser.GameObjects.Text
   private totalLabel!: Phaser.GameObjects.Text
   private moneyTag!: Phaser.GameObjects.Container
-  // interactive-only metaphor labels
-  private faceName?: Phaser.GameObjects.Text
-  private hypeName?: Phaser.GameObjects.Text
+  // interactive-only live explainer
   private note?: Phaser.GameObjects.Text
   /** px per $ — computed so the tallest possible bar fits between BAR_TOP and AXIS_Y. */
   private sy = SCALE
@@ -77,8 +75,8 @@ export default class PremiumBarScene extends ModuleScene {
     const avail = AXIS_Y - BAR_TOP
     this.sy = worstTotal > 0 ? Math.min(SCALE, avail / worstTotal) : SCALE
 
-    this.label(40, 26, 'PREMIUM = INTRINSIC + TIME VALUE', { size: this.fs(16), col: C.ink, bold: true })
-    this.label(40, 48, '(time-value numbers illustrative; intrinsic math exact)', { size: this.fs(13), col: C.muted })
+    this.label(40, 26, 'PRICE = REAL VALUE + TIME VALUE', { size: this.fs(16), col: C.ink, bold: true })
+    this.label(40, 48, '(time value illustrative)', { size: this.fs(13), col: C.muted })
 
     // axis baseline for the bar
     const g = this.add.graphics()
@@ -125,11 +123,11 @@ export default class PremiumBarScene extends ModuleScene {
       this.barTime.lineBetween(BAR_X, boundaryY, BAR_X + BAR_W, boundaryY)
     }
 
-    this.intrLabel.setText(`intrinsic ${intr.toFixed(2)}`)
+    this.intrLabel.setText(`real value ${intr.toFixed(2)}`)
     this.intrLabel.setY(AXIS_Y - intrH / 2)
     this.timeLabel.setText(`time value ${tv.toFixed(2)}`)
     this.timeLabel.setY(AXIS_Y - intrH - tvH / 2)
-    this.totalLabel.setText(`premium ${(intr + tv).toFixed(2)}`)
+    this.totalLabel.setText(`total price ${(intr + tv).toFixed(2)}`)
     if (animate) {
       this.barIntrinsic.setAlpha(0)
       this.barTime.setAlpha(0)
@@ -139,11 +137,6 @@ export default class PremiumBarScene extends ModuleScene {
 
   // --- interactive: number line for S + CALL/PUT toggle ---------------------
   private buildInteractive(): void {
-    this.label(40, 70, "Like a concert ticket: face value (real) + a scalper's hype markup (time value).", {
-      size: this.fs(13),
-      col: C.inkSoft,
-    })
-
     const lineY = 210
     const lx = 60
     const lw = 320
@@ -200,14 +193,7 @@ export default class PremiumBarScene extends ModuleScene {
     // moneyness tag
     this.moneyTag = this.makeTag(120, 348, 'ATM')
 
-    // segment name labels (to the LEFT of the bar) + a live one-line explainer
-    this.faceName = this.label(BAR_X - 12, 0, 'face value (real)', {
-      size: this.fs(12),
-      col: C.blueDark,
-      bold: true,
-      align: 'right',
-    })
-    this.hypeName = this.label(BAR_X - 12, 0, 'scalper hype (time)', { size: this.fs(12), col: C.blue, align: 'right' })
+    // a live one-line explainer
     this.note = this.label(60, 392, '', { size: this.fs(13), col: C.ink })
 
     this.refresh()
@@ -220,22 +206,13 @@ export default class PremiumBarScene extends ModuleScene {
     const m = moneyness(this.type, this.S, this.p.K)
     this.setTag(this.moneyTag, m)
 
-    // position the metaphor labels at each segment's midpoint
-    const intrH = intr * this.sy
-    const tvH = tv * this.sy
-    const boundaryY = AXIS_Y - intrH
-    if (this.faceName) {
-      // only meaningful when there's real (intrinsic) value; hide it when it's all hype
-      this.faceName.setY(AXIS_Y - intrH / 2).setAlpha(intr > 0.15 ? 1 : 0)
-    }
-    this.hypeName?.setY(boundaryY - tvH / 2)
     if (this.note) {
       const txt =
         m === 'OTM'
-          ? "OTM — the price is ALL hype (time value); there's no real value yet."
+          ? "Out of the money — it's all time value (no real value yet)."
           : m === 'ATM'
-            ? 'ATM — right at the strike, so the price is almost all hype (time value).'
-            : 'ITM — part of the price is now real (face value), the rest is hype.'
+            ? 'At the money — almost all time value.'
+            : 'In the money — part real value, part time value.'
       this.note.setText(txt)
     }
   }
@@ -257,8 +234,8 @@ export default class PremiumBarScene extends ModuleScene {
     this.intrLabel.setAlpha(0)
     this.timeLabel.setAlpha(0)
 
-    this.label(60, 150, `CALL · strike ${this.p.K} · stock at ${this.p.S}`, { size: this.fs(15), col: C.ink, bold: true })
-    this.label(60, 176, `The ${this.p.premium.toFixed(2)} premium — split it into real value vs time value.`, {
+    this.label(60, 150, `Call to buy at $${this.p.K} · stock now $${this.p.S}`, { size: this.fs(15), col: C.ink, bold: true })
+    this.label(60, 176, `Split the $${this.p.premium.toFixed(2)} price into real value vs time value.`, {
       size: this.fs(13),
       col: C.muted,
     })
@@ -294,7 +271,7 @@ export default class PremiumBarScene extends ModuleScene {
       this.redrawSplit()
     })
     this.redrawSplit()
-    this.label(60, 232, '↕ drag the divider: below = intrinsic (real), above = time value', {
+    this.label(60, 232, '↕ drag the divider: below = real value, above = time value', {
       size: this.fs(13),
       col: C.muted,
     })
@@ -323,7 +300,7 @@ export default class PremiumBarScene extends ModuleScene {
     this.splitLine.lineBetween(BAR_X - 6, splitY, BAR_X + BAR_W + 6, splitY)
     this.splitHandle.setY(splitY)
 
-    this.splitIntrLabel.setText(`intrinsic ${intrVal.toFixed(2)}`).setY(AXIS_Y - intrH / 2)
+    this.splitIntrLabel.setText(`real value ${intrVal.toFixed(2)}`).setY(AXIS_Y - intrH / 2)
     this.splitTimeLabel.setText(`time value ${tvVal.toFixed(2)}`).setY(AXIS_Y - intrH - tvH / 2)
   }
 
@@ -342,7 +319,7 @@ export default class PremiumBarScene extends ModuleScene {
     this.splitFrac = trueIntr / this.p.premium
     this.redrawSplit()
     this.splitHandle.setFillStyle(correct ? C.green : C.red)
-    this.label(BAR_X - 16, AXIS_Y - trueIntr * this.sy - 6, `max(${this.p.S}−${this.p.K},0)=${trueIntr.toFixed(0)}`, {
+    this.label(BAR_X - 16, AXIS_Y - trueIntr * this.sy - 6, `$${this.p.S} − $${this.p.K} = ${trueIntr.toFixed(0)}`, {
       size: this.fs(13),
       col: C.blue,
       bold: true,
@@ -351,21 +328,19 @@ export default class PremiumBarScene extends ModuleScene {
     })
 
     const title = correct
-      ? `Intrinsic ${trueIntr.toFixed(2)} · time ${trueTv.toFixed(2)} — correct`
-      : `It splits ${trueIntr.toFixed(2)} / ${trueTv.toFixed(2)} (you said ${guessIntr.toFixed(2)} intrinsic)`
+      ? `Real value ${trueIntr.toFixed(2)} · time value ${trueTv.toFixed(2)} — correct`
+      : `It's $${trueIntr.toFixed(2)} real + $${trueTv.toFixed(2)} time value (you said $${guessIntr.toFixed(2)} real)`
     const detail = correct
-      ? `Call intrinsic = max(S−K,0) = max(${this.p.S}−${this.p.K},0) = ${trueIntr.toFixed(
+      ? `Real value is how much it's already in the money: $${this.p.S} − $${this.p.K} = $${trueIntr.toFixed(
           2,
-        )}. The remaining ${this.p.premium.toFixed(2)} − ${trueIntr.toFixed(2)} = ${trueTv.toFixed(
+        )}. The rest, $${this.p.premium.toFixed(2)} − $${trueIntr.toFixed(2)} = $${trueTv.toFixed(
           2,
-        )} is time (extrinsic) value — what you pay for the chance the stock climbs further before expiry.`
-      : `Intrinsic is the in-the-money part only: max(S−K,0) = max(${this.p.S}−${this.p.K},0) = ${trueIntr.toFixed(
+        )}, is time value — what you pay for the chance the stock climbs further before the deadline.`
+      : `Real value is only how much it's in the money: $${this.p.S} − $${this.p.K} = $${trueIntr.toFixed(
           2,
-        )}, so time value is ${this.p.premium.toFixed(2)} − ${trueIntr.toFixed(2)} = ${trueTv.toFixed(
+        )}, so time value is $${this.p.premium.toFixed(2)} − $${trueIntr.toFixed(2)} = $${trueTv.toFixed(
           2,
-        )}. The whole premium isn't "real" value, and an ITM call isn't all time value either — only ${trueTv.toFixed(
-          2,
-        )} of it decays away.`
+        )}. The whole price isn't "real" value — but it isn't all time value either.`
     this.report(correct, title, detail)
   }
 

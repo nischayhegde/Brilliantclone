@@ -73,7 +73,7 @@ export default class MarginGaugeScene extends ModuleScene {
     this.children.moveBelow(this.toastChip, this.toastText)
 
     // Equity gauge frame + maintenance line
-    this.label(this.gaugeX + this.gaugeW / 2, this.gaugeY - 14, 'Equity', { size: 12, bold: true, col: C.muted, align: 'center' })
+    this.label(this.gaugeX + this.gaugeW / 2, this.gaugeY - 14, 'Cushion', { size: 12, bold: true, col: C.muted, align: 'center' })
     const frame = this.add.graphics()
     frame.lineStyle(1.5, C.hairline)
     frame.strokeRoundedRect(this.gaugeX, this.gaugeY, this.gaugeW, this.gaugeH, 8)
@@ -142,10 +142,10 @@ export default class MarginGaugeScene extends ModuleScene {
     const eq = this.equity()
     const maint = this.maintenance()
     this.priceText.setText(`Day ${this.day} · Price $${this.price.toFixed(2)}`)
-    this.pnlText.setText(`Unrealized P&L: ${u >= 0 ? '+' : '−'}$${Math.abs(u).toFixed(0)}`)
+    this.pnlText.setText(`Profit so far: ${u >= 0 ? '+' : '−'}$${Math.abs(u).toFixed(0)}`)
     this.pnlText.setColor(hex(color(u >= 0 ? C.green : C.red)))
-    this.equityText.setText(`Equity $${eq.toFixed(0)}  ·  Maint $${maint.toFixed(0)}`)
-    this.maintText.setText(`Margin ratio = ${(eq / Math.max(1, maint)).toFixed(2)}× ${eq < maint ? '(BREACHED)' : ''}`)
+    this.equityText.setText(`Cushion $${eq.toFixed(0)}  ·  Minimum $${maint.toFixed(0)}`)
+    this.maintText.setText(`${(eq / Math.max(1, maint)).toFixed(2)}× the minimum${eq < maint ? ' — BREACHED' : ''}`)
     this.maintText.setColor(hex(color(eq < maint ? C.red : C.muted)))
   }
 
@@ -194,7 +194,7 @@ export default class MarginGaugeScene extends ModuleScene {
     // Scripted lender-recall heads-up (informational — the interactive moment is the
     // margin call below; the recall just foreshadows that borrowed shares aren't yours).
     if (this.day === 10 && !this.resolved) {
-      this.toast('Lender RECALL risk — borrowed shares can be called back anytime', C.blue)
+      this.toast('Heads-up: the lender can recall the shares at any time', C.blue)
     }
     // margin call when equity < maintenance
     if (!this.called && this.equity() < this.maintenance()) {
@@ -206,10 +206,10 @@ export default class MarginGaugeScene extends ModuleScene {
   }
 
   private showMarginCall(): void {
-    this.banner = this.bannerBox('MARGIN CALL — add cash or cover', C.red)
+    this.banner = this.bannerBox('MARGIN CALL — add cash or buy back', C.red)
     const y = 408
     this.choiceBtns.push(this.button(140, y, 'Add cash', () => this.choose('add'), { w: 120, h: 30, fill: C.green }))
-    this.choiceBtns.push(this.button(275, y, 'Cover early', () => this.choose('cover'), { w: 120, h: 30, fill: C.blue }))
+    this.choiceBtns.push(this.button(275, y, 'Buy back now', () => this.choose('cover'), { w: 120, h: 30, fill: C.blue }))
     this.choiceBtns.push(this.button(415, y, 'Do nothing', () => this.choose('nothing'), { w: 120, h: 30, fill: C.muted }))
   }
 
@@ -222,14 +222,14 @@ export default class MarginGaugeScene extends ModuleScene {
       this.called = false
       this.drawEquity()
       this.refreshReadouts()
-      this.toast('Added cash — position survives (capital committed)', C.green)
+      this.toast('Added cash — you stay in, but more money is tied up', C.green)
       // Resume the SAME run (running is still true). Calling run() here would no-op.
       this.time.delayedCall(220, () => this.stepPath())
     } else if (opt === 'cover') {
       this.resolved = true
       const loss = (this.entry - this.price) * this.shares
-      this.coverMarker('COVER', C.blue)
-      this.toast(`Covered at $${this.price.toFixed(2)} — locked ${loss >= 0 ? '+' : '−'}$${Math.abs(loss).toFixed(0)}`, C.blue)
+      this.coverMarker('BOUGHT BACK', C.blue)
+      this.toast(`Bought back at $${this.price.toFixed(2)} — locked in ${loss >= 0 ? '+' : '−'}$${Math.abs(loss).toFixed(0)}`, C.blue)
     } else {
       // do nothing → continue to a forced buy-in at the worst price
       this.continueToBuyIn()
@@ -259,7 +259,7 @@ export default class MarginGaugeScene extends ModuleScene {
     this.resolved = true
     const loss = (this.entry - this.price) * this.shares
     this.coverMarker('FORCED BUY-IN', C.red)
-    this.toast(`Forced buy-in at $${this.price.toFixed(2)} — locked −$${Math.abs(loss).toFixed(0)} (worst price)`, C.red)
+    this.toast(`Forced to buy back at $${this.price.toFixed(2)} — locked in −$${Math.abs(loss).toFixed(0)} at the worst price`, C.red)
   }
 
   private coverMarker(text: string, c: number): void {

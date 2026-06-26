@@ -204,8 +204,7 @@ export default class SqueezeLoopScene extends ModuleScene {
     this.siText.setColor(hex(color(this.shortPct > 100 ? C.red : C.blue)))
 
     this.siReadout.setText(
-      `Short interest ${this.shortPct}% · Float ${this.floatM}M · Avg vol ${this.avgVolM}M · ` +
-        `Shares short ${this.sharesShort().toFixed(1)}M · Days-to-cover = ${this.sharesShort().toFixed(1)} ÷ ${this.avgVolM} = ${dtc.toFixed(1)}`,
+      `${this.sharesShort().toFixed(0)}M shares short ÷ ${this.avgVolM}M traded a day ≈ ${dtc.toFixed(1)} days to buy them all back`,
     )
 
     // Arrow base speed scales with fuel.

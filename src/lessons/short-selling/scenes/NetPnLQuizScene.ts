@@ -72,7 +72,7 @@ export default class NetPnLQuizScene extends ModuleScene {
     this.coverMin = p.coverMin ?? Math.max(1, this.sell - 25)
     this.coverMax = p.coverMax ?? this.sell + 15
 
-    this.label(this.W / 2, 16, 'Illustrative simulation · P&L math exact', {
+    this.label(this.W / 2, 16, 'Example — the math is exact', {
       size: 12,
       col: C.muted,
       align: 'center',
@@ -135,7 +135,7 @@ export default class NetPnLQuizScene extends ModuleScene {
     const sellG = this.add.graphics()
     sellG.lineStyle(2, C.red, 0.9)
     sellG.lineBetween(this.axisX, ys, this.axisX + 150, ys)
-    this.label(this.axisX + 6, ys - 12, `SELL $${this.sell.toFixed(0)} (entry)`, { size: 12, bold: true, col: C.red, bg: true })
+    this.label(this.axisX + 6, ys - 12, `SOLD at $${this.sell.toFixed(0)}`, { size: 12, bold: true, col: C.red, bg: true })
   }
 
   private drawCoverControl(): void {
@@ -208,7 +208,7 @@ export default class NetPnLQuizScene extends ModuleScene {
   }
 
   private drawLedger(): void {
-    this.label(this.barX + this.barW / 2, this.barTop - 18, 'Your P&L', {
+    this.label(this.barX + this.barW / 2, this.barTop - 18, 'Your profit', {
       size: 12,
       bold: true,
       col: C.ink,
@@ -274,12 +274,12 @@ export default class NetPnLQuizScene extends ModuleScene {
     const lossH = this.hForValue(Math.abs(net))
     const capY = net >= 0 ? baseY - topH - 16 : baseY + Math.min(lossH, this.barBottom - this.barTop) + 8
     this.barCap.setY(capY)
-    this.barCap.setText(`NET ${net >= 0 ? '+' : '−'}$${Math.abs(net).toFixed(0)}`)
+    this.barCap.setText(`${net >= 0 ? '+' : '−'}$${Math.abs(net).toFixed(0)}`)
     this.barCap.setColor(hex(color(netCol)))
 
     this.ledger.setText(
-      `Gross $${gross.toFixed(0)}  −  borrow $${borrow.toFixed(0)} (${this.days}d)  −  dividend $${dividend.toFixed(0)}  =  ` +
-        `NET ${net >= 0 ? '+' : '−'}$${Math.abs(net).toFixed(0)}`,
+      `$${gross.toFixed(0)} from the drop  −  $${borrow.toFixed(0)} borrow (${this.days}d)  −  $${dividend.toFixed(0)} dividend  =  ` +
+        `${net >= 0 ? '+' : '−'}$${Math.abs(net).toFixed(0)} profit`,
     )
   }
 
@@ -296,21 +296,20 @@ export default class NetPnLQuizScene extends ModuleScene {
     let title: string
     let detail: string
     if (net > 0 && gross > borrow + dividend) {
-      title = `Net profit · +$${net.toFixed(0)}`
+      title = `Profit · +$${net.toFixed(0)}`
       detail =
-        `You covered at $${this.cover.toFixed(2)} after ${this.days} days. Gross was $${gross.toFixed(0)}, but the carry took a bite: ` +
-        `borrow $${borrow.toFixed(0)} + dividends $${dividend.toFixed(0)} = $${(borrow + dividend).toFixed(0)} of costs. ` +
-        `Net = ${gross.toFixed(0)} − ${borrow.toFixed(0)} − ${dividend.toFixed(0)} = +$${net.toFixed(0)}. Right on direction AND profitable after costs.`
+        `You bought back at $${this.cover.toFixed(2)}. The drop earned $${gross.toFixed(0)}, and costs took $${(borrow + dividend).toFixed(0)} ` +
+        `(borrow $${borrow.toFixed(0)} + dividend $${dividend.toFixed(0)}). That leaves +$${net.toFixed(0)} — right on direction and still ahead after costs.`
     } else if (gross > 0 && net <= 0) {
-      title = `Right on direction, but you lost money · −$${Math.abs(net).toFixed(0)}`
+      title = `Right direction, but a loss · −$${Math.abs(net).toFixed(0)}`
       detail =
-        `The stock fell (gross +$${gross.toFixed(0)}), yet ${this.days} days of borrow ($${borrow.toFixed(0)}) plus owed dividends ($${dividend.toFixed(0)}) ` +
-        `swallowed the whole gross — net = −$${Math.abs(net).toFixed(0)}. This is the trap: a slow grind down can lose to the carry. Cover faster or pick a cheaper-to-borrow name.`
+        `The stock did fall (+$${gross.toFixed(0)}), but ${this.days} days of borrow ($${borrow.toFixed(0)}) plus dividends ($${dividend.toFixed(0)}) ` +
+        `ate the whole thing. That's the trap: a slow drop can lose to fees. Buy back sooner, or pick a cheaper-to-borrow stock.`
     } else {
       title = `Loss · −$${Math.abs(net).toFixed(0)}`
       detail =
-        `You covered at $${this.cover.toFixed(2)} — at or above your $${this.sell} entry, so even the gross is negative ($${gross.toFixed(0)}). ` +
-        `Add borrow $${borrow.toFixed(0)} and dividends $${dividend.toFixed(0)} and the net is −$${Math.abs(net).toFixed(0)}. A short only profits when you cover BELOW your entry by more than the carry.`
+        `You bought back at $${this.cover.toFixed(2)} — at or above your $${this.sell} sell price, so there's no gain to start with. ` +
+        `Add the fees and you're down $${Math.abs(net).toFixed(0)}. A short only profits when you buy back well below where you sold.`
     }
     this.report(correct, title, detail)
   }

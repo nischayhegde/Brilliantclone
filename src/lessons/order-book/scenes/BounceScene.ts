@@ -9,11 +9,12 @@ interface BounceParams {
 }
 
 /**
- * MODULE 13 — TEACH "Bid-Ask Bounce & the Moving Touch". Prints alternate green (buy
- * at the ask) and red (sell at the bid), drawing a 1-cent sawtooth while the blue MID
- * holds dead flat — the bounce is noise, not a price change. A toggle turns the order
- * churn on/off (off → flat tape). Live tally: prints at ask / at bid, current mid
- * (unchanged), and a faint NBBO badge. Tape color tracks the AGGRESSOR (see spec §6 M13).
+ * MODULE 13 — TEACH "The Bid-Ask Bounce". Dots alternate green (a buy printing at the
+ * ask) and red (a sell at the bid), drawing a 1-cent sawtooth while the blue MID holds
+ * dead flat — the bounce is noise, not a price change. The price lines are kept NEUTRAL
+ * so the only meaningful color is the dot (the aggressor): a small buy/sell legend makes
+ * it self-explanatory. A toggle turns the order churn on/off (off → flat tape). Live
+ * tally: buys / sells and the (unchanged) mid.
  */
 export default class BounceScene extends ModuleScene {
   private bid = 100.0
@@ -40,7 +41,7 @@ export default class BounceScene extends ModuleScene {
     this.bid = p.bid ?? 100.0
     this.ask = p.ask ?? 100.01
 
-    this.label(this.W / 2, 30, 'Buys print at the ask, sells at the bid — a sawtooth while the mid never moves', {
+    this.label(this.W / 2, 30, 'The last price hops between bid and ask — but the mid never moves', {
       size: 13,
       col: C.muted,
       align: 'center',
@@ -53,7 +54,7 @@ export default class BounceScene extends ModuleScene {
 
     this.buildPanel()
     this.buildToggle()
-    this.buildNbbo()
+    this.buildLegend()
 
     this.startChurn()
     this.time.delayedCall(700, () => this.emitReady())
@@ -70,14 +71,16 @@ export default class BounceScene extends ModuleScene {
     const g = this.add.graphics()
     g.lineStyle(1, C.hairline, 1)
     g.lineBetween(this.plotL, this.plotT - 10, this.plotL, this.plotB + 10)
+    // Neutral price lines + labels — the only meaningful color here is the dot
+    // (aggressor): green = a buy printing at the ask, red = a sell at the bid.
     for (const pr of [this.bid, this.ask]) {
       const y = this.yFor(pr)
       g.lineStyle(1, C.gray100, 1)
       g.lineBetween(this.plotL, y, this.plotR, y)
-      this.label(this.plotL - 8, y, fmtPrice(pr), { size: 12, col: pr === this.ask ? C.red : C.green, align: 'right', bold: true })
+      this.label(this.plotL - 8, y, fmtPrice(pr), { size: 12, col: C.muted, align: 'right', bold: true })
     }
-    this.label(this.plotR, this.yFor(this.ask) - 14, 'best ask (buys print here)', { size: 12, col: C.red, align: 'right', bg: true })
-    this.label(this.plotR, this.yFor(this.bid) + 14, 'best bid (sells print here)', { size: 12, col: C.green, align: 'right', bg: true })
+    this.label(this.plotR, this.yFor(this.ask) - 14, 'ASK — a buy prints here', { size: 12, col: C.green, align: 'right', bg: true })
+    this.label(this.plotR, this.yFor(this.bid) + 14, 'BID — a sell prints here', { size: 12, col: C.red, align: 'right', bg: true })
   }
 
   private drawFrozenMid(): void {
@@ -146,7 +149,7 @@ export default class BounceScene extends ModuleScene {
     this.lastPrintT = this.label(px + 12, py + 42, '—', { size: 17, col: C.ink, bold: true })
     this.label(px + 12, py + 74, 'Current mid', { size: 12, col: C.muted })
     this.label(px + 12, py + 96, `${this.fmtMid((this.bid + this.ask) / 2)} (unchanged)`, { size: 12, col: C.blue, bold: true })
-    this.tallyT = this.label(px + 12, py + 128, 'prints: 0 ask / 0 bid', { size: 12, col: C.ink })
+    this.tallyT = this.label(px + 12, py + 128, 'buys: 0   sells: 0', { size: 12, col: C.ink })
   }
 
   private updatePanel(): void {
@@ -155,7 +158,7 @@ export default class BounceScene extends ModuleScene {
     const isBid = Math.abs(last - this.bid) < 1e-9
     this.lastPrintT.setText(fmtPrice(last))
     this.lastPrintT.setColor(hex(isAsk ? C.green : isBid ? C.red : C.muted))
-    this.tallyT.setText(`prints: ${this.atAsk} ask / ${this.atBid} bid`)
+    this.tallyT.setText(`buys: ${this.atAsk}   sells: ${this.atBid}`)
   }
 
   private buildToggle(): void {
@@ -178,12 +181,14 @@ export default class BounceScene extends ModuleScene {
     }
   }
 
-  private buildNbbo(): void {
+  private buildLegend(): void {
+    const y = 68
     const g = this.add.graphics()
-    g.fillStyle(C.blueSoft, 1)
-    g.fillRoundedRect(this.plotL, 54, 244, 28, 6)
-    g.lineStyle(1, C.blue, 0.5)
-    g.strokeRoundedRect(this.plotL, 54, 244, 28, 6)
-    this.label(this.plotL + 10, 68, 'NBBO — best quote across all venues', { size: 12, col: C.blue }).setAlpha(0.9)
+    g.fillStyle(C.green, 1)
+    g.fillCircle(this.plotL + 6, y, 5)
+    this.label(this.plotL + 16, y, 'buy', { size: 12, col: C.muted })
+    g.fillStyle(C.red, 1)
+    g.fillCircle(this.plotL + 70, y, 5)
+    this.label(this.plotL + 80, y, 'sell', { size: 12, col: C.muted })
   }
 }

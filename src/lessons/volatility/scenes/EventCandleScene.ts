@@ -78,7 +78,7 @@ export default class EventCandleScene extends ModuleScene {
 
     // payoff scaffold
     this.panel(this.vx - 10, this.vy - 20, this.vw + 20, this.vh + 40, { fill: C.white, stroke: C.hairline, radius: 12 })
-    this.label(this.vx + this.vw / 2, this.vy - 8, 'payoff overlay', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
+    this.label(this.vx + this.vw / 2, this.vy - 8, 'your payoff', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
     this.vG = this.add.graphics()
     this.armG = this.add.graphics()
     // persistent breakeven axis labels (repositioned in drawPayoff; never re-added)
@@ -241,9 +241,9 @@ export default class EventCandleScene extends ModuleScene {
     const pnl = combinedPnL(legs, S)
     const cleared = clearedBreakeven(legs, S)
     this.pnlText.setText(
-      `${this.structure} · S = ${fmt(S)}   →   P&L ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
+      `${this.structure} · stock ${fmt(S)}  →  ${fmtSigned(pnl)} (${fmtDollars(pnl)})`,
     )
-    const text = cleared ? 'cleared a breakeven → profit' : 'small move — did not clear a breakeven (see next module)'
+    const text = cleared ? 'cleared a breakeven → profit' : 'small move — didn’t clear a breakeven'
     const col = cleared ? C.greenText : C.red
     const badgeY = 310
     this.badge.setText(text).setColor(hex(col))
@@ -291,7 +291,7 @@ export default class EventCandleScene extends ModuleScene {
     }, { step: 1, col: C.amber })
 
     // trigger (right)
-    const trig = this.button(640, rowY, 'Trigger event', () => this.fireEvent(), { w: 130, h: 32, fill: C.green })
+    const trig = this.button(640, rowY, 'Trigger move', () => this.fireEvent(), { w: 130, h: 32, fill: C.green })
     ;(trig.list[1] as Phaser.GameObjects.Text).setFontSize(this.fs(14, 13, 17))
 
     // Apply the active-button highlight for the default structure so it reads as

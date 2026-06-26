@@ -25,19 +25,19 @@ interface IVCrushParams {
 }
 
 /**
- * IV-CRUSH scene (modules 10, 11). The metaphor: an umbrella gets SURGE-PRICED before a
- * forecast storm (high IV → fat premium, almost all of it extrinsic "surge" value). Then
- * the storm fizzles — the event passes and IV collapses (IV crush), so the surge value
- * evaporates and the option is worth only its hard intrinsic value. Because the realized
+ * IV-CRUSH scene (modules 10, 11). Plain framing: an option's price splits into REAL value
+ * (intrinsic, green — what it's worth if exercised now) and EXTRA value (extrinsic, amber —
+ * the "expected move" premium, fat before news). After the news drops, the extra value
+ * collapses (IV crush) and the option is worth only its real value. Because the realized
  * move is small (e.g. +4% to 104, INSIDE the breakevens), you can be "right it moved a
  * little" and STILL lose:
  *
- *   P&L (at expiry) = max(S−K,0) + max(K−S,0) − premium   (intrinsic only; no IV term)
+ *   P&L (at expiry) = max(S−K,0) + max(K−S,0) − premium   (real value only; no IV term)
  *
- * Left half: a premium bar showing what you PAID (a dashed reference line) vs what it's
- * WORTH after the crush — the amber "surge" drains away, leaving only green intrinsic, and
- * the red gap up to the paid line IS the loss. Right half: the straddle payoff V with the
- * landing dot and the breakevens, so "moved but stayed inside the breakevens" is visible.
+ * Left half: a price bar showing what you PAID (a dashed reference line) vs what it's
+ * WORTH after the crush — the amber "extra value" drains away, leaving only green real
+ * value, and the red gap up to the paid line IS the loss. Right half: the straddle payoff
+ * V with the landing dot and the breakevens, so "moved but stayed inside" is visible.
  */
 export default class IVCrushScene extends ModuleScene {
   private p!: IVCrushParams
@@ -98,17 +98,17 @@ export default class IVCrushScene extends ModuleScene {
 
     if (this.p.title) this.label(20, 16, this.p.title, { size: this.fs(15, 14, 18), bold: true, col: C.ink })
 
-    // --- left panel: the umbrella's price (premium) before vs after the storm ---
+    // --- left panel: the option's price before vs after the news ---
     this.panel(28, 36, 256, 252, { fill: C.surface, stroke: C.hairline, radius: 12 })
-    // Narrative header that flips when the storm fizzles (the surge gets crushed).
-    this.header = this.label(156, 50, 'Umbrella surge-priced before the event', {
+    // Header flips from "before" to "after" when the news drops (the extra value is crushed).
+    this.header = this.label(156, 50, 'Before earnings: option is expensive', {
       size: this.fs(12, 12, 15), col: C.amberInk, align: 'center', bold: true,
     })
     this.header.setWordWrapWidth(244)
 
-    // colour key — intrinsic (real value, survives) vs extrinsic (the IV "surge", crushed)
-    this.legendSwatch(44, 258, C.green, 'intrinsic — real value (survives)')
-    this.legendSwatch(44, 274, C.amber, 'extrinsic — IV surge (crushed)')
+    // colour key — real value (stays) vs the extra value that vanishes after the news
+    this.legendSwatch(44, 258, C.green, 'real value (stays)')
+    this.legendSwatch(44, 274, C.amber, 'extra value (gone after news)')
 
     this.barG = this.add.graphics()
     this.paidG = this.add.graphics()
@@ -116,8 +116,8 @@ export default class IVCrushScene extends ModuleScene {
     // bar at lab extremes) + the label, both repositioned each drawPaidLine().
     this.paidChip = this.add.graphics()
     this.paidLabel = this.label(48, 0, '', { size: this.fs(12, 12, 15), col: C.ink, bold: true })
-    // callout pointing at the amber surge band (sits beside the bar, over the clean panel)
-    this.surgeLabel = this.label(132, 0, 'IV surge', { size: this.fs(12, 12, 15), col: C.amberInk, bold: true })
+    // callout pointing at the amber "extra value" band (sits beside the bar, over the clean panel)
+    this.surgeLabel = this.label(132, 0, 'extra value', { size: this.fs(12, 12, 15), col: C.amberInk, bold: true })
     // post-crush result tag (paid → worth = P&L), beside the bar over the clean panel
     this.resultTag = this.label(132, 0, '', { size: this.fs(12, 12, 15), col: C.red, bold: true, align: 'left' }).setVisible(false)
 
@@ -251,7 +251,7 @@ export default class IVCrushScene extends ModuleScene {
   private crushSurge(): void {
     if (this.crushed) return
     this.crushed = true
-    this.header.setText('Storm fizzled — IV crushed').setColor(hex(C.red))
+    this.header.setText('After earnings: option is cheap').setColor(hex(C.red))
     this.surgeLabel.setVisible(false)
     if (this.reduceMotion) {
       this.applyCrushFinal()
@@ -275,7 +275,7 @@ export default class IVCrushScene extends ModuleScene {
   private applyCrushFinal(): void {
     this.crushed = true
     this.surgeFrac = 0
-    this.header.setText('Storm fizzled — IV crushed').setColor(hex(C.red))
+    this.header.setText('After earnings: option is cheap').setColor(hex(C.red))
     this.surgeLabel.setVisible(false)
     this.drawBar()
     this.updateResultTag()
@@ -284,7 +284,7 @@ export default class IVCrushScene extends ModuleScene {
   // --- payoff V -------------------------------------------------------------
   private drawVPanel(): void {
     this.panel(this.vx - 10, this.vy - 24, this.vw + 20, this.vh + 48, { fill: C.white, stroke: C.hairline, radius: 12 })
-    this.label(this.vx + this.vw / 2, this.vy - 12, 'straddle payoff (V)', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
+    this.label(this.vx + this.vw / 2, this.vy - 12, 'your straddle (V)', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
   }
 
   private vxFor(price: number): number {
@@ -359,10 +359,10 @@ export default class IVCrushScene extends ModuleScene {
 
   private updateLedger(): void {
     this.ledger.setText(
-      `S = ${fmt(this.S)}   ·   intrinsic ${fmt(this.callIntrinsic)} + ${fmt(this.putIntrinsic)} = ${fmt(this.intrinsicTotal)}   −   premium ${fmt(this.premium)}   =   P&L ${fmtSigned(this.pnl)} (${fmtDollars(this.pnl)})`,
+      `Stock at ${fmt(this.S)}  ·  worth ${fmt(this.intrinsicTotal)} − paid ${fmt(this.premium)} = ${fmtSigned(this.pnl)} (${fmtDollars(this.pnl)})`,
     )
     const cleared = this.S < this.K - this.premium || this.S > this.K + this.premium
-    const text = cleared ? 'cleared BE → profit' : 'moved but lost — inside breakevens'
+    const text = cleared ? 'cleared a breakeven → profit' : 'moved but still lost (inside breakevens)'
     const col = cleared ? C.greenText : C.red
     const badgeY = 336
     this.badge.setText(text).setColor(hex(col))
@@ -380,8 +380,8 @@ export default class IVCrushScene extends ModuleScene {
     const premText = this.label(20, y - 26, '', { size: labelFs, col: C.ink, bold: true })
     const moveText = this.label(390, y - 26, '', { size: labelFs, col: C.ink, bold: true })
     const refresh = () => {
-      premText.setText(`pre-event IV (premium): ${fmt(this.premium)}`)
-      moveText.setText(`realized move: ${fmtSigned(this.move * 100)}% → S ${fmt(this.S)}`)
+      premText.setText(`option price: ${fmt(this.premium)}`)
+      moveText.setText(`stock move: ${fmtSigned(this.move * 100)}% → ${fmt(this.S)}`)
       this.drawV()
       this.drawPaidLine()
       // bar shown post-crush (intrinsic only); update dot + ledger + result live
@@ -393,8 +393,8 @@ export default class IVCrushScene extends ModuleScene {
     // amber dials — the live "act on me" affordance
     this.slider(20, y, 300, 3, 12, this.premium, (v) => { this.premium = v; refresh() }, { step: 0.5, col: C.amber })
     this.slider(390, y, 300, -0.15, 0.15, this.move, (v) => { this.move = v; refresh() }, { step: 0.01, col: C.amber })
-    premText.setText(`pre-event IV (premium): ${fmt(this.premium)}`)
-    moveText.setText(`realized move: ${fmtSigned(this.move * 100)}% → S ${fmt(this.S)}`)
+    premText.setText(`option price: ${fmt(this.premium)}`)
+    moveText.setText(`stock move: ${fmtSigned(this.move * 100)}% → ${fmt(this.S)}`)
   }
 
   // --- quiz (module 11, legacy) ---------------------------------------------
@@ -507,7 +507,7 @@ export default class IVCrushScene extends ModuleScene {
     // hint in the clear band below the panels/ledger/badge (the prompt + how-to also
     // live in the footer; this is just an in-canvas nudge by the draggable marker).
     // Removed on grade so the stale "drag … then run" instruction doesn't linger.
-    this.hintLabel = this.label(20, 388, 'drag the amber marker on the V → then run earnings + IV crush', {
+    this.hintLabel = this.label(20, 388, 'Drag the marker, then run it.', {
       size: this.fs(12, 12, 15), col: C.amberInk, bold: true,
     })
     this.setCanSubmit(true)
@@ -528,7 +528,7 @@ export default class IVCrushScene extends ModuleScene {
     const cleared = this.S < be.lower || this.S > be.upper
     const correct = cleared
 
-    const stamp = this.label(this.vx + this.vw / 2, this.vy + 40, cleared ? 'CLEARED A BE → PROFIT' : 'MOVED, STILL LOST', {
+    const stamp = this.label(this.vx + this.vw / 2, this.vy + 40, cleared ? 'CLEARED A BREAKEVEN' : 'MOVED, STILL LOST', {
       size: this.fs(13, 12, 16), col: cleared ? C.greenText : C.red, bold: true, align: 'center', bg: true,
     })
     if (!this.reduceMotion) {
@@ -538,10 +538,10 @@ export default class IVCrushScene extends ModuleScene {
 
     const title = correct
       ? `Profit — ${fmt(this.S)} cleared a breakeven · ${fmtSigned(this.pnl)}`
-      : `Lost — ${fmt(this.S)} is inside 93–107 · ${fmtSigned(this.pnl)}`
+      : `Lost — ${fmt(this.S)} is inside ${fmt(be.lower)}–${fmt(be.upper)} · ${fmtSigned(this.pnl)}`
     const detail = correct
-      ? `At S=${fmt(this.S)} the straddle is worth its intrinsic ${fmt(this.intrinsicTotal)} > the ${fmt(this.premium)} premium, so P&L = ${fmt(this.intrinsicTotal)} − ${fmt(this.premium)} = ${fmtSigned(this.pnl)} (${fmtDollars(this.pnl)}). You cleared a breakeven (${fmt(be.lower)} / ${fmt(be.upper)}) — that is what makes a long straddle profit, not the move alone. (IV crush still wipes any extrinsic value, but here intrinsic is enough.)`
-      : `The trap: the stock MOVED to ${fmt(this.S)} but that is INSIDE the breakevens ${fmt(be.lower)}–${fmt(be.upper)}. Intrinsic is only ${fmt(this.intrinsicTotal)}, less than the ${fmt(this.premium)} paid, so P&L = ${fmt(this.intrinsicTotal)} − ${fmt(this.premium)} = ${fmtSigned(this.pnl)} (${fmtDollars(this.pnl)}). To profit you must CLEAR a breakeven (below ${fmt(be.lower)} or above ${fmt(be.upper)}) — moving isn't enough. And IV crush removes any time value you'd hoped to sell.`
+      ? `At ${fmt(this.S)}, the straddle is worth ${fmt(this.intrinsicTotal)} — more than the ${fmt(this.premium)} you paid — so you profit ${fmtSigned(this.pnl)} (${fmtDollars(this.pnl)}). You cleared a breakeven (${fmt(be.lower)} or ${fmt(be.upper)}). That's what makes a long straddle win — not the move alone.`
+      : `The trap: the stock moved to ${fmt(this.S)}, but that's still inside the breakevens (${fmt(be.lower)}–${fmt(be.upper)}). It's only worth ${fmt(this.intrinsicTotal)}, less than the ${fmt(this.premium)} you paid, so you lose ${fmtSigned(this.pnl)} (${fmtDollars(this.pnl)}). To win, you must clear a breakeven — moving isn't enough.`
     this.report(correct, title, detail)
   }
 

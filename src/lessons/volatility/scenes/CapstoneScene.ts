@@ -65,7 +65,7 @@ export default class CapstoneScene extends ModuleScene {
     // Panel first, THEN the payoff graphics — otherwise the opaque white panel is drawn
     // on top of the curve and hides it (the "blank payoff" bug).
     this.panel(this.vx - 12, this.vy - 30, this.vw + 24, this.vh + 56, { fill: C.white, stroke: C.hairline, radius: 12 })
-    this.label(this.vx + this.vw / 2, this.vy - 18, 'your payoff (rich pre-event IV)', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
+    this.label(this.vx + this.vw / 2, this.vy - 18, 'your payoff (options are expensive)', { size: this.fs(12, 12, 15), col: C.muted, align: 'center' })
     this.payoffG = this.add.graphics()
 
     // controls (right column)
@@ -88,11 +88,11 @@ export default class CapstoneScene extends ModuleScene {
     ]
 
     const moveLabel = this.label(px, 232, '', { size: this.fs(13, 12, 16), col: C.ink, bold: true })
-    moveLabel.setText(`Realized move: S = ${fmt(this.realizedS)}`)
+    moveLabel.setText(`Stock lands at: ${fmt(this.realizedS)}`)
     // amber dial — the live "act on me" affordance
     this.slider(px, 250, 280, 80, 120, this.realizedS, (v) => {
       this.realizedS = v
-      moveLabel.setText(`Realized move: S = ${fmt(this.realizedS)} (set, or accept default)`)
+      moveLabel.setText(`Stock lands at: ${fmt(this.realizedS)} (or use default)`)
     }, { step: 0.5, col: C.amber })
 
     this.button(px + 90, 300, 'Run earnings ▶', () => this.runEarnings(), { w: 200, h: 34, fill: C.green })
@@ -193,13 +193,13 @@ export default class CapstoneScene extends ModuleScene {
     const panel = this.panel(cx, cyTop, cw, panelH, { fill: win ? C.greenSoft : C.redSoft, stroke: win ? C.green : C.red, radius: 12 })
     const verdict = this.label(cx + 16, cyTop + 20, win ? 'WIN' : 'LOSS', { size: this.fs(18, 16, 22), bold: true, col: win ? C.greenText : C.red })
     const ivNote = short
-      ? (insideBand ? 'Quiet pin — you kept the premium and IV crush helped you.' : 'Big move broke out — short risk bit (large loss).')
-      : (win ? 'You cleared a breakeven — the move was big enough.' : 'Moved but lost — the move stayed inside the breakevens. Clear the breakeven, not just move.')
+      ? (insideBand ? 'Quiet stock — you kept the cash, and the price drop helped you.' : 'Big move broke out — selling cost you (large loss).')
+      : (win ? 'You cleared a breakeven — the move was big enough.' : 'Moved but lost — it stayed inside the breakevens. Clear a breakeven, not just move.')
     // embedded check: was the expectation matched to the structure?
     const wellMatched = (this.expectBig && this.side === 'long') || (!this.expectBig && this.side === 'short')
     const lineFs = this.fs(13, 12, 16)
     // row 0 sits to the right of the verdict; rows 1 & 2 run full panel width
-    const line0 = this.label(cx + 78, cyTop + 20, `${this.structure} · ${this.side} · breakevens ${fmt(be.lower)} / ${fmt(be.upper)} · realized S = ${fmt(S)} (${insideBand ? 'inside' : 'outside'} the band)`,
+    const line0 = this.label(cx + 78, cyTop + 20, `${this.structure} · ${this.side} · breakevens ${fmt(be.lower)} / ${fmt(be.upper)} · stock ${fmt(S)} (${insideBand ? 'inside' : 'outside'} the band)`,
       { size: lineFs, col: C.ink })
     line0.setWordWrapWidth(cw - 92)
     const line1 = this.label(cx + 16, cyTop + 56, `P&L = ${fmtSigned(pnl)} per share (${fmtDollars(pnl)}).  ${ivNote}`,

@@ -94,7 +94,7 @@ export default class PayoffScene extends ModuleScene {
     }
 
     // Toggle long overlay (teach only shows it by default; toggle hides for focus)
-    this.button(150, 408, 'Toggle LONG overlay', () => {
+    this.button(150, 408, 'Show / hide LONG', () => {
       this.showLong = !this.showLong
       this.longLine?.setVisible(this.showLong)
       this.refreshReadout()

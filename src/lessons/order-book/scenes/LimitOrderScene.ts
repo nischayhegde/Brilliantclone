@@ -142,7 +142,7 @@ export default class LimitOrderScene extends ModuleScene {
       this.status(
         C.red,
         'Above the best bid',
-        'In the spread → this becomes the NEW best bid (still resting). At/above the ask it would CROSS like a market order — next module.',
+        'Inside the spread, it becomes the new best bid. At the ask, it would cross like a market order — next up.',
       )
       this.snapToRung(target)
       return

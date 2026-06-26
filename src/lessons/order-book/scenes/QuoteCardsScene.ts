@@ -153,7 +153,7 @@ export default class QuoteCardsScene extends ModuleScene {
       .text(0, -14, 'Crossed book — impossible', { fontFamily: FONT, fontSize: '14px', color: hex(C.red), fontStyle: 'bold' })
       .setOrigin(0.5)
     const t2 = this.add
-      .text(0, 11, 'A buyer paying ≥ the ask would just trade.', {
+      .text(0, 11, "A buyer won't pay more than the ask.", {
         fontFamily: FONT,
         fontSize: '12px',
         color: hex(C.red),
@@ -271,14 +271,14 @@ export default class QuoteCardsScene extends ModuleScene {
     let detail: string
     if (correct) {
       title = `Valid book · ${fmtPrice(this.target)} spread`
-      detail = `bid ${fmtPrice(this.bid)} < ask ${fmtPrice(this.ask)}, so the book is valid, and ask − bid = ${fmtPrice(spread)} hits the target exactly. Mid sits at the fair middle, ${this.fmtMid(mid)}.`
+      detail = `Bid ${fmtPrice(this.bid)} is below ask ${fmtPrice(this.ask)}, and the gap is exactly ${fmtPrice(spread)}. The mid sits right in the middle at ${this.fmtMid(mid)}.`
     } else if (!valid) {
       title = 'Crossed book — impossible'
-      detail = `You set bid ${fmtPrice(this.bid)} ≥ ask ${fmtPrice(this.ask)} (spread ${fmtPrice(spread)}). A book can never cross: a buyer willing to pay at or above the ask would simply trade. Always keep bid < ask.`
+      detail = `You set bid ${fmtPrice(this.bid)} at or above ask ${fmtPrice(this.ask)}. That can't happen — a buyer willing to pay the ask would just trade. Keep bid below ask.`
     } else {
       const dir = this.cents(spread) > this.cents(this.target) ? 'wide' : 'tight'
       title = `Valid, but ${fmtPrice(spread)} — not the target`
-      detail = `bid ${fmtPrice(this.bid)} < ask ${fmtPrice(this.ask)} is a valid book, but ask − bid = ${fmtPrice(spread)}, which is too ${dir}. The target was ${fmtPrice(this.target)} — measure the gap, not just the validity.`
+      detail = `Bid ${fmtPrice(this.bid)} below ask ${fmtPrice(this.ask)} is a valid book, but the gap is ${fmtPrice(spread)} — too ${dir}. The target was ${fmtPrice(this.target)}.`
     }
     // Defer the verdict by a tick so it lands AFTER the renderer flips to its
     // "awaiting" phase: the footer emits `submit`, we'd otherwise report() back
