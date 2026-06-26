@@ -16,7 +16,13 @@ export default function TopNav() {
             <Logo />
             <span className="font-display text-xl font-bold tracking-tight">Trilliant</span>
           </Link>
-          <Link to="/practice" className="text-sm font-semibold text-ink-soft transition hover:text-ink">
+          <Link
+            to="/practice"
+            className="inline-flex items-center gap-1.5 rounded-full bg-brand-amber-soft px-3.5 py-1.5 text-sm font-bold text-brand-amber-ink transition duration-200 ease-out hover:bg-brand-amber-dark hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-amber/40"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+              <path d="M8 5v14l11-7z" />
+            </svg>
             Practice
           </Link>
         </div>

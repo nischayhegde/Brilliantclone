@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import TopNav from '../components/TopNav'
 import LessonCard from '../components/LessonCard'
 import Spinner from '../components/ui/Spinner'
@@ -111,10 +111,58 @@ export default function DashboardPage() {
                 ))}
               </div>
             </section>
+
+            <div className="rise-in mt-12" style={{ animationDelay: '240ms' }}>
+              <PracticeCTA />
+            </div>
           </>
         )}
       </main>
     </div>
+  )
+}
+
+function PracticeCTA() {
+  const tracks = ['Charts', 'Options', 'Market making']
+
+  return (
+    <Link
+      to="/practice"
+      aria-label="Go to practice — trade real historical setups"
+      className="group relative block overflow-hidden rounded-3xl bg-brand-amber px-6 py-8 text-ink shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-brand-amber/45 sm:px-9 sm:py-10"
+    >
+      <CandleMotif className="pointer-events-none absolute -right-4 -top-2 hidden h-44 w-72 text-ink/[0.08] transition-transform duration-500 ease-out group-hover:translate-x-1 sm:block" />
+      <div className="relative flex flex-col gap-7 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
+        <div className="max-w-xl">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {tracks.map((t) => (
+              <span
+                key={t}
+                className="rounded-full bg-ink/[0.08] px-2.5 py-0.5 text-xs font-bold text-ink"
+              >
+                {t}
+              </span>
+            ))}
+          </div>
+          <h2 className="mt-3 font-display text-3xl font-bold leading-[1.04] sm:text-[2.5rem]">
+            Put your read to the test.
+          </h2>
+          <p className="mt-2.5 max-w-md text-[15px] leading-relaxed text-ink">
+            Trade real historical setups. You&rsquo;re graded on process — your plan, your risk, your
+            discipline — never on luck.
+          </p>
+        </div>
+        <span className="inline-flex shrink-0 items-center gap-2.5 self-start rounded-2xl bg-ink px-7 py-4 text-base font-bold text-white shadow-md transition duration-200 ease-out group-hover:bg-black group-hover:shadow-lg sm:self-auto sm:text-lg">
+          Start practicing
+          <span
+            aria-hidden="true"
+            className="transition-transform duration-200 ease-out group-hover:translate-x-1"
+          >
+            →
+          </span>
+        </span>
+      </div>
+    </Link>
   )
 }
 
