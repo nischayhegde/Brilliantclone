@@ -1,51 +1,59 @@
 import { describe, it, expect, vi } from 'vitest'
-import { composeScenario } from './composer'
-import type { DataCatalog, ModelClient } from './types'
+import { composeScenario, type ComposeApiResponse, type ComposeTransport } from './composer'
+import type { DataCatalog } from './types'
+import type { ScenarioSpec } from '../types'
 import { CANDLES } from '../../data/candles'
 
 const key = Object.keys(CANDLES)[0]
-// Literal catalog (buildCatalog is async/manifest-backed; composeScenario receives the catalog ready-made).
 const catalog: DataCatalog = {
   track: 'charts', candlesKeys: [key], ohlcAssets: [], chainAssets: [],
   rubricIds: ['charts-v1'], nudgeIds: ['sizing'],
 }
 const req = { track: 'charts' as const, tier: 1, accountBalance: 10000, catalog }
-const validJson = JSON.stringify({
-  id: 'llm-ok', track: 'charts', tier: 1, title: 'A test setup', brief: 'A clean teaching setup with no numbers.',
-  dataRef: { candlesKey: key, splitIndex: 3, revealToIndex: Math.min(CANDLES[key].length, 15) },
-  objective: { kind: 'process', passScore: 70 },
+
+// A server-validated LLM spec WITH a layout (the server always assembles one).
+const llmSpec: ScenarioSpec = {
+  id: 'llm-ok', track: 'charts', tier: 1, title: 'A test setup', brief: 'A clean teaching setup.',
+  dataRef: { candlesKey: key }, objective: { kind: 'process', passScore: 70 },
   constraints: { accountBalance: 10000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 },
   rubricId: 'charts-v1', nudges: [{ id: 'sizing' }], coachContextKeys: ['outcome'], source: 'llm',
-})
-
-const mock = (replies: string[]): ModelClient => {
-  let i = 0
-  return { generate: vi.fn().mockImplementation(async () => replies[Math.min(i++, replies.length - 1)]) }
+  layout: [{ id: 'chart', kind: 'candle-chart', config: {} }],
 }
 
-describe('composeScenario', () => {
-  it('returns the LLM spec when it validates on the first attempt', async () => {
-    const res = await composeScenario(req, mock([validJson]))
+const transport = (res: ComposeApiResponse): ComposeTransport => vi.fn().mockResolvedValue(res)
+
+describe('composeScenario (server-callable transport)', () => {
+  it('returns the server-composed LLM spec when the callable returns a spec', async () => {
+    const res = await composeScenario(req, transport({ spec: llmSpec }))
     expect(res.source).toBe('llm')
     expect(res.spec.id).toBe('llm-ok')
-    expect(res.attempts).toBe(1)
+    expect(res.spec.layout).toBeDefined()
   })
 
-  it('retries once on an invalid reply, then succeeds', async () => {
-    const res = await composeScenario(req, mock(['garbage', validJson]))
+  it('guarantees a layout on an LLM spec that somehow lacks one (defaultLayoutFor)', async () => {
+    const { layout: _omit, ...noLayout } = llmSpec
+    const res = await composeScenario(req, transport({ spec: noLayout as ScenarioSpec }))
     expect(res.source).toBe('llm')
-    expect(res.attempts).toBe(2)
+    expect(res.spec.layout?.length).toBeGreaterThan(0)
   })
 
-  it('falls back to a curated scenario after two failures', async () => {
-    const res = await composeScenario(req, mock(['nope', 'still nope']))
+  it('falls back to a curated spec (with a layout) when the server signals fallback', async () => {
+    const res = await composeScenario(req, transport({ fallback: true }))
     expect(res.source).toBe('curated')
     expect(res.spec.track).toBe('charts')
+    expect(res.spec.layout?.length).toBeGreaterThan(0)
   })
 
-  it('falls back to curated when the model throws (offline)', async () => {
-    const throwing: ModelClient = { generate: vi.fn().mockRejectedValue(new Error('offline')) }
+  it('falls back to curated when the callable throws (offline/rate-limited)', async () => {
+    const throwing: ComposeTransport = vi.fn().mockRejectedValue(new Error('offline'))
     const res = await composeScenario(req, throwing)
     expect(res.source).toBe('curated')
+    expect(res.spec.layout?.length).toBeGreaterThan(0)
+  })
+
+  it('uses curated content directly when no transport is configured (AI disabled)', async () => {
+    const res = await composeScenario(req, null)
+    expect(res.source).toBe('curated')
+    expect(res.spec.layout?.length).toBeGreaterThan(0)
   })
 })

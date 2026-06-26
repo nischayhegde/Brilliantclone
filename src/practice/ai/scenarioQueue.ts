@@ -1,5 +1,10 @@
 import type { ScenarioSpec, Track } from '../types'
 
+/**
+ * Background prefetch buffer for composed scenarios. Each buffered spec is a fully-formed
+ * LAYOUT spec — `composeScenario` guarantees a `layout` on every result (server-composed or
+ * curated fallback) — so `take()` always yields a WidgetHost-renderable scenario instantly.
+ */
 export const QUEUE_SIZE = 2
 
 export interface ScenarioQueue {

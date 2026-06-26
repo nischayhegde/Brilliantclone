@@ -7,13 +7,14 @@ import {
   persistPracticeState,
 } from '../services/practiceService'
 import { accountReducer, initialAccount, isRuined, type PracticeAccount } from '../practice/account'
-import { getScenario, scenariosFor } from '../practice/scenarioRegistry'
+import { getScenario } from '../practice/scenarioRegistry'
 import { summarizeRuin, type RuinSummary } from '../practice/reflect'
 import type { PracticeRun, ScenarioSpec, Track } from '../practice/types'
-import { getModelClient } from '../services/aiModel'
+import { getComposeFn } from '../services/aiModel'
 import { composeScenario, type ComposeResult } from '../practice/ai/composer'
 import { makeScenarioQueue } from '../practice/ai/scenarioQueue'
 import { buildCatalog } from '../practice/ai/catalog'
+import type { DataCatalog } from '../practice/ai/types'
 import { PracticeAnalytics, evReset } from '../practice/analytics'
 import { firestoreSink, noopSink } from '../services/analyticsSink'
 
@@ -92,25 +93,25 @@ export function PracticeProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
-  // One queue for the provider lifetime. compose() is LLM when a model exists, else curated.
+  // One queue for the provider lifetime. compose() calls the SERVER composeScenario callable
+  // (GPT-5.5-authored, server-validated LAYOUT spec) when wired, else a curated layout spec.
   const queue = useMemo(() => {
-    const model = getModelClient()
+    const composeFn = getComposeFn()
+    // composeScenario(req, null) only reads track/tier to pick a curated spec; the catalog is unused.
+    const curatedCatalog = (track: Track): DataCatalog => ({ track, candlesKeys: [], ohlcAssets: [], chainAssets: [], rubricIds: [], nudgeIds: [] })
     const compose = async (track: Track): Promise<ComposeResult> => {
       const tier = accountRef.current.tier[track]
-      const balance = accountRef.current.balance
-      if (!model) {
-        const atTier = scenariosFor(track, tier)
-        const pool = atTier.length ? atTier : scenariosFor(track)
-        return { spec: pool[Math.floor(Math.random() * pool.length)], source: 'curated', attempts: 0 }
-      }
-      // buildCatalog reads the full ingested manifests (cached after the first call).
+      const accountBalance = accountRef.current.balance
+      if (!composeFn) return composeScenario({ track, tier, accountBalance, catalog: curatedCatalog(track) }, null)
+      // buildCatalog reads the full ingested manifests (cached after the first call); the
+      // server validates the composed layout against this allow-list.
       const catalog = await buildCatalog(track)
-      return composeScenario({ track, tier, accountBalance: balance, catalog }, model)
+      return composeScenario({ track, tier, accountBalance, catalog }, composeFn)
     }
     return makeScenarioQueue(compose)
   }, [])
 
-  const aiEnabled = useMemo(() => getModelClient() !== null, [])
+  const aiEnabled = useMemo(() => getComposeFn() !== null, [])
 
   // Privacy-light analytics: writes go under the signed-in user's own document tree;
   // signed-out sessions use the no-op sink. The emitter swallows sink errors, so

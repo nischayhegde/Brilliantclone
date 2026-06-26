@@ -1,10 +1,13 @@
 import type { ScenarioSpec } from '../types'
-import type { ComposeRequest, ModelClient } from './types'
-import { buildComposerPrompt, parseComposerJson } from './composerPrompt'
-import { validateComposed } from './validateComposed'
+import type { ComposeRequest } from './types'
+import { defaultLayoutFor } from '../genui/defaultLayout'
 import { scenariosFor } from '../scenarioRegistry'
 
-export const MAX_COMPOSE_ATTEMPTS = 2
+/** The server callable response (mirrors functions `composeScenario`). */
+export type ComposeApiResponse = { spec: ScenarioSpec } | { fallback: true }
+
+/** Injectable compose transport — `getComposeFn()` (the httpsCallable wrapper) or a test fake. */
+export type ComposeTransport = (req: ComposeRequest) => Promise<ComposeApiResponse>
 
 export interface ComposeResult {
   spec: ScenarioSpec
@@ -12,26 +15,32 @@ export interface ComposeResult {
   attempts: number
 }
 
-/** Compose a validated scenario; retry ≤ MAX, then fall back to a curated spec. */
+/** Every served spec must carry a layout so WidgetHost can render it offline. */
+function ensureLayout(spec: ScenarioSpec): ScenarioSpec {
+  return spec.layout ? spec : { ...spec, layout: defaultLayoutFor(spec.track) }
+}
+
+/**
+ * Compose a validated LAYOUT scenario via the SERVER `composeScenario` callable (which builds
+ * the prompt + JSON schema and validates the model output server-side), falling back to a
+ * curated layout spec when the model is unavailable, signals a fallback, or the call fails.
+ *
+ * The retry/validation now lives server-side; the client trusts the returned spec (already
+ * validated against the catalog allow-list + numeric lint) and only guarantees a layout.
+ */
 export async function composeScenario(
   req: ComposeRequest,
-  model: ModelClient,
-  opts: { temperature?: number } = {},
+  transport: ComposeTransport | null,
 ): Promise<ComposeResult> {
-  const prompt = buildComposerPrompt(req)
-  for (let attempt = 1; attempt <= MAX_COMPOSE_ATTEMPTS; attempt++) {
+  if (transport) {
     try {
-      const reply = await model.generate(prompt, { temperature: opts.temperature ?? 0.8 })
-      const raw = parseComposerJson(reply)
-      // Pass the trusted account balance so grading constraints are server-owned (I3).
-      const res = validateComposed(raw, req.catalog, { accountBalance: req.accountBalance })
-      if (res.ok && res.spec) return { spec: res.spec, source: 'llm', attempts: attempt }
+      const res = await transport(req)
+      if ('spec' in res && res.spec) return { spec: ensureLayout(res.spec), source: 'llm', attempts: 1 }
     } catch {
-      // fall through to next attempt / curated fallback
+      // fall through to the curated fallback
     }
   }
-  const curated = pickCurated(req)
-  return { spec: curated, source: 'curated', attempts: MAX_COMPOSE_ATTEMPTS }
+  return { spec: ensureLayout(pickCurated(req)), source: 'curated', attempts: 1 }
 }
 
 function pickCurated(req: ComposeRequest): ScenarioSpec {

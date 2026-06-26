@@ -1,7 +1,8 @@
-import type { RiskConstraints, ScenarioSpec, Track } from '../types'
+import type { ScenarioSpec } from '../types'
 import type { DataCatalog } from './types'
 import { hasNumericClaim, validateSpec } from '../validator'
 import { layoutFitsTrack, validateLayout } from '../genui/schema'
+import { serverConstraints } from '../genui/composePrompt'
 import { CANDLES } from '../../data/candles'
 
 /** Fallback paper balance used to size grading constraints when none is supplied. */
@@ -13,17 +14,10 @@ export interface ComposedResult {
   errors: string[]
 }
 
-/**
- * Grading constraints are OWNED BY US, never read from model output. We rebuild them from
- * the (trusted) track + real account balance so a model cannot widen risk limits, lower the
- * reward:risk bar, or otherwise game the deterministic grader through free-form fields (I3).
- * These mirror the values the composer prompt requests, so a well-behaved model is unaffected.
- */
-export function serverConstraints(track: Track, accountBalance: number): RiskConstraints {
-  if (track === 'options') return { accountBalance, maxRiskPct: 5, requireDefinedRisk: true }
-  // charts + market-making trade an underlying: expect a defined stop and an R:R floor.
-  return { accountBalance, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 }
-}
+// `serverConstraints` (the single source of truth for grading limits) lives in the
+// isomorphic `genui/composePrompt` so the server composer and this client-side defensive
+// validator agree exactly.
+export { serverConstraints }
 
 export function validateComposed(
   raw: unknown,
