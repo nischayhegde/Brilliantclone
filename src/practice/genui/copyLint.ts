@@ -38,3 +38,42 @@ export function hasDisallowedClaim(text: string): boolean {
 export function hasNumericClaim(text: string): boolean {
   return NUMERIC_CLAIM_PATTERN.test(text)
 }
+
+/**
+ * Any numeral token in prose: optional `$`, optional thousands, optional decimals,
+ * optional trailing `%`. Used to whitelist-check generated prose (the hybrid grader's
+ * feedback) so a model can ONLY cite numbers we handed it — never invent a traded one.
+ * The leaf owns this so the client coach and the (mirrored) grade guard agree.
+ */
+export const NUMBER_TOKEN_PATTERN = /\$?\s?\d[\d,]*(?:\.\d+)?\s?%?/g
+
+export interface NumberToken {
+  /** The absolute numeric value of the token. */
+  value: number
+  /** Whether the token carried a trailing `%`. */
+  isPct: boolean
+}
+
+/** Extract every numeral token from prose as `{ value, isPct }` (abs value). */
+export function extractNumberTokens(text: string): NumberToken[] {
+  const out: NumberToken[] = []
+  for (const tok of text.match(NUMBER_TOKEN_PATTERN) ?? []) {
+    const isPct = tok.includes('%')
+    const value = Math.abs(parseFloat(tok.replace(/[$,\s%]/g, '')))
+    if (!Number.isNaN(value)) out.push({ value, isPct })
+  }
+  return out
+}
+
+/**
+ * True when EVERY numeral in `text` is within `eps` of some allowed value. The
+ * canonical "the model may only cite whitelisted numbers" check, shared by the
+ * grade-feedback sanitizer. Disallowed claims are checked separately.
+ */
+export function numbersWithinWhitelist(text: string, allowed: Iterable<number>, eps = 0.5): boolean {
+  const allow = [...allowed].map((n) => Math.abs(n))
+  for (const { value } of extractNumberTokens(text)) {
+    if (!allow.some((a) => Math.abs(a - value) < eps)) return false
+  }
+  return true
+}
