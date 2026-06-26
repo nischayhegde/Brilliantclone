@@ -29,9 +29,7 @@ function defaultPrices(scale: ChartScale, lastClose: number): Prices {
 
 /** Draggable + keyboard entry/stop/target lines over the shared chart. → Decision lines. */
 export default function PriceLines({ widget, onChange }: WidgetProps) {
-  if (widget.kind !== 'price-lines') return null
-  const require = widget.config.require
-  const minRR = widget.config.minRR
+  // Hooks run UNCONDITIONALLY (Rules of Hooks) — only the rendered OUTPUT is gated below.
   const reduced = useReducedMotion()
   const { candles, status, ref } = useResolvedCandles()
   const scale = useMemo(() => makeChartScale(candles), [candles])
@@ -40,6 +38,10 @@ export default function PriceLines({ widget, onChange }: WidgetProps) {
   const [prices, setPrices] = useState<Prices>(() => defaultPrices(scale, lastClose))
   const dragging = useRef<PriceLineId | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
+
+  if (widget.kind !== 'price-lines') return null
+  const require = widget.config.require
+  const minRR = widget.config.minRR
 
   const tick = Math.max(0.01, round2((scale.pmax - scale.pmin) * 0.005))
 

@@ -26,10 +26,17 @@ export const DISALLOWED_CLAIM_PATTERNS: RegExp[] = [
 ]
 
 /**
- * Price-like number in prose, e.g. "$182.50", "182.5", a bare "200" — LLM/widget copy
- * must avoid inventing specific numbers (the model never produces a traded number).
+ * Specific number in prose the LLM/widget copy must never invent (the model never produces
+ * a traded number). Catches:
+ *   - a `$` amount, incl. a single digit — "$182.50", "$5";
+ *   - a bare multi-digit number — "182.5", "200";
+ *   - a single-digit percentage — "risk 5%", "2.5%";
+ *   - a ratio like "5-to-1", "5 to 1", or "5:1" (reward:risk shorthand).
+ * Bare single digits on their own (e.g. "one analogy max") are deliberately NOT flagged so
+ * ordinary teaching prose is not over-blocked.
  */
-export const NUMERIC_CLAIM_PATTERN = /\$\s?\d[\d,]*(\.\d+)?|\b\d{2,}(\.\d+)?\b/
+export const NUMERIC_CLAIM_PATTERN =
+  /\$\s?\d[\d,]*(\.\d+)?|\b\d{2,}(\.\d+)?\b|\b\d+(?:\.\d+)?\s?%|\b\d+\s*(?:[-\s]*to[-\s]*|:)\s*\d+\b/
 
 export function hasDisallowedClaim(text: string): boolean {
   return DISALLOWED_CLAIM_PATTERNS.some((re) => re.test(text))

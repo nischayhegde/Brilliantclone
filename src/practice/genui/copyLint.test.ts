@@ -1,5 +1,27 @@
 import { describe, it, expect } from 'vitest'
-import { extractNumberTokens, numbersWithinWhitelist } from './copyLint'
+import { extractNumberTokens, hasNumericClaim, numbersWithinWhitelist } from './copyLint'
+
+describe('hasNumericClaim', () => {
+  it('flags a single-digit percentage (MIN-1)', () => {
+    expect(hasNumericClaim('Keep risk near 5% of the account.')).toBe(true)
+    expect(hasNumericClaim('Trim to about 2.5% per trade.')).toBe(true)
+  })
+  it('flags a single-digit reward:risk ratio (MIN-1)', () => {
+    expect(hasNumericClaim('Aim for a 5-to-1 payoff.')).toBe(true)
+    expect(hasNumericClaim('Target a 5 to 1 reward.')).toBe(true)
+    expect(hasNumericClaim('A clean 5:1 setup.')).toBe(true)
+  })
+  it('still flags $ amounts (incl. a single digit) and multi-digit numbers', () => {
+    expect(hasNumericClaim('Buy above $182.50.')).toBe(true)
+    expect(hasNumericClaim('It only costs $5.')).toBe(true)
+    expect(hasNumericClaim('A move to 200.')).toBe(true)
+  })
+  it('does not over-block clean, number-free teaching prose', () => {
+    expect(hasNumericClaim('Define your risk before you take the trade, or stand aside.')).toBe(false)
+    expect(hasNumericClaim('Reward should outweigh the risk; keep one analogy max.')).toBe(false)
+    expect(hasNumericClaim('Size the spread to the move and stay two-sided.')).toBe(false)
+  })
+})
 
 describe('extractNumberTokens', () => {
   it('extracts dollar, bare, and percent numerals as absolute values', () => {

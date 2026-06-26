@@ -19,9 +19,11 @@ function nearest(values: number[], to: number): number {
 
 /** Build defined-risk option legs from the REAL chain. → OptionsDecision.legs/managed. */
 export default function OptionLegBuilder({ widget, onChange }: WidgetProps) {
-  if (widget.kind !== 'option-leg-builder') return null
-  const { maxLegs, requireDefinedRisk, dataRef } = widget.config
-  const { chain, status } = useResolvedChain(dataRef)
+  // Hooks run UNCONDITIONALLY (Rules of Hooks) — only the rendered OUTPUT is gated below.
+  // Read this widget's config defensively (undefined for any other kind) so the hooks that
+  // depend on it (e.g. useResolvedChain) can still be called before the kind guard.
+  const config = widget.kind === 'option-leg-builder' ? widget.config : undefined
+  const { chain, status } = useResolvedChain(config?.dataRef)
   const { publish } = useLegs()
 
   const expirations = chain?.meta.expirations ?? []
@@ -53,6 +55,7 @@ export default function OptionLegBuilder({ widget, onChange }: WidgetProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strikes])
 
+  const requireDefinedRisk = config?.requireDefinedRisk
   const ok = requireDefinedRisk ? definedRisk(legs) : true
   // Emit to the host + publish to the shared legs context whenever the structure changes.
   useEffect(() => {
@@ -61,6 +64,9 @@ export default function OptionLegBuilder({ widget, onChange }: WidgetProps) {
     else onChange({ kind: 'option-leg-builder', legs, managed })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [legs, managed, ok])
+
+  if (widget.kind !== 'option-leg-builder') return null
+  const { maxLegs } = widget.config
 
   if (!chain) {
     return (
