@@ -108,7 +108,7 @@ describe('parseComposedLayout', () => {
 
 describe('serverConstraints', () => {
   it('builds track-owned grading constraints from the trusted balance', () => {
-    expect(serverConstraints('charts', 25000)).toEqual({ accountBalance: 25000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 })
+    expect(serverConstraints('charts', 25000)).toEqual({ accountBalance: 25000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.2 })
     expect(serverConstraints('options', 25000)).toEqual({ accountBalance: 25000, maxRiskPct: 5, requireDefinedRisk: true })
   })
 })
@@ -134,7 +134,7 @@ describe('assembleComposedSpec', () => {
     expect(res.ok).toBe(true)
     expect(res.spec?.id).toBe('fixed-id')
     expect(res.spec?.source).toBe('llm')
-    expect(res.spec?.constraints).toEqual({ accountBalance: 10000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 })
+    expect(res.spec?.constraints).toEqual({ accountBalance: 10000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.2 })
     expect(res.spec?.dataRef.candlesKey).toBe('NVDA_DEMO')
     expect(res.spec?.layout).toBeDefined()
   })

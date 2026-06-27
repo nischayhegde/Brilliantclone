@@ -70,12 +70,17 @@ export function defaultNudgeIds(track: Track): string[] {
 export function buildComposeInstructions(): string {
   return [
     'You are a curriculum designer who composes a single trading-practice SCENARIO as an interactive LAYOUT of validated widgets. You are NOT a forecaster or an advisor.',
+    'Your audience is BEGINNERS — assume the learner is brand new to trading and easily overwhelmed.',
     'HARD RULES — you NEVER break these:',
     '- NEVER predict a price, recommend a trade, or give financial advice.',
     '- NEVER invent any market number (price, premium, Greek, P&L, percentage). You only REFERENCE real data by key; the app loads the real numbers.',
     '- All copy (title, brief, narrative, widget labels/prompts) is teaching prose ONLY — a setup plus an objective, with NO specific numbers.',
     '- Compose ONLY from the allowed widget kinds for the track; give every widget a unique id and a valid config.',
     '- Teach the WHY. Defer every traded number to the real data the app resolves.',
+    'STYLE — write for a new trader:',
+    '- Use plain, warm, encouraging language and short sentences. Avoid jargon; if a term is truly needed, explain it in a few plain words.',
+    '- Keep it SIMPLE. Favour the FEWEST widgets that still let the learner make a complete decision — clarity beats cleverness.',
+    '- Scale complexity to the tier: low tiers get a minimal layout (the chart plus the core decision, maybe one short framing note); add extra context, choices, or checklists only at higher tiers. When unsure, choose fewer widgets and plainer wording.',
     'Return STRICT JSON matching the provided schema — no markdown, no commentary.',
   ].join('\n')
 }
@@ -89,12 +94,18 @@ export function buildComposeInput(req: ComposeRequest, opts: { rng?: () => numbe
   const all = track === 'options' ? catalog.chainAssets : [...catalog.candlesKeys, ...catalog.ohlcAssets]
   const refs = sampleRefs(all, SAMPLE_REFS, opts.rng)
   const kinds = widgetKindsForTrack(track)
+  // Lower tiers are where new traders live — explicitly ask for a gentle, minimal scene.
+  const complexityNote =
+    tier <= 2
+      ? 'This learner is NEW. Keep the layout minimal and welcoming: the real chart, the core decision widgets, and at most one short framing or context widget. Use plain, encouraging language and explain any term you use.'
+      : 'Scale the layout to the tier, but keep the language plain and every decision clear; never pile on widgets for their own sake.'
   return [
     `Compose for track "${track}", tier ${tier}, account balance $${accountBalance}.`,
     'Choose ONE real-data ref that best fits the lesson you design (the app loads it; you never see its numbers):',
     refs.map((r) => `  - ${r}`).join('\n'),
     `Allowed widget kinds for this track: ${kinds.join(', ')}.`,
     'Build a coherent layout: framing/context widgets, the real chart, and the interactive widgets the track needs to express a complete decision. Vary the structure so scenarios stay fresh.',
+    complexityNote,
     `Pick a rubricId from: ${catalog.rubricIds.join(', ')}.`,
     `Pick nudge ids (zero or more) from: ${catalog.nudgeIds.join(', ')}.`,
     'Output JSON with: title, brief, narrative (scenario framing), dataRef (your chosen ref), layout (the widgets), rubricId, nudgeIds.',
@@ -190,7 +201,9 @@ export function parseComposedLayout(json: unknown): ComposedDraft {
 export function serverConstraints(track: Track, accountBalance: number): RiskConstraints {
   if (track === 'options') return { accountBalance, maxRiskPct: 5, requireDefinedRisk: true }
   // charts + market-making trade an underlying: expect a defined stop and an R:R floor.
-  return { accountBalance, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 }
+  // The floor is gentle (reward need only modestly beat risk) so new traders aren't failed
+  // on the ratio when their entry/stop/target are otherwise coherent.
+  return { accountBalance, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.2 }
 }
 
 /** Derive the snapshot date from a chain asset path, e.g. `data/options/AAPL__2021-02-17.json`. */
@@ -299,7 +312,7 @@ export function assembleComposedSpec(
     title: draft.title,
     brief: draft.brief,
     dataRef: resolveDataRef(track, draft, catalog, rng),
-    objective: { kind: 'process', passScore: 70 },
+    objective: { kind: 'process', passScore: 60 },
     constraints: serverConstraints(track, accountBalance),
     rubricId,
     nudges: nudgeIds.map((id) => ({ id })),

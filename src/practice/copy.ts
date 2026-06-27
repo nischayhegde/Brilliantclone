@@ -4,9 +4,9 @@ export const DISCLAIMER =
   'Paper trading for education only. Scenarios use real historical data; outcomes are not predictions and this is not financial advice.'
 
 export const TRACK_BLURB: Record<Track, string> = {
-  charts: 'Read a real chart, define your risk, and trade a pattern. Graded on process, not luck.',
-  options: 'Build a defined-risk options position from a real chain and manage it to expiry.',
-  'market-making': 'Quote a two-sided market over a real session. Earn the spread, manage inventory and adverse selection.',
+  charts: 'Read a real chart, decide whether to trade, and plan your risk. You are scored on your thinking, not on whether the trade happened to win.',
+  options: 'Build an options position where the most you can lose is known up front, using real market data, then see how it plays out.',
+  'market-making': 'Set a price to buy at and a price to sell at over a real session. Earn the small gap between them while keeping what you hold under control.',
 }
 
 export const FEELING_LABEL: Record<Feeling, string> = {

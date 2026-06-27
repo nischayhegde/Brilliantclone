@@ -27,27 +27,27 @@ export interface Nudge {
 export const NUDGES: Record<string, Nudge> = {
   sizing: {
     id: 'sizing',
-    copy: 'This risks more than 2% of your account on one trade. Pros usually risk 1–2%.',
+    copy: 'Heads up — this puts a fairly large slice of your account on one trade. A gentle habit is to risk only a small amount on any single trade, so one rough patch never sinks you. Consider trimming your size.',
     triggered: (c) => c.riskDollars > (c.constraints.maxRiskPct / 100) * c.constraints.accountBalance,
   },
   'no-stop': {
     id: 'no-stop',
-    copy: 'No stop set — your max loss is undefined. Decide where you are wrong before you enter.',
+    copy: 'You have not set a stop yet. A stop is simply the price where you would admit the trade is not working and step out. Without one, there is no limit on what the trade can cost you, so it helps to pick that price before you enter.',
     triggered: (c) => !c.hasStop,
   },
   'undefined-risk': {
     id: 'undefined-risk',
-    copy: 'This leg has unbounded loss. Want to define it with a spread?',
+    copy: 'This position could lose much more than you put in — its downside is open-ended. You can cap it by adding a second option (a spread) so your worst case is known up front. Want to do that?',
     triggered: (c) => c.hasUndefinedRiskLeg,
   },
   overtrading: {
     id: 'overtrading',
-    copy: 'Several trades in quick succession. Overtrading is the #1 account killer.',
+    copy: 'That is several trades in a short stretch. Trading a lot, very fast, tends to cost new traders more than it earns. There is no rush — waiting for a clear setup is usually the stronger move.',
     triggered: (c) => c.tradesInWindow >= 4,
   },
   'spread-too-tight': {
     id: 'spread-too-tight',
-    copy: 'Your spread is much tighter than this name’s volatility — you’ll get picked off (adverse selection). Widen it.',
+    copy: 'Your buy and sell prices are very close together compared with how much this name moves. When that happens, your orders tend to get filled right before the price runs against you. Widening the gap gives you more cushion.',
     triggered: (ctx) => {
       const d = ctx.decision as { bidWidth?: number; askWidth?: number } | undefined
       const sigma = ctx.sigma
@@ -57,7 +57,7 @@ export const NUDGES: Record<string, Nudge> = {
   },
   'inventory-runaway': {
     id: 'inventory-runaway',
-    copy: 'Your inventory cap is huge relative to your account — one trend and you’re carrying risk you can’t cover.',
+    copy: 'The amount you are willing to hold is large compared with your account. If the price keeps moving one way, that can become more risk than you can comfortably cover. A smaller cap keeps you safe.',
     triggered: (ctx) => {
       const d = ctx.decision as { maxInventory?: number } | undefined
       const mid = ctx.finalMid ?? 100

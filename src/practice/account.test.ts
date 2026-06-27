@@ -34,8 +34,8 @@ describe('accountReducer APPLY_RESULT', () => {
 
   it('moves the per-track skill toward the latest score (EMA), leaving other tracks untouched', () => {
     const a = apply(initialAccount(), 'charts', 100, 0)
-    // EMA from 0 toward 100 with alpha 0.3 → 30
-    expect(a.skill.charts).toBeCloseTo(30, 5)
+    // EMA from 0 toward 100 with the gentle alpha 0.2 → 20 (slow, beginner-friendly climb)
+    expect(a.skill.charts).toBeCloseTo(20, 5)
     expect(a.skill.options).toBe(0)
   })
 
@@ -72,14 +72,14 @@ describe('isRuined', () => {
 
 describe('nextTier hysteresis', () => {
   it('raises a tier as soon as skill crosses the next threshold', () => {
-    // TIER_THRESHOLDS = [0,35,55,72,88]; at skill 56 tier should be 3.
-    expect(nextTier(2, 56)).toBe(3)
+    // TIER_THRESHOLDS = [0,45,65,80,92]; at skill 66 tier should be 3.
+    expect(nextTier(2, 66)).toBe(3)
   })
   it('does NOT drop a tier until skill falls a full hysteresis band below the current floor', () => {
-    // At tier 3 (floor 55): skill 53 is within HYSTERESIS(6) of 55 → stay at 3.
-    expect(nextTier(3, 53)).toBe(3)
-    // skill 48 (< 55-6=49) → drop to 2.
-    expect(nextTier(3, 48)).toBe(2)
+    // At tier 3 (floor 65): skill 60 is within HYSTERESIS(8) of 65 → stay at 3.
+    expect(nextTier(3, 60)).toBe(3)
+    // skill 56 (< 65-8=57) → drop to 2.
+    expect(nextTier(3, 56)).toBe(2)
   })
   it('never drops below tier 1', () => {
     expect(nextTier(1, -100)).toBe(1)

@@ -5,8 +5,12 @@ import { CANDLES } from '../data/candles'
 /** Length of a bundled candles series (0 when the key is unknown). */
 const K = (k: string): number => CANDLES[k]?.length ?? 0
 
-/** R:R floor used as the price-lines display hint, matching the tier's rubric target. */
-const rrFor = (tier: number): number => (tier >= 3 ? 2.5 : tier >= 2 ? 2 : 1.5)
+/**
+ * R:R floor used as the price-lines display hint, matching the tier's rubric target.
+ * Eased for new traders: a beginner only needs reward to modestly beat risk (tier 1),
+ * and even the top curated tier asks for a sane, achievable ratio rather than a demanding one.
+ */
+const rrFor = (tier: number): number => (tier >= 3 ? 2 : tier >= 2 ? 1.5 : 1.2)
 
 // ── Curated layouts (the offline / cold-start / AI-off showcase) ──────────────
 // Every curated spec ships a rich, validated layout so AI-off play, the composer
@@ -29,7 +33,7 @@ function chartsLayout(tier: number): ScenarioLayout {
       kind: 'narrative',
       config: {
         heading: 'The setup',
-        body: 'Real price action runs up to the decision point. If the structure supports a trade, define your risk and take it; otherwise stand aside.',
+        body: 'Here is real price action up to the moment you decide. Take your time. If the chart gives you a clear reason to trade, plan your risk first and go. If it does not, skipping is a perfectly good choice.',
       },
     },
   ]
@@ -39,21 +43,21 @@ function chartsLayout(tier: number): ScenarioLayout {
         id: 'news',
         kind: 'news-headline',
         config: {
-          headline: 'Sector rotation keeps the tape choppy',
+          headline: 'The market has been choppy lately',
           source: 'Market Wire',
-          body: 'Traders are repositioning; treat the backdrop as context, never as a reason to chase.',
+          body: 'This is just background. It is a reason to be patient, not a reason to jump in.',
         },
       },
       {
         id: 'read',
         kind: 'multiple-choice',
         config: {
-          prompt: 'What is the dominant structure here?',
+          prompt: 'What is the chart mostly doing right now?',
           options: [
-            { id: 'trend', label: 'Trend continuation' },
-            { id: 'range', label: 'Range and chop' },
-            { id: 'reversal', label: 'Possible reversal' },
-            { id: 'noread', label: 'No clean read' },
+            { id: 'trend', label: 'Heading in one direction' },
+            { id: 'range', label: 'Going sideways' },
+            { id: 'reversal', label: 'Maybe turning around' },
+            { id: 'noread', label: 'Hard to tell' },
           ],
         },
       },
@@ -73,10 +77,9 @@ function chartsLayout(tier: number): ScenarioLayout {
       kind: 'checklist',
       config: {
         items: [
-          { id: 'risk-defined', label: 'Risk is defined before entry' },
-          { id: 'reward', label: 'Reward outweighs the risk' },
-          { id: 'size-fits', label: 'Size fits the account' },
-          { id: 'plan', label: 'Plan survives a quick adverse move' },
+          { id: 'risk-defined', label: 'I know where I will get out if I am wrong' },
+          { id: 'reward', label: 'The reward is bigger than what I am risking' },
+          { id: 'size-fits', label: 'My size is small enough to be comfortable' },
         ],
       },
     })
@@ -97,7 +100,7 @@ function optionsLayout(tier: number): ScenarioLayout {
       kind: 'narrative',
       config: {
         heading: 'Build the position',
-        body: 'Build a defined-risk position from the real chain. Choose structure and strikes so the worst case is capped before you need to be right.',
+        body: 'Build a position where you know the most you can lose before you start. Pick a simple structure from the real options listed so your worst case stays small and capped.',
       },
     },
   ]
@@ -106,9 +109,9 @@ function optionsLayout(tier: number): ScenarioLayout {
       id: 'news',
       kind: 'news-headline',
       config: {
-        headline: 'Event risk lifts implied volatility',
+        headline: 'A big news event is coming up',
         source: 'Options Desk',
-        body: 'Premiums are rich into the catalyst; structure matters more than picking a direction.',
+        body: 'Option prices tend to get more expensive around events like this. How you build the position matters more than guessing the direction.',
       },
     })
   }
@@ -117,11 +120,11 @@ function optionsLayout(tier: number): ScenarioLayout {
       id: 'thesis',
       kind: 'multiple-choice',
       config: {
-        prompt: 'What is your core thesis?',
+        prompt: 'What is your main idea here?',
         options: [
-          { id: 'directional', label: 'Mildly directional' },
-          { id: 'premium', label: 'Range-bound premium capture' },
-          { id: 'vol', label: 'Volatility expansion' },
+          { id: 'directional', label: 'I lean gently one way' },
+          { id: 'premium', label: 'I think it stays calm and rangebound' },
+          { id: 'vol', label: 'I expect a big move either way' },
         ],
       },
     })
@@ -137,10 +140,9 @@ function optionsLayout(tier: number): ScenarioLayout {
       kind: 'checklist',
       config: {
         items: [
-          { id: 'max-loss', label: 'Maximum loss is defined' },
-          { id: 'budget', label: 'Position fits the risk budget' },
-          { id: 'strikes', label: 'Strikes and expiry match the thesis' },
-          { id: 'manage', label: 'Management plan is set' },
+          { id: 'max-loss', label: 'I know the most I can lose' },
+          { id: 'budget', label: 'This fits my risk budget' },
+          { id: 'strikes', label: 'My strikes and timing match my idea' },
         ],
       },
     })
@@ -163,7 +165,7 @@ function marketMakingLayout(tier: number): ScenarioLayout {
       kind: 'narrative',
       config: {
         heading: 'Make the market',
-        body: 'Post a two-sided market. Earn the spread while keeping inventory under control as real price moves.',
+        body: 'Set a price to buy at and a price to sell at, and try to earn the small gap between them. Keep an eye on how much you end up holding as the price moves.',
       },
     },
   ]
@@ -172,9 +174,9 @@ function marketMakingLayout(tier: number): ScenarioLayout {
       id: 'news',
       kind: 'news-headline',
       config: {
-        headline: 'One-way flow tests two-sided quotes',
+        headline: 'Today the price keeps pushing one way',
         source: 'Trading Floor',
-        body: 'A directional run can load you against the move; discipline on inventory matters more than chasing fills.',
+        body: 'When everyone trades in one direction, you can end up holding a lot against the move. Staying disciplined about how much you hold matters more than filling every order.',
       },
     })
   }
@@ -188,11 +190,11 @@ function marketMakingLayout(tier: number): ScenarioLayout {
         id: 'regime',
         kind: 'multiple-choice',
         config: {
-          prompt: 'What regime is this session?',
+          prompt: 'What kind of session does this look like?',
           options: [
-            { id: 'quiet', label: 'Quiet range' },
-            { id: 'choppy', label: 'Choppy two-way' },
-            { id: 'trend', label: 'Trending one-way' },
+            { id: 'quiet', label: 'Calm and quiet' },
+            { id: 'choppy', label: 'Choppy, going both ways' },
+            { id: 'trend', label: 'Pushing one direction' },
           ],
         },
       },
@@ -201,9 +203,9 @@ function marketMakingLayout(tier: number): ScenarioLayout {
         kind: 'checklist',
         config: {
           items: [
-            { id: 'spread', label: 'Spread is sized to the move' },
-            { id: 'cap', label: 'Inventory cap is sane' },
-            { id: 'both', label: 'Both sides stay quoted' },
+            { id: 'spread', label: 'My buy/sell gap fits how much the price is moving' },
+            { id: 'cap', label: 'I am not letting myself hold too much' },
+            { id: 'both', label: 'I am quoting both a buy and a sell price' },
           ],
         },
       },
@@ -232,15 +234,16 @@ function chartsSpec(
     tier,
     title: 'Take it or skip it?',
     brief:
-      'Real price action up to a decision point. If the setup is sound, set your size, stop, and target; otherwise stay out.',
+      'Here is real price action leading up to a decision point. If the setup looks sound, plan your trade — your size, a stop in case you are wrong, and a target. If it does not, staying out is a perfectly good choice.',
     dataRef: { candlesKey, splitIndex: Math.max(1, Math.floor(len * 0.6)), revealToIndex: len },
-    objective: { kind: 'process', passScore: 70 },
+    objective: { kind: 'process', passScore: 60 },
     constraints: {
       accountBalance: 10000,
       maxRiskPct: 2,
       requireStop: true,
-      // Complexity scales with tier (rubric R:R target), never the market odds.
-      minRewardRisk: tier >= 3 ? 2.5 : tier >= 2 ? 2 : 1.5,
+      // Complexity scales with tier (rubric R:R target), never the market odds. Targets are
+      // kept gentle so a beginner who manages risk sensibly is not failed on the ratio alone.
+      minRewardRisk: tier >= 3 ? 2 : tier >= 2 ? 1.5 : 1.2,
     },
     rubricId: 'charts-v1',
     nudges: [{ id: 'sizing' }, { id: 'no-stop' }],
@@ -266,7 +269,7 @@ function optionsSpec(id: string, tier: number, chainAsset: string, decisionDate:
     title: 'Build a defined-risk position',
     brief,
     dataRef: { chainAsset, decisionDate },
-    objective: { kind: 'process', passScore: 70 },
+    objective: { kind: 'process', passScore: 60 },
     constraints: { accountBalance: 10000, maxRiskPct: 5, requireDefinedRisk: true },
     rubricId: 'options-v1',
     nudges: [{ id: 'undefined-risk' }, { id: 'sizing' }],
@@ -305,11 +308,11 @@ export const SCENARIOS: ScenarioSpec[] = [
 SCENARIOS.push(
   // Tier 1 — single-leg / simple verticals on liquid names.
   optionsSpec('opt-t1-01', 1, 'data/options/DIS__2021-02-17.json', '2021-02-17',
-    'You are mildly bullish DIS into spring. Build a defined-risk position that profits if it holds up — size it so the worst case is small.'),
+    'You think DIS holds up or drifts higher into spring. Build a position where the most you can lose is small and known from the very start.'),
   optionsSpec('opt-t1-02', 1, 'data/options/AAPL__2021-04-16.json', '2021-04-16',
-    'You expect AAPL to drift higher but want a capped downside. Structure a position whose maximum loss is defined from the start.'),
+    'You think AAPL drifts higher, but you want to limit your downside. Build a position whose largest possible loss is fixed before you begin.'),
   optionsSpec('opt-t1-03', 1, 'data/options/MSFT__2023-02-17.json', '2023-02-17',
-    'MSFT looks range-bound to you. Collect some premium with a position whose loss is bounded — keep the risk inside your budget.'),
+    'You think MSFT stays calm and in a range. Build a steady position that can earn a little, with a loss that stays capped and inside your budget.'),
   // Tier 2 — spreads with strike/expiry tradeoffs.
   optionsSpec('opt-t2-01', 2, 'data/options/JPM__2021-06-16.json', '2021-06-16',
     'You think JPM stays above support. Sell premium with a vertical spread: pick a sane short delta and define the loss with a long wing.'),
@@ -348,7 +351,7 @@ function marketMakingSpec(
     title,
     brief,
     dataRef: { candlesKey },
-    objective: { kind: 'process', passScore: 70 },
+    objective: { kind: 'process', passScore: 60 },
     constraints: { accountBalance: 10000, maxRiskPct: 5 },
     rubricId: 'market-making-v1',
     nudges: [{ id: 'spread-too-tight' }, { id: 'inventory-runaway' }],
@@ -364,17 +367,17 @@ function marketMakingSpec(
 SCENARIOS.push(
   // Tier 1 — calm, range-bound: earn the spread, keep inventory near flat.
   marketMakingSpec('mm-t1-01', 1, 'asctri_quiz_AMD', 'Make a market in a quiet session',
-    'A calm, range-bound name. Post a two-sided quote and earn the spread while keeping your inventory near flat — size the spread to the realized move.'),
+    'A calm, quiet name. Set a buy price and a sell price, earn the small gap between them, and try not to end up holding much in either direction.'),
   marketMakingSpec('mm-t1-02', 1, 'pltr_2024', 'Quote both sides in a quiet tape',
-    'Price is drifting gently. Set bid and ask widths around the mid, pick a quote size, and cap your inventory so a quiet session stays a quiet session.'),
+    'Price is drifting gently. Choose how far below and above the middle to set your buy and sell prices, pick how much to trade, and cap how much you are willing to hold.'),
   // Tier 2 — choppier vol: spread sizing matters more.
   marketMakingSpec('mm-t2-01', 2, 'cupHandle_quiz_DIS', 'Size your spread to the volatility',
-    'The tape is choppier here. Too tight and you get picked off; too wide and you barely fill. Tune your spread to the realized move and stay two-sided.'),
+    'Things are choppier here. If your buy/sell gap is too small you will get run over; too wide and you will barely trade. Match the gap to how much the price is moving, and keep quoting both sides.'),
   marketMakingSpec('mm-t2-02', 2, 'hs_quiz_META', 'Earn the spread without overstaying',
     'Moderate volatility with swings both ways. Quote both sides, size to the move, and keep your inventory cap sane relative to your account.'),
   // Tier 3 — a trending session: inventory + adverse-selection management is the lesson.
   marketMakingSpec('mm-t3-01', 3, 'gme_squeeze_2021', 'Manage inventory through a trend',
-    'A strong directional run. One-sided flow will load you up against the move — manage your skew and your cap so adverse selection does not bury the spread you captured.'),
+    'A strong one-way run. Steady one-direction trading can leave you holding a lot against the move — manage how much you hold so it does not wipe out the gap you earned.'),
   marketMakingSpec('mm-t3-02', 3, 'vw_squeeze_2008', 'Survive a violent move',
     'A violent, trending regime. Keep quoting both sides but respect your inventory cap — the lesson here is discipline, not printing green.'),
 )
@@ -407,7 +410,7 @@ function pickWindow(len: number, rng: () => number): { start: number; windowLen:
 
 const MM_TITLES = ['Make the market', 'Quote both sides', 'Earn the spread', 'Hold a two-sided market']
 const MM_BRIEF =
-  'Post a two-sided market over a real session. Earn the spread while keeping inventory under control as price moves.'
+  'Set a price to buy at and a price to sell at over a real session. Try to earn the small gap between them while keeping an eye on how much you end up holding as the price moves.'
 
 /**
  * Build a fresh procedural scenario for charts / market-making over a random real window.

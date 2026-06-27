@@ -57,6 +57,6 @@ describe('validateComposed', () => {
       { accountBalance: 25000 },
     )
     expect(r.ok).toBe(true)
-    expect(r.spec?.constraints).toEqual({ accountBalance: 25000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 })
+    expect(r.spec?.constraints).toEqual({ accountBalance: 25000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.2 })
   })
 })

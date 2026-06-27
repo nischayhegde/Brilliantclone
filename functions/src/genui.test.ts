@@ -74,7 +74,7 @@ describe('runCompose (server-side compose, mocked model)', () => {
     expect('spec' in res).toBe(true)
     if ('spec' in res) {
       expect(res.spec.source).toBe('llm')
-      expect(res.spec.constraints).toEqual({ accountBalance: 10000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.5 })
+      expect(res.spec.constraints).toEqual({ accountBalance: 10000, maxRiskPct: 2, requireStop: true, minRewardRisk: 1.2 })
       expect(res.spec.dataRef.candlesKey).toBe('AAPL__1d')
       expect(res.spec.layout?.length).toBeGreaterThan(0)
     }

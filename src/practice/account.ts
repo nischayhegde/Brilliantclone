@@ -2,10 +2,18 @@ import type { Track } from './types'
 
 export const STARTING_BALANCE = 10000
 export const RUIN_FLOOR = 1000
-/** EMA weight on the newest score; smaller = smoother, slower to react. */
-export const SKILL_ALPHA = 0.3
-/** Rolling-skill cutoffs → tier. Index i means "tier i+1 starts at this skill". */
-export const TIER_THRESHOLDS = [0, 35, 55, 72, 88] as const
+/**
+ * EMA weight on the newest score; smaller = smoother, slower to react. Kept gentle
+ * (0.2) so a new trader is never vaulted into harder tiers by a lucky score or two —
+ * difficulty rises only after a steady run of strong process.
+ */
+export const SKILL_ALPHA = 0.2
+/**
+ * Rolling-skill cutoffs → tier. Index i means "tier i+1 starts at this skill". Spaced
+ * out so beginners spend plenty of time on the easy tiers before complexity is added;
+ * tier 1 covers the whole 0–44 band, which is where most new traders live for a while.
+ */
+export const TIER_THRESHOLDS = [0, 45, 65, 80, 92] as const
 
 export type TrackMap<T> = Record<Track, T>
 
@@ -40,7 +48,7 @@ export function isRuined(a: PracticeAccount): boolean {
 }
 
 /** Skill margin a tier must lose before it demotes (prevents tier thrash). */
-export const HYSTERESIS = 6
+export const HYSTERESIS = 8
 
 /** Tier given the previous tier + new skill, with downward hysteresis. */
 export function nextTier(prevTier: number, skill: number): number {
